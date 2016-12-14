@@ -1,0 +1,235 @@
+package com.clicktable.support.model;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Max;
+import play.data.validation.Constraints.MaxLength;
+import play.data.validation.Constraints.Min;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+/*
+ * created by j.yadav
+ */
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "invoice")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_dt")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_dt")) })
+public class Invoice extends BaseEntity {
+
+	/**
+	 * Constructor for Invoice.
+	 */
+	public Invoice() {
+
+		super();
+	}
+
+	/**
+	 * Method toString.
+	 * 
+	 * @return String
+	 */
+	@Override
+	public String toString() {
+		return "Invoice [guid=" + id + ", restaurantGuid=" + restaurantGuid
+				+ ", restaurantName=" + restaurantName + ", ownerName="
+				+ ownerName + ", ownerAddress=" + ownerAddressLine1
+				+ ownerAddressLine2 + ", ownerEmail=" + ownerEmail
+				+ ", ownerPhone=" + ownerPhone + ", date=" + date
+				+ ", basicAmount=" + basicAmount + ", discount=" + discount
+				+ ", invoiceAmount=" + invoiceAmount + ", paymentDt="
+				+ paymentDate + ", status=" + status + ", currency=" + currency
+				+ ", taxYear=" + taxYear + ", remarks=" + remarks
+				+ ", roundAmount=" + roundAmount + ", dueDt=" + dueDate
+				+ ", invToCountry=" + invToCountry + ", invToState="
+				+ invToState + ", unbilledAmount=" + unbilledAmount
+				+ ", month=" + month + ", year=" + year + "]";
+	}
+
+	private static final long serialVersionUID = 9058605119475876333L;
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	@Required(message = ErrorCodes.INVOICE_REST_GUID_REQUIRED)
+	@MaxLength(message = ErrorCodes.INVOICE_REST_GUID_MAXLENGTH, value = 50)
+	@Column(name = "restaurant_guid")
+	private String restaurantGuid;
+
+	@Column(name = "status")
+	private String status = Constants.CREATED;
+
+	@Column(name = "currency")
+	private String currency = Constants.CURRENCY_IND;
+	@Column(name = "basic_amount")
+	private Float basicAmount;
+
+	@Column(name = "tax_amount")
+	private Float taxAmount;
+
+	@Max(message = ErrorCodes.INVOICE_AMOUNT_MAX_VALUE, value = (long) Float.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_AMOUNT_MIN_VALUE, value = 0)
+	@Column(name = "invoice_amount")
+	private float invoiceAmount;
+
+	@Max(message = ErrorCodes.INVOICE_ROUND_AMOUNT_MAX_VALUE, value = Integer.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_ROUND_AMOUNT_MIN_VALUE, value = 0)
+	@Column(name = "round_off_amount")
+	private String roundOffAmount;
+
+	@Max(message = ErrorCodes.INVOICE_DISCOUNT_MAX_VALUE, value = (long) Float.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_DISCOUNT_MIN_VALUE, value = 0)
+	@Column(name = "discount")
+	private float discount;
+	
+	@Column(name = "net_amount")
+	private Integer netAmount;
+	
+	@Column(name = "invoice_date")
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date InvoiceDate;
+
+
+	@Column(name = "due_date")
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date dueDate;
+
+	@Required(message = ErrorCodes.INVOICE_MONTH_REQUIRED)
+	@Max(message = ErrorCodes.INVOICE_MONTH_MAX_VALUE, value = 12)
+	@Min(message = ErrorCodes.INVOICE_MONTH_MIN_VALUE, value = 1)
+	@Column(name = "fin_month")
+	private Integer finMonth;
+
+	@Max(message = ErrorCodes.INVOICE_TAX_YEAR_MAX_VALUE, value = 2050)
+	@Min(message = ErrorCodes.INVOICE_TAX_YEAR_MIN_VALUE, value = 2014)
+	@Column(name = "fin_year")
+	private Integer finYear;
+
+	@OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL)
+	@JsonManagedReference
+	private List<InvoiceTax> totalTax;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public List<InvoiceTax> getTotalTax() {
+		return totalTax;
+	}
+
+	public void setTotalTax(List<InvoiceTax> totalTax) {
+		this.totalTax = totalTax;
+	}
+
+	public String getRestaurantGuid() {
+		return restaurantGuid;
+	}
+
+	public void setRestaurantGuid(String restaurantGuid) {
+		this.restaurantGuid = restaurantGuid;
+	}
+
+	public Date getDate() {
+		return date == null ? null : (Date) date.clone();
+	}
+
+	public void setDate(Date date) {
+		this.date = date == null ? null : (Date) date.clone();
+	}
+
+	public float getBasicAmount() {
+		return basicAmount;
+	}
+
+	public void setBasicAmount(float basicAmount) {
+		this.basicAmount = basicAmount;
+	}
+
+	public float getDiscount() {
+		return discount;
+	}
+
+	public void setDiscount(float discount) {
+		this.discount = discount;
+	}
+
+	public float getInvoiceAmount() {
+		return invoiceAmount;
+	}
+
+	public void setInvoiceAmount(float invoiceAmount) {
+		this.invoiceAmount = invoiceAmount;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getCurrency() {
+		return currency;
+	}
+
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+
+	public String getCtAddress() {
+		return Constants.CT_ADDRESS;
+	}
+
+	public String getCtPin() {
+		return Constants.CT_PIN;
+	}
+
+	public String getCtPhone() {
+		return Constants.CT_PHONE;
+	}
+
+	public String getCtEmail() {
+		return Constants.CT_EMAIL;
+	}
+
+	public String getCtWebsite() {
+		return Constants.CT_WEBSITE;
+	}
+
+	public String getCtServiceTax() {
+		return Constants.CT_SERVICE_TAX;
+	}
+
+	public String getCtVat() {
+		return Constants.CT_VAT;
+	}
+
+}

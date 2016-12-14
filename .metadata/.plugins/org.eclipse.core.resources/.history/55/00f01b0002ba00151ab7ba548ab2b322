@@ -1,0 +1,104 @@
+package com.clicktable.scheduler;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TimeZone;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import play.Logger;
+
+import com.clicktable.dao.impl.RecurlyDaoimpl;
+import com.clicktable.util.Constants;
+import com.clicktable.validate.ReservationValidator;
+import com.clicktable.validate.ValidationError;
+import com.ning.billing.recurly.RecurlyClient;
+import com.ning.billing.recurly.model.Adjustment;
+
+public class RecurlyScheduler implements Runnable {
+
+	
+	private static Lock lock = new ReentrantLock();
+
+	public RecurlyScheduler() {
+		System.out.println(".........................................................................");
+		Logger.debug("Recurly Adjustment scheduler");
+	}
+	
+	final String apiKey = "aad390476636464e8e5d3939d95729ca";
+	final String Domain = "clicktable";
+
+	public void run() {
+
+		RecurlyClient recurlyClient = new RecurlyClient(apiKey, Domain);
+		recurlyClient.open();
+
+		RecurlyDaoimpl recurlydaoimpl = new RecurlyDaoimpl();
+
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		Logger.debug("sms recurly scheduler");
+
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		Calendar cal = Calendar.getInstance();
+		cal.setTimeZone(TimeZone.getTimeZone("IST"));
+		cal.add(Calendar.DATE, -1);
+
+		SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd");
+
+		params.put(Constants.CALENDER_TYPE, Constants.DAYS);
+		params.put(Constants.START_DATE,
+				(dateformat.format(new Date(cal.getTimeInMillis()))));
+		params.put(Constants.SENT_BY, Constants.RESTAURANT_ENUM);
+
+		System.out.println("...................params...................1");
+		System.out.println(params);
+
+		ReservationValidator reservationValidator = new ReservationValidator();
+
+		params = reservationValidator.validateGetStatsParams(params,
+				listOfError);
+
+		Map<String, HashMap<String, Object>> result = new HashMap<String, HashMap<String, Object>>();
+
+		result = recurlydaoimpl.getRestaurantConversationForReport(params);
+
+		final Iterator<Entry<String, HashMap<String, Object>>> mapIt = result
+				.entrySet().iterator();
+
+		while (mapIt.hasNext()) {
+			final Entry<String, HashMap<String, Object>> mapEntry = mapIt
+					.next();
+
+			final Iterator<Entry<String, Object>> it = mapEntry.getValue()
+					.entrySet().iterator();
+
+			Integer i = 0;
+
+			while (it.hasNext()) {
+				Entry<String, Object> sms = it.next();
+				i = i + (Integer) sms.getValue();
+			}
+
+			Adjustment ad = new Adjustment();
+
+			ad.setCurrency("INR");
+			ad.setQuantity(i);
+			ad.setTotalInCents(i * 10);
+
+			recurlyClient.createAccountAdjustment(mapEntry.getKey(), ad);
+
+		}
+		recurlyClient.close();
+
+	}
+
+}

@@ -1,0 +1,14 @@
+1473672879756	Rename local variable 'maps'
+1473761688193	Rename type 'EventAndOffer'
+1473761870128	Delete element
+1473763401889	Copy compilation unit
+1473763687662	Delete element
+1473837913989	Rename local variable 'reservation'
+1473837925172	Rename local variable 'resvReview'
+1473837934371	Rename local variable 'resv'
+1473853269518	Delete element
+1473853555627	Rename local variable 'walkinCoversMapForQueue'
+1473854375105	Rename field 'RESV_COVER_FLOW'
+1473854418037	Rename field 'ONLINE_COVER_MAP'
+1473854485507	Rename field 'RESV_COVER_BY_SOURCE'
+1473854493453	Rename field 'WALKIN_COVER_MAP'

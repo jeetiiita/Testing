@@ -1,0 +1,278 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+
+
+GET       /                               @com.clicktable.controllers.Application.index
+OPTIONS   /*all                           com.clicktable.controllers.Application.preflight(all)
+
+
+GET       /auth/google                    @com.clicktable.controllers.AccessController.authenticateGoogle(token,userID)
+GET       /auth/facebook                  @com.clicktable.controllers.AccessController.authenticateFacebook(token,userID)
+GET       /auth/login                     @com.clicktable.controllers.Application.login
+
+#Restaurant
+POST      /restaurant                     @com.clicktable.controllers.RestaurantController.addRestaurant
+GET       /restaurant                     @com.clicktable.controllers.RestaurantController.getRestaurants
+PUT       /restaurant                     @com.clicktable.controllers.RestaurantController.updateRestaurant
+PUT       /restaurant/generalInfo         @com.clicktable.controllers.RestaurantController.updateRestaurantGeneralInfo
+PUT       /restaurant/contactInfo         @com.clicktable.controllers.RestaurantController.updateContactInfo
+PUT       /restaurant/contactInfoAdmin    @com.clicktable.controllers.RestaurantController.updateContactInfoByCtAdmin
+
+POST      /restaurant/attribute           @com.clicktable.controllers.RestaurantController.addAttributes
+GET       /restaurant/attribute           @com.clicktable.controllers.AttributeController.getAttributes
+POST      /restaurant/config              @com.clicktable.controllers.RestaurantController.addSystemConfig
+GET       /restaurant/config              @com.clicktable.controllers.RestaurantController.getSystemConfig
+GET       /restaurant/operationHour       @com.clicktable.controllers.RestaurantController.getOperationalHours
+POST      /restaurant/operationHour       @com.clicktable.controllers.RestaurantController.addOperationalHours
+POST      /restaurant/blackOutHour        @com.clicktable.controllers.RestaurantController.addBlackOutHour
+GET       /restaurant/blackOutHour        @com.clicktable.controllers.RestaurantController.getBlackOutHour
+
+POST      /restaurant/section             @com.clicktable.controllers.RestaurantController.addSection
+DELETE    /restaurant/section             @com.clicktable.controllers.RestaurantController.deleteSection
+GET       /restaurant/section             @com.clicktable.controllers.RestaurantController.getSection
+
+GET       /restaurant/weather             @com.clicktable.controllers.RestaurantController.getWeather
+
+
+# Device
+GET       /restaurant/device              @com.clicktable.controllers.DeviceController.getDevices
+POST      /restaurant/device              @com.clicktable.controllers.DeviceController.addDevice
+PUT       /restaurant/device              @com.clicktable.controllers.DeviceController.updateDevice
+DELETE    /restaurant/device              @com.clicktable.controllers.DeviceController.deleteDevice
+
+GET       /restaurant/cleanData           @com.clicktable.controllers.RestaurantController.cleanRestaurantData
+
+
+# Historical Tat
+GET       /restaurant/historicaltat       @com.clicktable.controllers.RestaurantController.getHistoricalTat
+
+
+
+#note
+POST      /note                           @com.clicktable.controllers.NoteController.addNote
+GET       /note                           @com.clicktable.controllers.NoteController.getNotes
+DELETE    /note                           @com.clicktable.controllers.NoteController.deleteNotes
+#table
+POST      /table                          @com.clicktable.controllers.TableController.addTable
+GET       /table                          @com.clicktable.controllers.TableController.getTables
+PUT       /table                          @com.clicktable.controllers.TableController.updateTable
+PATCH     /table                          @com.clicktable.controllers.TableController.patchTable
+GET       /blockedTables                  @com.clicktable.controllers.TableController.getBlockedTables
+
+
+#cuisine
+POST      /cuisine                        @com.clicktable.controllers.CuisineController.addCuisine
+PUT       /cuisine                        @com.clicktable.controllers.CuisineController.updateCuisine
+GET       /cuisine                        @com.clicktable.controllers.CuisineController.getCuisines
+
+GET       /restaurant/cuisine             @com.clicktable.controllers.CuisineController.getRestaurantCuisines
+POST      /restaurant/cuisine             @com.clicktable.controllers.CuisineController.addRestaurantCuisines
+DELETE    /restaurant/cuisine             @com.clicktable.controllers.CuisineController.removeRestaurantCuisines
+
+#Guest
+GET       /guest                          @com.clicktable.controllers.AccessController.getCustomers
+PUT       /guest                          @com.clicktable.controllers.AccessController.updateCustomer
+POST      /guest                          @com.clicktable.controllers.AccessController.addCustomer
+POST      /guest/csv                      @com.clicktable.controllers.AccessController.addCustomersFromCSV(restaurantGuid ?= null)
+GET       /guest/csv                      @com.clicktable.controllers.AccessController.getCustomersCSV(restaurantGuid ?= null)
+
+#PUT      /guest/tag                  @com.clicktable.controllers.AccessController.updateCustomerAndTag
+#Guest Book
+GET       /guestGuid           			  @com.clicktable.controllers.GuestBookController.getGuestBook
+
+# Staff
+GET       /staff                          @com.clicktable.controllers.StaffController.getStaff
+POST      /staff                          @com.clicktable.controllers.StaffController.addStaff
+PUT       /staff                          @com.clicktable.controllers.StaffController.updateStaff
+DELETE    /staff                          @com.clicktable.controllers.StaffController.deleteStaff
+POST      /staff/changePassword           @com.clicktable.controllers.StaffController.changePassword
+POST      /staff/login                    @com.clicktable.controllers.StaffController.staffLogin
+POST      /staff/forgotPassword           @com.clicktable.controllers.StaffController.forgotPassword
+POST      /staff/resetPassword            @com.clicktable.controllers.StaffController.resetPassword
+POST      /staff/verificationCode         @com.clicktable.controllers.StaffController.verificationOTP
+POST      /staff/resendCode               @com.clicktable.controllers.StaffController.resendOTP
+GET       /staff/logout                   @com.clicktable.controllers.StaffController.logOut
+POST      /staff/userToken                @com.clicktable.controllers.StaffController.addStaffToken
+GET       /staff/refreshToken             @com.clicktable.controllers.StaffController.getRefreshToken
+POST      /phoneVerification              @com.clicktable.controllers.AccessController.verifyPhoneNumber
+POST      /emailVerification              @com.clicktable.controllers.AccessController.verifyEmail
+
+GET      /Addcustomer                   @com.clicktable.controllers.Addcustomer.createRandomAccount
+
+
+#Onboarding
+
+GET       /onboarding                     @com.clicktable.controllers.OnboardingController.getOnboardingRequests
+POST      /onboarding                     @com.clicktable.controllers.OnboardingController.addOnboardingRequest
+PUT       /onboarding                     @com.clicktable.controllers.OnboardingController.updateOnboardingRequest
+#POST      /onboarding/codeVerification   @com.clicktable.controllers.OnboardingController.onboardingVerification
+#POST      /onboarding/resendCode         @com.clicktable.controllers.OnboardingController.resendCode
+
+
+#Reservation
+GET       /reservationCSV                 @com.clicktable.controllers.ReservationController.getReservationsCSV
+GET       /reservation                    @com.clicktable.controllers.ReservationController.getReservation
+POST      /reservation                    @com.clicktable.controllers.ReservationController.addReservation
+PUT       /reservation                    @com.clicktable.controllers.ReservationController.updateReservation
+PATCH     /reservation                    @com.clicktable.controllers.ReservationController.patchReservation
+GET       /reservationGuid  		 	  @com.clicktable.controllers.ReservationController.getReservationWithRespectToGuid
+GET       /reservationQueue               @com.clicktable.controllers.ReservationController.getQueueReservation
+#GET       /reservationForTables        @com.clicktable.controllers.ReservationController.getReservationsForTables
+POST      /reservationSeatWaitlist        @com.clicktable.controllers.ReservationController.convertReservationToWaitlist
+
+
+#Dashboard
+GET       /dashboard                      @com.clicktable.controllers.ReservationController.getReservationStats
+
+
+#GuestProfileTagGraphRelationship
+POST      /guestTag                       @com.clicktable.controllers.GuestHasTagsController.addGuestTag
+GET       /guestTag                       @com.clicktable.controllers.GuestHasTagsController.getGuestTag
+DELETE    /guestTag                       @com.clicktable.controllers.GuestHasTagsController.removeGuestTag
+DELETE    /tag                            @com.clicktable.controllers.GuestHasTagsController.removeTag
+POST      /tag                            @com.clicktable.controllers.GuestHasTagsController.addTag
+GET       /tag                            @com.clicktable.controllers.GuestHasTagsController.getTag
+#Section
+POST      /section                        @com.clicktable.controllers.SectionController.addSection
+GET       /section                        @com.clicktable.controllers.SectionController.getSection
+DELETE    /section                        @com.clicktable.controllers.SectionController.deleteSection
+PUT       /section                        @com.clicktable.controllers.SectionController.updateSection
+
+#Attribute
+POST      /attribute                      @com.clicktable.controllers.AttributeController.addAttribute
+GET       /attribute                      @com.clicktable.controllers.AttributeController.getAttributes
+POST      /attribute/country              @com.clicktable.controllers.AttributeController.addCountryAttributes
+
+#Country
+POST      /country                        @com.clicktable.controllers.CountryController.addCountry
+GET       /country                        @com.clicktable.controllers.CountryController.getCountry
+DELETE    /country                        @com.clicktable.controllers.CountryController.deleteCountry
+PUT       /country                        @com.clicktable.controllers.CountryController.updateCountry
+
+#Tat
+POST      /tat                            @com.clicktable.controllers.TatController.addTat
+GET       /tat                            @com.clicktable.controllers.TatController.getTats
+
+#Event
+GET       /event                          @com.clicktable.controllers.EventController.getEvents
+POST      /event                          @com.clicktable.controllers.EventController.addEvent
+PUT       /event                          @com.clicktable.controllers.EventController.updateEvent
+PATCH     /event                          @com.clicktable.controllers.EventController.patchEvent
+GET       /event/calender                 @com.clicktable.controllers.EventController.getCalenderEvents
+
+# Server
+GET       /server                         @com.clicktable.controllers.ServerController.getServers
+GET       /restaurant/server              @com.clicktable.controllers.ServerController.getRestaurantServers
+GET       /server/:serverGuid             @com.clicktable.controllers.TableAssignmentController.getTableAssignment(serverGuid: String)
+POST      /server                         @com.clicktable.controllers.ServerController.addServer
+PUT       /server                         @com.clicktable.controllers.ServerController.updateServer
+DELETE    /server                         @com.clicktable.controllers.ServerController.deleteServer
+
+#Table Assignment
+POST      /assignTable                    @com.clicktable.controllers.TableAssignmentController.assignTable
+POST      /unassignTable                  @com.clicktable.controllers.TableAssignmentController.unassignTable
+#GET      /assignTable            @com.clicktable.controllers.TableAssignmentController.getTableAssignment
+
+
+#Language
+GET       /language                       @com.clicktable.controllers.LanguageController.getLanguage
+
+#City
+GET       /city                           @com.clicktable.controllers.CityController.getCity
+POST      /city                           @com.clicktable.controllers.CityController.addCity
+DELETE    /city                           @com.clicktable.controllers.CityController.deleteCity
+PUT       /city                           @com.clicktable.controllers.CityController.updateCity
+
+#State
+GET       /state                          @com.clicktable.controllers.StateController.getState
+POST      /state                          @com.clicktable.controllers.StateController.addState
+DELETE    /state                          @com.clicktable.controllers.StateController.deleteState
+PUT       /state                          @com.clicktable.controllers.StateController.updateState
+
+#Region
+GET       /region                         @com.clicktable.controllers.RegionController.getRegion
+POST      /region                         @com.clicktable.controllers.RegionController.addRegion
+DELETE    /region                         @com.clicktable.controllers.RegionController.deleteRegion
+PUT       /region                         @com.clicktable.controllers.RegionController.updateRegion
+
+#Locality
+GET       /locality                       @com.clicktable.controllers.LocalityController.getLocality
+POST      /locality                       @com.clicktable.controllers.LocalityController.addLocality
+DELETE    /locality                       @com.clicktable.controllers.LocalityController.deleteLocality
+PUT       /locality                       @com.clicktable.controllers.LocalityController.updateLocality
+
+#Building
+GET       /building                       @com.clicktable.controllers.BuildingController.getBuilding
+POST      /building                       @com.clicktable.controllers.BuildingController.addBuilding
+DELETE    /building                       @com.clicktable.controllers.BuildingController.deleteBuilding
+PUT       /building                       @com.clicktable.controllers.BuildingController.updateBuilding
+
+#QuickSearch Reservation
+GET       /quickSearchReservation         @com.clicktable.controllers.QuickSearchReservationController.getQuickSearch
+GET       /quickSearchTable               @com.clicktable.controllers.QuickSearchReservationController.getSearchTable
+GET       /quickSearchReservationNew      @com.clicktable.controllers.QuickSearchReservationController.getQuickSearchNew
+GET       /quickSearchTableNew            @com.clicktable.controllers.QuickSearchReservationController.getSearchTableNew
+GET       /quickSearchNew                 @com.clicktable.controllers.QuickSearchController.getQuickSearchNew
+
+GET       /waitlist                       @com.clicktable.controllers.WaitlistController.getWaitlist
+POST      /waitlist                       @com.clicktable.controllers.WaitlistController.addToWaitlist
+
+GET       /waitlist/allTables             @com.clicktable.controllers.WaitlistController.getWaitlistForAllTables
+
+
+GET       /shuffleTables                  @com.clicktable.controllers.TableShuffleController.shuffleTables
+
+
+
+#Conversation
+GET       /conversation                   @com.clicktable.controllers.ConversationController.getConversation
+POST      /conversation                   @com.clicktable.controllers.ConversationController.addRestaurantConversation
+POST      /conversation/promotion         @com.clicktable.controllers.ConversationController.addEventPromotion
+GET       /conversation/promotion         @com.clicktable.controllers.ConversationController.getEventPromotion
+POST      /conversation/template          @com.clicktable.controllers.ConversationController.addTemplate
+GET       /conversation/template          @com.clicktable.controllers.ConversationController.getTemplate
+POST      /conversation/guestcount        @com.clicktable.controllers.ConversationController.getGuestCount
+GET       /conversation/response          @com.clicktable.controllers.ConversationController.addGuestConversation
+GET       /conversation/delivery          @com.clicktable.controllers.ConversationController.delivery
+GET       /conversation/miscall           @com.clicktable.controllers.ConversationController.misscall
+
+#Current Server Time
+GET       /servertime                     @com.clicktable.controllers.AccessController.getCurrentServerTime
+
+#BarEntry
+GET       /barentry                       @com.clicktable.controllers.BarEntryController.getBarEntry
+POST      /barentry                       @com.clicktable.controllers.BarEntryController.addBarEntry
+PATCH     /barentry                       @com.clicktable.controllers.BarEntryController.updateBarEntry
+POST      /barentry/toRestaurant          @com.clicktable.controllers.BarEntryController.moveToRestaurant
+POST      /barentry/fromWaitlist          @com.clicktable.controllers.BarEntryController.moveFromWaitlist
+
+#BarEntry
+GET       /corporate/offers               @com.clicktable.controllers.CorporationController.addCorporateOffers
+POST      /corporate/offers               @com.clicktable.controllers.CorporationController.getCorporateOffers
+
+
+
+#support
+GET       /support/token                  @com.clicktable.controllers.SupportController.getToken
+POST      /support                        @com.clicktable.controllers.SupportController.submitTicket
+POST      /attachment/:fileName           @com.clicktable.controllers.SupportController.uploadAttachment(fileName)
+DELETE    /attachment/:id                 @com.clicktable.controllers.SupportController.deleteAttachment(id:Long)
+
+#Role
+GET       /role                           @com.clicktable.controllers.RoleController.getRole
+POST      /role                           @com.clicktable.controllers.RoleController.addRole
+
+#Enum Values
+GET       /enum                           @com.clicktable.controllers.EnumController.getAllEnums
+
+#Master Address
+GET       /masteraddress                  @com.clicktable.controllers.AddressController.addMasterAddressData
+
+# Map static resources from the /public folder to the /assets URL path
+GET       /assets/*file                   controllers.Assets.at(path="/public", file)
+
+
+

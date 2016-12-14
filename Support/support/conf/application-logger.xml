@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <conversionRule conversionWord="coloredLevel"
+                    converterClass="play.api.Logger$ColoredLevel"/>
+    <appender name="Sentry" class="net.kencochrane.raven.logback.SentryAppender">
+        <dsn>
+            https://ae9b2c0c4299466eb11ba4e660c9ffc8:b2322b5ccc524f35a7fcd5e366ec902c@app.getsentry.com/54072
+        </dsn>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+    </appender>
+
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover with compression -->
+            <fileNamePattern>error-log-%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <!-- keep 1 week worth of history -->
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date %-5level [%thread] %logger{40}: %message%n</pattern>
+            <!-- this quadruples logging throughput -->
+            <immediateFlush>false</immediateFlush>
+        </encoder>
+    </appender>
+
+    <appender name="DEBUG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/debug.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover with compression -->
+            <fileNamePattern>debug-log-%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <!-- keep 1 week worth of history -->
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%date %-5level [%thread] %logger{40}: %message%n</pattern>
+            <!-- this quadruples logging throughput -->
+            <immediateFlush>false</immediateFlush>
+        </encoder>
+    </appender>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date %-5coloredLevel %logger{40}: %message%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="play" level="INFO"/>
+    <logger name="application" level="DEBUG"/>
+    <logger name="com.clicktable" level="DEBUG"/>
+    <logger name="log4j.org.springframework.data.neo4j" level="DEBUG"/>
+    <logger name="log4j.org.springframework.data.neo4j.support.query" level="DEBUG"/>
+    <logger name=" log4j.org.springframework.data.neo4j.rest.SpringRestCypherQueryEngine" level="DEBUG"/>
+    <logger name="log4j.org.springframework.data.neo4j.repository.query.DerivedCypherRepositoryQuery" level="DEBUG"/>
+
+    <!--<logger name="application"  level="WARN">-->
+    <!--<appender-ref ref="Sentry" />-->
+    <!--</logger>-->
+
+    <!--<logger name="com.clicktable"  level="WARN">-->
+    <!--<appender-ref ref="Sentry" />-->
+    <!--</logger>-->
+
+    <root level="DEBUG">
+        <appender-ref ref="DEBUG_FILE"/>
+        <appender-ref ref="STDOUT"/>
+
+    </root>
+    <root level="ERROR">
+        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="STDOUT"/>
+
+    </root>
+
+</configuration>

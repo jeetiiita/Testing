@@ -1,0 +1,37 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+		
+		 int i = get();
+		 System.out.println(i)l
+	}
+	
+	static int get(){
+		try {
+			int i = 10/0;
+			
+		}
+		catch(Exception e) {
+			return 0;
+		}
+		finally{
+			return 1;
+		}
+	}
+}

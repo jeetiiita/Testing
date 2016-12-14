@@ -1,0 +1,14 @@
+/**
+ * 
+ */
+package com.clicktable.controllers;
+
+import play.mvc.Controller;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class FeedBackController extends Controller{
+
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename type &apos;com.clicktable.support.model.RewardPoints&apos; to &apos;ReferallPoints&apos;&#x0D;&#x0A;- Original project: &apos;support-services&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.support.model.RewardPoints&apos;&#x0D;&#x0A;- Renamed element: &apos;com.clicktable.support.model.ReferallPoints&apos;&#x0D;&#x0A;- Update references to refactored element&#x0D;&#x0A;- Rename similarly named elements&#x0D;&#x0A;- Update textual occurrences in comments and strings" description="Rename type &apos;RewardPoints&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.type" input="/app&lt;com.clicktable.support.model{RewardPoints.java[RewardPoints" matchStrategy="1" name="ReferallPoints" qualified="false" references="true" similarDeclarations="true" stamp="1470321634965" textual="false" version="1.0"/>
+</session>

@@ -1,0 +1,74 @@
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityTransaction;
+import javax.persistence.Persistence;
+import javax.persistence.Query;
+
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.dao.intf.ConversationDao;
+import com.clicktable.support.dao.intf.InvoiceTxnDao;
+import com.clicktable.support.model.InvoiceTxn;
+import com.clicktable.support.util.Constants;
+
+@Service
+public class InvoiceTxnDaoImpl extends JPADao<InvoiceTxn> implements
+		InvoiceTxnDao {
+
+	@Autowired
+	ConversationDao conversationDao;
+
+	@Override
+	public Integer updateInvoiceTxn(String restGuid, String guid) {
+
+		DateTime currentDate = new DateTime(DateTimeZone.forTimeZone(TimeZone
+				.getTimeZone(Constants.IST))).withTimeAtStartOfDay();
+
+		DateTime previousDate = currentDate.minusDays(1);
+
+		EntityManagerFactory entityManagerFactory = Persistence
+				.createEntityManagerFactory("defaultPersistenceUnit");
+
+		EntityManager entityManager = entityManagerFactory
+				.createEntityManager();
+		EntityTransaction updateTransaction = entityManager.getTransaction();
+		updateTransaction.begin();
+
+		String queryStr = "UPDATE InvoiceTxn as c SET c.invoiceGuid =:invoiceGuid where "
+				+ "c.restaurantGuid = :restaurantGuid AND c.month=:month AND c.year=:year";
+		Query query = entityManager.createQuery(queryStr)
+				.setParameter(Constants.INVOICEGUID, guid)
+				.setParameter(Constants.RESTAURANTGUID, restGuid)
+					.setParameter(Constants.MONTH, previousDate.getMonthOfYear())
+				.setParameter(Constants.YEAR, previousDate.getYear());
+
+
+		Integer updateCount = query.executeUpdate();
+		updateTransaction.commit();
+
+		return updateCount;
+	}
+
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public List<InvoiceTxn> updateMultiple(List<String> guidList,
+			Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

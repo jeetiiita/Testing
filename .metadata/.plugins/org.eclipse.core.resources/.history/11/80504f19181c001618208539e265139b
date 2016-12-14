@@ -1,0 +1,29 @@
+common.status=ACTIVE,INACTIVE,DELETED
+common.languageCode=EN-US,FR-FR,DE-CH
+common.orderPreference=ASC,DESC
+customer.reason=CELEBRITY,INVESTOR,OWNER_VIP,PREFERRED
+customer.gender=MALE,FEMALE
+
+
+#Invoice
+invoice.status=CREATED,PAID
+invoice.currency=INR,USD
+invoice.country=INDIA,USA
+invoice.state=UP,Delhi,HR
+
+#tax
+tax.status=ACTIVE,INACTIVE
+tax.type=Aggregate,Single
+tax.name=ServiceTax,VAT,CESS
+tax.country=INDIA
+tax.state =Delhi,UP,Haryana
+
+#conversation
+GuestConversation.sentBy=RESTAURANT,CUSTOMER
+
+#Delivery
+Delivery.smsStatus=SUCCESS,FAILURE,SUBMITTED
+Delivery.smsStatusCause=SUCCESS,ABSENT_SUBSCRIBER,UNKNOWN_SUBSCRIBER,BLOCKED_MASK,SYSTEM_FAILURE,CALL_BARRED,SERVICE_DOWN,OTHER,DND_FAIL,DND_TIMEOUT,OUTSIDE_WORKING_HOUR
+
+#invoice
+invoice.headers = Line,Date,Type,Description,Price,Quantity,Amount

@@ -1,0 +1,38 @@
+@(entries: List[datastructures.TotalsAssignment])
+
+@import helper._
+
+@main("Entered hours this month", sidemenu = menus.userMenu()) {
+
+	@if(entries.isEmpty) {
+		<div class="alert-message warning">
+        	You haven't entered hours yet!
+        </div>
+	} else {
+		<table>
+			<thead>
+				<tr>
+					<th>Customer</th>
+					<th>Project code</th>
+					<th>Project</th>
+					<th>Rate</th>
+					<th>Hours</th>
+					<th>Turnover</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for(entry <- entries) {
+					<tr>
+						<td>@entry.assignment.project.customer.name</td>
+						<td>@entry.assignment.project.code</td>
+						<td>@entry.assignment.project.name</td>
+						<td>@entry.assignment.hourlyRate</td>
+						<td>@entry.hoursMinutes</td>
+						<td>@entry.turnover</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+
+}

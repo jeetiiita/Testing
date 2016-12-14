@@ -1,0 +1,37 @@
+/**
+ * 
+ */
+package com.clicktable.support.service;
+
+import java.util.List;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.Item;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.ItemTaxService;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ItemTaxServiceImpl implements ItemTaxService {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.ItemTaxService#getTaxesForItem(com.clicktable.support.model.Item, com.clicktable.model.Restaurant)
+	 */
+	@Override
+	public List<Tax> getTaxesForItem(Item item, Restaurant restaurant) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.ItemTaxService#getApplicableTaxForItem(com.clicktable.support.model.Item, com.clicktable.model.Restaurant)
+	 */
+	@Override
+	public Tax getApplicableTaxForItem(Item item, Restaurant restaurant) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

@@ -1,0 +1,2 @@
+session.sessionTimeOut=3000000
+session.threadSchedule=120000

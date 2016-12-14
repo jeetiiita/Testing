@@ -1,0 +1,34 @@
+package com.clicktable.service.impl;
+
+import java.text.ParseException;
+
+import com.clicktable.service.intf.ThreadSchedulerService;
+
+/**
+ * @author s.gupta
+ *
+ */
+@org.springframework.stereotype.Service
+public class ThreadSchedulerServiceImpl implements ThreadSchedulerService {
+
+	
+	
+	@Override
+	public void startThreads() {
+		
+}
+
+	private void startThreadEarlyMorning(Runnable thread) {
+		// TODO Auto-generated method stub
+
+		try {
+			
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	
+}

@@ -1,0 +1,1013 @@
+package com.clicktable.controllers;
+
+import static com.clicktable.util.EmpowerConstants.ACCESS_TOKEN;
+import static com.clicktable.util.EmpowerConstants.REQUEST_SOURCE;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.model.Reservation;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.SMS;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.QuickSearchService;
+import com.clicktable.service.intf.ReservationService;
+import com.clicktable.service.intf.RestaurantService;
+import com.clicktable.service.intf.TableShuffleService;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ReservationValidator;
+import com.clicktable.validate.RestaurantDetailValidator;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+@org.springframework.stereotype.Controller
+public class ReservationController extends Controller {
+
+	@Autowired
+	ReservationService reservationService;
+
+	private static final Logger.ALogger log = Logger
+			.of(ReservationController.class);
+
+	@Autowired
+	AuthorizationService authService;
+
+	@Autowired
+	TableShuffleService shuffleService;
+
+	@Autowired
+	RestaurantService restService;
+	
+	@Autowired
+	ReservationValidator reservationValidator;
+	
+	@Autowired
+	AuthorizationService authorizationService;
+	
+	@Autowired
+	QuickSearchService quickSearchService;
+	
+	@Autowired
+	RestaurantDetailValidator restDetailValidator;
+
+	public Result addReservation() {
+
+		/*bookedBy:"CUSTOMER"
+		bookingMode:"ONLINE"
+		estStartTime: "2016-07-01 18:00:00"
+		guestGuid: "d7584257-6e89-42e7-9674-a77c4d6080bd"
+		languageCode:"EN-US"
+		numCovers:4
+		offerId:null
+		reservationNote:null
+		restaurantGuid:"4b03e4a4-504e-45cb-bb77-86edff40db5d"
+		 */
+
+		long start = System.currentTimeMillis();
+		log.debug("**************RESERVATION CONTROLLER ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+
+
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+	
+		
+		Restaurant restaurant = restService.getRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		if(restaurant == null)
+		{
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_RESTAURANT_GUID), ErrorCodes.INVALID_RESTAURANT_GUID));
+
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		Reservation validatedResv = reservationValidator.validateRestaurantReservationRequest(reservation, userInfo, restaurant, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = validatedResv;
+		reservationService.setRequestSource(reservation, null, request());
+
+		reservation.setInfoOnCreate(authService.getUserInfoByToken(token));
+
+		if(restaurant.getType() != null && (restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID))) 
+		{
+			BaseResponse response = reservationService.createUnconfirmedReservation(reservation, userInfo);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		
+		//TODO: Not to commit this line on prod
+		//reservation.setSource(EmpowerConstants.CLICKTABLE);
+		
+		boolean sendSms = true;
+		
+		if(reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)){
+			sendSms = false;
+		}
+		
+		
+		BaseResponse response = reservationService.createReservation(reservation, token, sendSms);
+		
+
+		if(response instanceof PostResponse && reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS))
+		{
+			Map<String, Object> resvParams = new HashMap<>();
+			resvParams.put(EmpowerConstants.REST_ID, reservation.getRestaurantGuid());
+			resvParams.put("ShuffleReservation", false);
+			shuffleService.shuffleTables(resvParams, token);
+
+		}
+
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		log.debug("**************RESERVATION CONTROLLER END ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		return ok(result);
+	}
+	
+	
+	
+	public Result addReservationByGuestOrAgent() {
+
+		long start = System.currentTimeMillis();
+		log.debug("**************RESERVATION CONTROLLER ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+
+
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+	
+		Restaurant restaurant = restService.getRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		if(restaurant == null)
+		{
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_RESTAURANT_GUID), ErrorCodes.INVALID_RESTAURANT_GUID));
+
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		
+		Reservation customerReservationRequest = reservationValidator.validateIncomingReservationRequest(reservation, userInfo, restaurant, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		if(customerReservationRequest.getBookedBy().equals(EmpowerConstants.CUSTOMER_ENUM)){
+			
+			List unratedResvList = reservationValidator.hasCustomerUnratedReservation(userInfo.getGuid());
+			if(unratedResvList.size() > 0){
+				BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE_DUE_TO_UNRATED_RESV, unratedResvList);
+				JsonNode result = Json.toJson(response);
+				return ok(result);
+			}
+		}
+		
+		
+		reservation = customerReservationRequest;
+		
+		reservationService.setRequestSource(reservation, null, request());
+
+		reservation.setInfoOnCreate(authService.getUserInfoByToken(token));
+		
+		Long startTime = new Date().getTime();
+		String tableStatus = quickSearchService.checkTableSlotAvailabilityForGuestReservation(reservation, false, listOfError);
+		
+		System.out.println("Time in check slot availability------------------------" + (new Date().getTime() - startTime));
+		
+		if(!listOfError.isEmpty()){
+			
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		
+		if(tableStatus != null && tableStatus.equalsIgnoreCase(EmpowerConstants.TABLE_NOT_CONFIRMED)){
+			
+			BaseResponse response = reservationService.createUnconfirmedReservation(reservation, userInfo);
+			reservationService.addGuestToRestaurant(reservation, restaurant);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+			
+		}else{
+			List<String> tableGuid = new ArrayList<>();
+			tableGuid.add(tableStatus);
+			reservation.setTableGuid(tableGuid);
+		}
+		
+		
+		BaseResponse response = reservationService.createReservation(reservation, token, true);
+		 
+		reservationService.addGuestToRestaurant(reservation, restaurant);
+
+		if(response instanceof PostResponse && reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS))
+		{
+			Map<String, Object> resvParams = new HashMap<>();
+			resvParams.put(EmpowerConstants.REST_ID, reservation.getRestaurantGuid());
+			resvParams.put("ShuffleReservation", false);
+			shuffleService.shuffleTables(resvParams, token);
+
+		}
+
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		log.debug("**************RESERVATION CONTROLLER END ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		return ok(result);
+	}
+	
+	
+	
+	public Result addReservationByGuestOrAgentTest() {
+
+		long start = System.currentTimeMillis();
+		log.debug("**************RESERVATION CONTROLLER ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		
+		if(reservation != null && reservation.getRestaurantGuid() != null){
+			List<ValidationError> listOfError = new ArrayList<>();
+			Restaurant rest = restDetailValidator.validateMaskedGuid(reservation.getRestaurantGuid(), listOfError);
+			
+			if(rest != null){
+				reservation.setRestaurantGuid(rest.getGuid());
+			}
+		}
+
+
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+	
+		Restaurant restaurant = restService.getRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		if(restaurant == null)
+		{
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_RESTAURANT_GUID), ErrorCodes.INVALID_RESTAURANT_GUID));
+
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		
+		Reservation customerReservationRequest = reservationValidator.validateIncomingReservationRequest(reservation, userInfo, restaurant, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		if(customerReservationRequest.getBookedBy().equals(EmpowerConstants.CUSTOMER_ENUM)){
+			
+			List unratedResvList = reservationValidator.hasCustomerUnratedReservation(userInfo.getGuid());
+			if(unratedResvList.size() > 0){
+				BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE_DUE_TO_UNRATED_RESV, unratedResvList);
+				JsonNode result = Json.toJson(response);
+				return ok(result);
+			}
+		}
+		
+		
+		reservation = customerReservationRequest;
+		
+		reservationService.setRequestSource(reservation, null, request());
+
+		reservation.setInfoOnCreate(authService.getUserInfoByToken(token));
+		
+		Long startTime = new Date().getTime();
+		String tableStatus = quickSearchService.checkTableSlotAvailabilityForGuestReservation(reservation, false, listOfError);
+		
+		System.out.println("Time in check slot availability------------------------" + (new Date().getTime() - startTime));
+		
+		if(!listOfError.isEmpty()){
+			
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		
+		if(tableStatus != null && tableStatus.equalsIgnoreCase(EmpowerConstants.TABLE_NOT_CONFIRMED)){
+			
+			BaseResponse response = reservationService.createUnconfirmedReservation(reservation, userInfo);
+			reservationService.addGuestToRestaurant(reservation, restaurant);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+			
+		}else{
+			List<String> tableGuid = new ArrayList<>();
+			tableGuid.add(tableStatus);
+			reservation.setTableGuid(tableGuid);
+		}
+		
+		
+		BaseResponse response = reservationService.createReservation(reservation, token, true);
+		 
+		reservationService.addGuestToRestaurant(reservation, restaurant);
+
+		if(response instanceof PostResponse && reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS))
+		{
+			Map<String, Object> resvParams = new HashMap<>();
+			resvParams.put(EmpowerConstants.REST_ID, reservation.getRestaurantGuid());
+			resvParams.put("ShuffleReservation", false);
+			shuffleService.shuffleTables(resvParams, token);
+
+		}
+
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		log.debug("**************RESERVATION CONTROLLER END ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		return ok(result);
+	}
+
+
+	
+
+
+
+	public Result deleteReservation() {
+		/*JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);*/
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse response = reservationService.deleteReservation(stringParamMap, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+
+
+
+
+	public Result getReservation() {
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse response = reservationService.getReservation(stringParamMap, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+		
+	}
+	
+	public Result futureReservationSearch() {
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse response = reservationService.futureReservationSearch(stringParamMap, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+/*	public Result updateReservation() {
+		JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		String userId = authService.getLoggedInUser(request().getHeader(ACCESS_TOKEN));
+		reservation.setUpdatedBy(userId);
+		BaseResponse response = new BaseResponse();   // reservationService.updateReservation(reservation, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}*/
+
+	public Result patchReservation() {
+		JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		String token  = request().getHeader(ACCESS_TOKEN);
+		String userId = authService.getLoggedInUser(token);
+
+		String requestSource = request().getHeader(REQUEST_SOURCE);
+		List<String> rqstSourceList = new ArrayList<>();
+
+		if(requestSource != null)
+		{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + requestSource);
+		}else{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + "WEB");
+		}
+
+		reservation.setRequestSource(rqstSourceList);		
+		reservation.setUpdatedBy(userId);
+		
+		BaseResponse response = reservationService.patchReservation(reservation, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	public Result getQueueReservation() {
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse response = reservationService.getQueueReservation(stringParamMap, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	public Result convertReservationToWaitlist() {
+
+		JsonNode json = request().body().asJson();
+		Map<String, Object> params = new HashMap<String, Object>();
+		String addToWaitlistGuid = json.get("addToWaitlistGuid").asText().toString();
+		String seatWaitistGuid = json.get("seatWaitistGuid").asText().toString();
+		String finishedReservationGuid = json.get("finishedReservationGuid").asText().toString();
+		String cancelledReservationGuid = json.get("cancelledReservationGuid").asText().toString();
+		String restaurantGuid = json.get(EmpowerConstants.REST_GUID).asText().toString();
+		String seatWithReduceTat = json.get("seatWithReduceTat").asText().toString();
+		String reducedEndTime = json.get("reducedEndTime").asText().toString();
+		ArrayNode tableGuidArr = null;
+		if ((json.get("tableGuid") != null) && (json.get("tableGuid").isArray())) {
+			tableGuidArr = (ArrayNode) json.get("tableGuid");
+		}
+		List<String> tableGuid = new ArrayList<String>();
+
+		if (tableGuidArr != null) {
+			Iterator itr = tableGuidArr.iterator();
+			JsonNode node;
+			while (itr.hasNext()) {
+				node = (JsonNode) itr.next();
+				tableGuid.add(node.asText());
+			}
+
+		}
+
+		if(json.get("offerId") != null && !json.get("offerId").asText().toString().equals("null") &&  !json.get("offerId").asText().toString().equals(""))
+		{
+			params.put("offerId", json.get("offerId").asText().toString());
+		}
+
+
+		String requestSource = request().getHeader(REQUEST_SOURCE);
+
+
+		List<String> rqstSourceList = new ArrayList<>();
+
+		if(requestSource != null)
+		{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + requestSource);
+		}else{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + "WEB");
+		}
+
+		params.put(EmpowerConstants.REQUEST_SOURCE, rqstSourceList);
+
+		params.put("addToWaitlistGuid", addToWaitlistGuid);
+		params.put("seatWaitistGuid", seatWaitistGuid);
+		params.put("finishedReservationGuid", finishedReservationGuid);
+		params.put("cancelledReservationGuid", cancelledReservationGuid);
+		params.put(EmpowerConstants.REST_GUID, restaurantGuid);
+		params.put("reducedEndTime", reducedEndTime);
+		params.put("seatWithReduceTat", seatWithReduceTat);
+		params.put("tableGuid", tableGuid);
+
+		if(json.get("guid") != null)
+			params.put("guid", json.get("guid").asText().toString());
+		if(json.get("requestTime") != null)
+			params.put("requestTime", json.get("requestTime").asText().toString());
+		if(json.get("isUnknown") != null)
+			params.put("isUnknown", json.get("isUnknown").asText().toString());
+		if(json.get("numCovers") != null)
+			params.put("numCovers", json.get("numCovers").asText().toString());
+		if(json.get("tat") != null)
+			params.put("tat", json.get("tat").asText().toString());
+
+		BaseResponse response = reservationService.convertReservationToWaitlist(params, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	public Result getReservationWithRespectToGuid() {
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+		//stringParamMap.put(EmpowerConstants.GUID, reservationGuid);
+
+		BaseResponse response = reservationService.getReservationWithRespectToGuid(stringParamMap, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+
+
+
+
+
+	public Result addToQueue() {
+		long start = System.currentTimeMillis();
+		log.debug("**************RESERVATION CONTROLLER ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		if (null != json.get("isUnknown")) {
+			if (json.get("isUnknown").asText().toString().equalsIgnoreCase("true")) {
+				reservation.setIsUnknown(true);
+			} else {
+				reservation.setIsUnknown(false);
+			}
+		} else {
+			reservation.setIsUnknown(false);
+		}
+		String token = request().getHeader(ACCESS_TOKEN);
+
+		List<String> rqstSourceList = new ArrayList<>();
+		String requestSource = request().getHeader(REQUEST_SOURCE);
+
+		if(requestSource != null)
+		{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + requestSource);
+		}else{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + "WEB");
+		}
+
+		reservation.setRequestSource(rqstSourceList);
+
+		reservation.setInfoOnCreate(authService.getUserInfoByToken(token));
+		BaseResponse response = reservationService.directlyAddToQueue(reservation, token);
+
+		if(response instanceof PostResponse && reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS))
+		{
+			Map<String, Object> resvParams = new HashMap<>();
+			resvParams.put(EmpowerConstants.REST_ID, reservation.getRestaurantGuid());
+			resvParams.put("ShuffleReservation", false);
+			shuffleService.shuffleTables(resvParams, token);
+
+		}
+
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		log.debug("**************RESERVATION CONTROLLER END ADD RESERVATION**************   " + (Calendar.getInstance().getTimeInMillis() - start));
+		return ok(result);
+	}
+
+	
+
+	public Result updateReservationViaSchedular() {
+		Map<String, Object> stringParamMap = UtilityMethods.convertQueryStringToMap(request().queryString());
+
+		BaseResponse response = reservationService.updateReservationViaSchedular();
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+
+	public Result updateReservationViaSMS() {
+		JsonNode json = request().body().asJson();
+		SMS sms = Json.fromJson(json, SMS.class);
+		String token = authService.loginAsInternal();
+		String response = reservationService.updateReservationViaSMS(sms,token);
+		return ok(response);
+	}
+
+
+
+
+	public Result patchCustomerReservation() {
+
+		long start = System.currentTimeMillis();
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		String token = request().getHeader(ACCESS_TOKEN);
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+			
+		Reservation existing = null;
+		if(reservation.getGuid() != null)
+			existing = reservationService.getReservationByGuid(reservation.getGuid());
+
+		
+		if(existing == null){
+			
+			listOfError.add(new ValidationError(EmpowerConstants.GUID, ErrorCodes.INVALID_RESERVATION_GUID));
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservationService.setRequestSource(reservation, existing, request());		
+		
+		Restaurant rest = restService.getRestaurantByGuid(existing.getRestaurantGuid());
+		
+		Reservation resvRequest = reservationValidator.validateIncomingReservationRequestOnUpdate(reservation, existing, rest, userInfo, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = resvRequest;
+		reservation.setInfoOnUpdate(userInfo);
+		reservation.setCreatedDate(existing.getCreatedDate());
+		reservation.setBookingMode(existing.getBookingMode());
+		reservation.setGuestGuid(existing.getGuestGuid());
+		
+	
+		reservationService.patchForGuestReservation(reservation, existing, userInfo, rest, token, listOfError);
+		
+		if(!listOfError.isEmpty())
+		{
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+
+		
+		BaseResponse response = new UpdateResponse<>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY, reservation.getGuid());
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+		
+	}
+	
+	
+	
+	public Result patchCustomerReservationTest() {
+
+		long start = System.currentTimeMillis();
+		JsonNode json = request().body().asJson();
+
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		String token = request().getHeader(ACCESS_TOKEN);
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+			
+		Reservation existing = null;
+		if(reservation.getGuid() != null)
+			existing = reservationService.getReservationByGuid(reservation.getGuid());
+
+		
+		if(existing == null){
+			
+			listOfError.add(new ValidationError(EmpowerConstants.GUID, ErrorCodes.INVALID_RESERVATION_GUID));
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservationService.setRequestSource(reservation, existing, request());		
+		
+		Restaurant rest = restService.getRestaurantByGuid(existing.getRestaurantGuid());
+		
+		Reservation resvRequest = reservationValidator.validateIncomingReservationRequestOnUpdate(reservation, existing, rest, userInfo, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = resvRequest;
+		reservation.setInfoOnUpdate(userInfo);
+		reservation.setCreatedDate(existing.getCreatedDate());
+		reservation.setBookingMode(existing.getBookingMode());
+		reservation.setGuestGuid(existing.getGuestGuid());
+		
+	
+		reservationService.patchForGuestReservation(reservation, existing, userInfo, rest, token, listOfError);
+		
+		if(!listOfError.isEmpty())
+		{
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+
+		
+		BaseResponse response = new UpdateResponse<>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY, reservation.getGuid());
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+		
+	}
+	
+	
+	
+	
+	public Result patchForUnconfirmedReservation() {
+		
+		JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		
+		String token  = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<>();
+		
+		
+		Reservation existing = null;
+		if(reservation.getGuid() != null)
+			existing = reservationService.getReservationByGuid(reservation.getGuid());
+		
+		Reservation resvRequest = reservationValidator.validatePatchToUnconfirmedReservationRequest(reservation, existing, userInfo, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = resvRequest;
+		reservation.setInfoOnUpdate(userInfo);
+		
+		reservationService.setRequestSource(reservation, existing, request());
+	
+		Restaurant restaurant = restService.getRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		boolean isUnconfimed = (restaurant.getType() == null || !restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID)) ? 
+				(reservation.getReservationStatus().equals(EmpowerConstants.CONFIRMED) || reservation.getReservationStatus().equals(EmpowerConstants.CANCELLED)) : false;
+		
+		if((restaurant.getType() != null && restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID)) || isUnconfimed){
+			reservationService.confirmUnconfirmedReservations(reservation, existing, restaurant, userInfo, token, listOfError);
+			
+			if(!listOfError.isEmpty()){
+				
+				BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+				JsonNode result = Json.toJson(response);
+				return ok(result);
+			}
+			
+		}
+		
+		BaseResponse response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY, reservation.getGuid());
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+		
+	}
+	
+
+	
+	public Result createAndSeatWaitlist() {
+
+
+		JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+	
+		
+		Restaurant restaurant = restService.getRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		if(restaurant == null)
+		{
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_RESTAURANT_GUID), ErrorCodes.INVALID_RESTAURANT_GUID));
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		Reservation validatedResv = reservationValidator.validateRestaurantReservationRequest(reservation, userInfo, restaurant, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = validatedResv;
+		reservationService.setRequestSource(reservation, null, request());
+
+		reservation.setInfoOnCreate(authService.getUserInfoByToken(token));
+
+		
+		BaseResponse response = reservationService.createAndSeatWaitlist(reservation, token, true);
+	
+
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+	}
+	
+	
+	
+	public Result createSeatWalkinConflicts() {
+
+		JsonNode json = request().body().asJson();
+		Map<String, Object> params = new HashMap<String, Object>();
+		
+		
+		String addToWaitlistGuid = json.get("addToWaitlistGuid").asText().toString();
+		String seatWaitistGuid = json.get("seatWaitistGuid").asText().toString();
+		String finishedReservationGuid = json.get("finishedReservationGuid").asText().toString();
+		String cancelledReservationGuid = json.get("cancelledReservationGuid").asText().toString();
+		String restaurantGuid = json.get(EmpowerConstants.REST_GUID).asText().toString();
+		String seatWithReduceTat = json.get("seatWithReduceTat").asText().toString();
+		String reducedEndTime = json.get("reducedEndTime").asText().toString();
+		ArrayNode tableGuidArr = null;
+		if ((json.get("tableGuid") != null) && (json.get("tableGuid").isArray())) {
+			tableGuidArr = (ArrayNode) json.get("tableGuid");
+		}
+		List<String> tableGuid = new ArrayList<String>();
+
+		if (tableGuidArr != null) {
+			Iterator itr = tableGuidArr.iterator();
+			JsonNode node;
+			while (itr.hasNext()) {
+				node = (JsonNode) itr.next();
+				tableGuid.add(node.asText());
+			}
+
+		}
+
+		if(json.get("offerId") != null && !json.get("offerId").asText().toString().equals("null") &&  !json.get("offerId").asText().toString().equals(""))
+		{
+			params.put("offerId", json.get("offerId").asText().toString());
+		}
+
+
+		String requestSource = request().getHeader(REQUEST_SOURCE);
+
+
+		List<String> rqstSourceList = new ArrayList<>();
+
+		if(requestSource != null)
+		{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + requestSource);
+		}else{
+			rqstSourceList.add(request().getHeader("X-REAL-IP") + "-" + "WEB");
+		}
+
+		params.put(EmpowerConstants.REQUEST_SOURCE, rqstSourceList);
+
+		params.put("addToWaitlistGuid", addToWaitlistGuid);
+		params.put("seatWaitistGuid", seatWaitistGuid);
+		params.put("finishedReservationGuid", finishedReservationGuid);
+		params.put("cancelledReservationGuid", cancelledReservationGuid);
+		params.put(EmpowerConstants.REST_GUID, restaurantGuid);
+		params.put("reducedEndTime", reducedEndTime);
+		params.put("seatWithReduceTat", seatWithReduceTat);
+		params.put("tableGuid", tableGuid);
+		
+
+		if(json.get("guid") != null)
+			params.put("guid", json.get("guid").asText().toString());
+		if(json.get("requestTime") != null)
+			params.put("requestTime", json.get("requestTime").asText().toString());
+		if(json.get("isUnknown") != null)
+			params.put("isUnknown", json.get("isUnknown").asText().toString());
+		if(json.get("numCovers") != null)
+			params.put("numCovers", json.get("numCovers").asText().toString());
+		if(json.get("tat") != null)
+			params.put("tat", json.get("tat").asText().toString());
+
+		BaseResponse response = reservationService.resolveCreateAndSeatWalkin(params, request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	
+	//Open API
+	public Result cancelOrConfirmResvByRest() {
+		List<ValidationError> listOfError = new ArrayList<>();
+		BaseResponse response = null;
+		String token = authorizationService.loginAsInternal();
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+		JsonNode json = request().body().asJson();
+
+		Reservation modifiedReservation = Json.fromJson(json, Reservation.class);
+		Reservation existing = reservationService.getReservationByGuid(modifiedReservation.getGuid());
+		modifiedReservation.setInfoOnUpdate(userInfo);
+		reservationValidator.validateGuid(modifiedReservation.getGuid(), listOfError);
+		Reservation resvRequest = reservationValidator.validatePatchToUnconfirmedReservationRequest(modifiedReservation,
+				existing, userInfo, listOfError);
+
+		if (!listOfError.isEmpty()) {
+
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+		} else {
+			modifiedReservation = resvRequest;
+			Restaurant rest = restService.getRestaurantByGuid(existing.getRestaurantGuid());
+
+			if (modifiedReservation.getReservationStatus() != null
+					&& modifiedReservation.getReservationStatus().equalsIgnoreCase(EmpowerConstants.CANCELLED)) {
+				modifiedReservation.setCancelledBy(EmpowerConstants.RESTAURANT);
+			}
+
+			reservationService.confirmUnconfirmedReservations(modifiedReservation, existing, rest, userInfo, token,
+					listOfError);
+			if (!listOfError.isEmpty()) {
+				response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			} else {
+				response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+						modifiedReservation.getGuid());
+			}
+		}
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+	}
+	
+	//Open API
+	public Result resvCancelByGuest() {
+
+		JsonNode json = request().body().asJson();
+		Reservation reservation = Json.fromJson(json, Reservation.class);
+		UserInfoModel userInfo = new UserInfoModel();
+		String token  = authorizationService.loginAsInternal();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		Reservation existing = null;
+		if(reservation.getGuid() != null)
+			existing = reservationService.getReservationByGuid(reservation.getGuid());
+		if(existing == null){
+			listOfError.add(new ValidationError(EmpowerConstants.GUID, ErrorCodes.INVALID_RESERVATION_GUID));
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		} 
+		userInfo.setGuid(existing.getGuestGuid());
+		userInfo.setUserType(EmpowerConstants.CUSTOMER_ENUM);
+		userInfo.setRoleId(EmpowerConstants.CUSTOMER_ROLE_ID);
+		reservationService.setRequestSource(reservation, existing, request());		
+		Restaurant rest = restService.getRestaurantByGuid(existing.getRestaurantGuid());
+		Reservation resvRequest = reservationValidator.validateIncomingReservationRequestOnUpdate(reservation, existing, rest, userInfo, listOfError);
+
+		if(!listOfError.isEmpty()){
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+		
+		reservation = resvRequest;
+		reservation.setInfoOnUpdate(userInfo);
+		reservation.setCreatedDate(existing.getCreatedDate());
+		reservation.setBookingMode(existing.getBookingMode());
+		reservation.setCancelledBy(EmpowerConstants.CUSTOMER_ENUM);
+		
+	
+		reservationService.patchForGuestReservation(reservation, existing, userInfo, rest, token, listOfError);
+		
+		if(!listOfError.isEmpty())
+		{
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			JsonNode result = Json.toJson(response);
+			return ok(result);
+		}
+
+		
+		BaseResponse response = new UpdateResponse<>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY, reservation.getGuid());
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+		
+	}
+	
+	/*
+	public Result scheduleReservationStatusUpdate(String guid, String status) {
+		
+		if (!status.equals(EmpowerConstants.CONFIRMED) && !status.equals(EmpowerConstants.CANCELLED)) {
+			List<ValidationError> errors = new ArrayList<ValidationError>();
+			errors.add(new ValidationError(EmpowerConstants.RESERVATION_STATUS, ErrorCodes.INVALID_RESERVATION_STATUS));
+			BaseResponse response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, errors);
+			return ok(Json.toJson(response));
+		} else {
+			BaseResponse response = reservationService.scheduleReservationUpdate(status, guid);
+			return ok(Json.toJson(response));
+		}
+	}*/
+	
+	
+
+	
+}

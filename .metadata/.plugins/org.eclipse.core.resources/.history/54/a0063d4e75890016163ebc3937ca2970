@@ -1,0 +1,121 @@
+# This is the main configuration file for the application.
+# ~~~~~
+application.global=com.clicktable.consumer.config.Global
+# URL and Port
+http.port=80
+http.address=0.0.0.0
+
+
+# Secret key
+# ~~~~~
+# The secret key is used to secure cryptographics functions.
+#
+# This must be changed for production, but we recommend not changing it in this file.
+#
+# See http://www.playframework.com/documentation/latest/ApplicationSecret for more details.
+play.crypto.secret = "d3AQ:c8NOG0Xgzt;HN`lkg1if[/Mja?phfOn?PLDSC1=EysoaTWK8S`<h;Y[cF:J"
+application.secret = "onjDS_;]USDimgfY5XQsN;npGrZpebI`UCZI4tLHEJlq_RDuQvvaCFrs3a:[BViP"
+
+# The application languages
+# ~~~~~
+play.i18n.langs = [ "en" ]
+
+# Database configuration
+# ~~~~~ 
+# You can declare as many datasources as you want.
+# By convention, the default datasource is named `default`
+
+neo4j.path="http://192.168.64.20:7474/db/data"
+neo4j.user="neo4j"
+neo4j.password="neo@20"
+
+# Stormpath Properties
+apiKey.id = JQPC25SHFS2QP3H2ZB4A7HYKX
+apiKey.secret = LqNZwgNl05YSVGCGMQZO7XK3uZ0EhTmgtizg1T/dpGA
+apiKey.application_id= 6mGR2ZzfXQi4HzMgju4354
+
+# Gupshup Properties
+gupshup.promotion.userId = "2000156932"
+gupshup.promotion.password = "Click@Test"
+
+gupshup.userId = "2000156932"
+gupshup.password = "Click@Test"
+
+gupshup.url = "http://enterprise.smsgupshup.com/GatewayAPI/rest"
+
+#DEMO and UAT
+mandrill.key=vTD2L5_8lLXKsjrK403uNw
+smtp.user="no-reply@clicktable.com"
+
+zendesk.url="https://clicktable.zendesk.com"
+zendesk.username="info@clicktable.com"
+zendesk.password="p@ssw0rd@1"
+
+
+#cloudinary
+cloudinary.cloud_name="dcb1zxkdz"
+cloudinary.api_key="424773289481273"
+cloudinary.api_secret="OttlEgqHBkguajp_-2sj2PWzGpI"
+
+webpurify.url="http://api1.webpurify.com/services/rest/"
+webpurify.api_key="22a839498753bd341effdc78d3d609d3"
+webpurify.method="webpurify.live.check"
+
+#google geocode
+map.url="https://maps.googleapis.com/maps/api/geocode/json"
+map.api_key="AIzaSyChDNfYMPMUv23ucvwpbP5jdvduLlV9oIQ" 
+
+#elastic search
+#elasticsearch.client="192.168.64.31:9200"
+elasticsearch.ip="192.168.64.20"
+
+#google geocode
+map.url="https://maps.googleapis.com/maps/api/geocode/json"
+map.api_key="AIzaSyChDNfYMPMUv23ucvwpbP5jdvduLlV9oIQ" 
+
+akka.jvm-exit-on-fatal-error = off
+
+#quicksearch call 
+empower.url = "http://localhost:8000"
+#empower.url = "http://192.168.64.28:9000"
+#empower.url = "http://clickapi.clicktable.com:8888"
+
+#localytics settings
+localytics.app.id=fd7fed303bb563464d558ef-36e821ba-481e-11e6-857e-0086bc74ca0f
+localytics.push.url="https://messaging.localytics.com/v2/push/"
+localytics.push.api.key=093a0d7ae4bdcea19a04456-045fe702-481e-11e6-b205-00342b7f5075
+localytics.push.api.secret=d579e0a13809ef7b4830327-045fe9f6-481e-11e6-b205-00342b7f5075
+
+#Openweather Properties
+openweather.appid=0c00e12e2a6c3e13595faa5aebf4428e
+
+#Redis
+redis.host="192.168.64.20"
+redis.port="6379" 
+#redis.password="Click1234"
+#redis.database=0
+#redis.pool.maxIdle=10
+#redis.pool.maxIdle
+#redis.pool.minIdle
+#redis.pool.maxTotal
+#redis.pool.maxWaitMillis
+#redis.pool.testOnBorrow
+#redis.pool.testOnReturn
+#redis.pool.testWhileIdle
+#redis.pool.timeBetweenEvictionRunsMillis
+#redis.pool.numTestsPerEvictionRun
+#redis.pool.minEvictableIdleTimeMillis
+#redis.pool.softMinEvictableIdleTimeMillis
+#redis.pool.lifo
+#redis.pool.blockWhenExhausted
+
+#Branch IO
+branch.url="http://api.branch.io/v1/url"
+branch.key="key_test_cmyiDpaG33JewV2ZvNPsrndcrufGpwO3"
+
+#Consumer reservation open URI for sms notification
+consumer.uri="http://dev.clicktable.com/reserve-open-pages/"
+
+#Stream.io
+stream.api.key="kqmnk9vbap2m"
+stream.api.secret="cd476v5hdt8akz6bx38fnzvjufxu3m9umq3b395ze7bzattcg2wnqy9rt5s8y6ys"

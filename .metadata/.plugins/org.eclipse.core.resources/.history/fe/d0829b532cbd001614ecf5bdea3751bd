@@ -1,0 +1,226 @@
+package com.clicktable.service.impl;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.comparator.TableWaitlistSort;
+import com.clicktable.dao.intf.CustomerDao;
+import com.clicktable.dao.intf.QueueDao;
+import com.clicktable.dao.intf.QuickSearchDao;
+import com.clicktable.dao.intf.RestaurantDao;
+import com.clicktable.dao.intf.TableShuffleDao;
+import com.clicktable.dao.intf.TatDao;
+import com.clicktable.dao.intf.WaitlistDao;
+import com.clicktable.model.Reservation;
+import com.clicktable.model.TableWaitingTime;
+import com.clicktable.model.WaitlistResult;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.service.intf.AllTablesWaitlistService;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.ReservationService;
+import com.clicktable.service.intf.TableShuffleService;
+import com.clicktable.service.intf.WaitlistService;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.RestaurantValidator;
+import com.clicktable.validate.ValidationError;
+
+import play.Logger;
+
+@Component
+public class AllTablesWaitlistServiceImpl  implements AllTablesWaitlistService
+{
+	private static final Logger.ALogger log = Logger
+			.of(AllTablesWaitlistServiceImpl.class);
+	
+	@Autowired
+	AuthorizationService authService;
+	
+	@Autowired
+	RestaurantValidator restaurantValidator;
+	
+	@Autowired
+	QuickSearchDao quickSearchDao;
+	
+	@Autowired
+	RestaurantDao restDao;
+	
+
+	@Autowired
+	TatDao tatDao;
+	
+	
+	@Autowired
+	WaitlistDao waitlistDao;
+	
+	@Autowired
+	QueueDao queueDao;
+	
+	@Autowired
+	ReservationService resvService;
+	
+	@Autowired
+	CustomerDao guestDao;
+	
+	@Autowired
+	TableShuffleDao shuffleDao;
+	
+	@Autowired
+	WaitlistService waitlistService;
+	
+	@Autowired
+	TableShuffleService shuffleService;
+
+	
+	@Override
+	public BaseResponse getAllTablesWaitlistResult(Map<String, Object> params, String token){
+
+		BaseResponse getResponse = new BaseResponse();
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		Map <String, Object> responseMap = new HashMap<>();
+
+		if(!params.containsKey(EmpowerConstants.TAT))
+		{
+			errorList.add(new ValidationError(EmpowerConstants.TAT, UtilityMethods.getErrorMsg(ErrorCodes.TAT_REQUIRED), ErrorCodes.TAT_REQUIRED));
+			
+		}
+		
+		if(!errorList.isEmpty())
+		{
+			getResponse = new ErrorResponse(ResponseCodes.WAITLIST_RECORD_FETCH_FAILURE, errorList);
+			return getResponse;
+		}
+
+		Long inputTat =  Long.valueOf(params.get(EmpowerConstants.TAT).toString())*60*1000;
+
+		responseMap = waitlistService.getTableWaitingList(params, token, errorList);
+
+		if(!errorList.isEmpty())
+		{
+			getResponse = new ErrorResponse(ResponseCodes.WAITLIST_RECORD_FETCH_FAILURE, errorList);
+			return getResponse;
+		}
+
+		Map<String,List<Reservation>> resvList = (Map<String, List<Reservation>>) responseMap.get("reservationList");
+		Map<Integer,WaitlistResult> tblWaitMap = new HashMap<>();
+		tblWaitMap = (Map<Integer, WaitlistResult>) responseMap.get("waitTimeResult");
+		
+		
+		Map<Integer, List<Map<String, WaitlistResult>>>  newTblWaitMap = new HashMap<>();
+		newTblWaitMap = (Map<Integer, List<Map<String, WaitlistResult>>>) responseMap.get("waitTimeResult");
+
+		List<TableWaitingTime> availableTables = new ArrayList<>();
+		List<TableWaitingTime> availableTableGroups = new ArrayList<>();
+		
+		//List<Table> tableList = entry.getValue();
+		List<TableWaitingTime> tblWaitList = new ArrayList<>();
+		Map<String, String> tableMapCheck = new HashMap<>();
+
+		/*for(Map.Entry<Integer, WaitlistResult> entry : tblWaitMap.entrySet())
+		{
+			WaitlistResult waitlist = entry.getValue();
+			for(TableWaitingTime tblWaitTime : waitlist.getTblWaitlist())
+			{
+				if(!tableMapCheck.containsKey(tblWaitTime.getTableGuid()))
+				{
+					tableMapCheck.put(tblWaitTime.getTableGuid(), tblWaitTime.getTable());
+					tblWaitList.add(tblWaitTime);
+				}
+			}
+		}*/
+
+		
+		
+		for(Map.Entry<Integer, List<Map<String, WaitlistResult>>> entry : newTblWaitMap.entrySet())
+		{
+			List<Map<String, WaitlistResult>> entryValue = entry.getValue();
+			
+			for(Map<String, WaitlistResult> tableList : entryValue){
+				
+				for(Map.Entry<String, WaitlistResult> key : tableList.entrySet()){
+					if(key.getKey().equals("Tables")){
+
+						WaitlistResult waitlist = key.getValue();
+						for(TableWaitingTime tblWaitTime : waitlist.getTblWaitlist())
+						{
+							if(!tableMapCheck.containsKey(tblWaitTime.getTableGuid()))
+							{
+								tableMapCheck.put(tblWaitTime.getTableGuid(), tblWaitTime.getTableGuid());
+								tblWaitList.add(tblWaitTime);
+							}
+						}
+					
+					}else{
+						WaitlistResult waitlist = key.getValue();
+						for(TableWaitingTime tg : waitlist.getTblWaitlist()){
+							if(!tableMapCheck.containsKey(tg.getGroupTableList().getGuid()))
+							{
+								tableMapCheck.put(tg.getGroupTableList().getGuid(), tg.getGroupTableList().getGuid());
+								availableTableGroups.add(tg);
+							}
+						}
+						
+					}
+				}
+				
+			}
+			
+		}
+
+		Date currentTime = new Date();
+		Collections.sort(tblWaitList, new TableWaitlistSort());
+		for(TableWaitingTime tblWait : tblWaitList)
+		{
+			if(tblWait.getWaitTime() < 0 && tblWait.getAvailableTime().getTime() != 0)
+			{
+				tblWait.setAvailableTime(currentTime);
+			}
+		}
+
+		Long endTimeForTables = tblWaitList.get(tblWaitList.size() - 1).getAvailableTime().getTime() + inputTat;
+
+
+		for(TableWaitingTime tblWaitTime : tblWaitList){
+			
+			List<Reservation> reservationList = resvList.get(tblWaitTime.getTable().getGuid());
+			Boolean isAvailable = true;
+			Long availableTime = tblWaitTime.getAvailableTime().getTime();
+			if(reservationList != null)
+			{
+				for(Reservation resv : reservationList)
+				{
+					if(resv.getEstStartTime().getTime() < endTimeForTables && resv.getEstStartTime().getTime() >= availableTime){
+						isAvailable = false;
+						break;
+					}
+				}
+			}
+			if(isAvailable){
+				availableTables.add(tblWaitTime);
+			}
+		}
+		
+		Map<String, List<TableWaitingTime>> response = new HashMap<>();
+		response.put("Tables", availableTables);
+		response.put("TableGroups", availableTableGroups);
+		List<Map<String, List<TableWaitingTime>>> responseList = new ArrayList<>();
+		responseList.add(response);
+
+		getResponse = new GetResponse(ResponseCodes.WAITLIST_RECORD_FETCH_SUCCESFULLY, responseList);
+
+		return getResponse;
+	}	
+
+
+}

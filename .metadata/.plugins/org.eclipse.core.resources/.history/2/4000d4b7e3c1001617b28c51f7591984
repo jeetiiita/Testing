@@ -1,0 +1,205 @@
+# This is the main configuration file for the application.
+# ~~~~~
+
+# Secret key
+# ~~~~~
+# The secret key is used to secure cryptographics functions.
+#
+# This must be changed for production, but we recommend not changing it in this file.
+#
+# See http://www.playframework.com/documentation/latest/ApplicationSecret for more details.
+play.crypto.secret = "d3AQ:c8NOG0Xgzt;HN`lkg1if[/Mja?phfOn?PLDSC1=EysoaTWK8S`<h;Y[cF:J"
+application.secret="onjDS_;]USDimgfY5XQsN;npGrZpebI`UCZI4tLHEJlq_RDuQvvaCFrs3a:[BViP"
+
+# The application languages
+# ~~~~~
+application.langs="en"
+
+# Global object class
+# ~~~~~
+# Define the Global object class for this application.
+# Default to Global in the root package.
+# application.global=com.clicktable.config.Global
+
+# Router
+# ~~~~~
+# Define the Router object to use for this application.
+# This router will be looked up first when the application is starting up,
+# so make sure this is the entry point.
+# Furthermore, it's assumed your route file is named properly.
+# So for an application router like `conf/my.application.Router`,
+# you may need to define a router file `my.application.routes`.
+# Default to Routes in the root package (and `conf/routes`)
+# application.router=my.application.Routes
+
+
+# Database configuration
+# ~~~~~
+# You can declare as many datasources as you want.
+# By convention, the default datasource is named `default`
+#
+
+
+
+
+#neo4j.path="http://192.168.64.20:7474/db/data"
+#neo4j.user="neo4j"
+#neo4j.password="neo@20"
+
+neo4j.path="http://192.168.64.20:7474/db/data"
+neo4j.user="neo4j"
+neo4j.password="neo@20"
+
+#gupshup
+gupshup.url = "http://enterprise.smsgupshup.com/GatewayAPI/rest"
+#gupshup
+gupshup.userId="2000156932"
+gupshup.password="Click@Test"
+
+gupshup.promotion.userId = "2000156932"
+gupshup.promotion.password = "Click@Test"
+
+scrubbing.userid="2000034760"
+scrubbing.password="abc123"
+
+#zendesk
+zendesk.url="https://clicktable.zendesk.com"
+zendesk.token="hzwNvihtP6cDXjM3tm9EUw3ETFaJSWe5yNae6OjV"
+zendesk.username="info@clicktable.com"
+zendesk.password="p@ssw0rd@1"
+
+
+#DEMO and UAT
+mandrill.key=vTD2L5_8lLXKsjrK403uNw
+smtp.user="no-reply@clicktable.com"
+
+# Evolutions
+# ~~~~~
+# You can disable evolutions if needed
+# evolutionplugin=disabled
+
+# Stormpath Properties
+apiKey.id = JQPC25SHFS2QP3H2ZB4A7HYKX
+apiKey.secret = LqNZwgNl05YSVGCGMQZO7XK3uZ0EhTmgtizg1T/dpGA
+apiKey.application_id= 6mGR2ZzfXQi4HzMgju4354
+
+akka.jvm-exit-on-fatal-error = off
+
+smtp.mock=true
+
+#Internal SysAdmin Credentials
+sysadmin.user = "sys-admin@clicktable.com"
+sysadmin.secret = "Ct@pass777"
+
+#Ct Admin
+ctadmin.user = "admin@clicktable.com"
+
+#Openweather Properties
+openweather.appid=0c00e12e2a6c3e13595faa5aebf4428e
+
+#Support URL
+support.url="http://192.168.65.54:9000"
+
+#cloudinary
+cloudinary.cloud_name="delng5fll"
+cloudinary.api_key="345623452884484"
+cloudinary.api_secret="qRPKj_IqgiNuQLT0t1MQDLyVQ_Q"
+
+webpurify.url="http://api1.webpurify.com/services/rest/"
+webpurify.api_key="a1a698ecb54eeef7fdaddb78d9765b77"
+webpurify.method="webpurify.live.check"
+
+#google geocode
+map.url="https://maps.googleapis.com/maps/api/geocode/json"
+map.api_key="AIzaSyC0eNMAbByjg4Ll8otr1wsqZt65BzPKLp0" 
+
+#elastic search
+elasticsearch.ip="192.168.64.20"
+
+
+#Payment
+application.protocol="http://"
+
+#conf/application.conf
+ehcacheplugin=disabled
+
+#Redis
+redis.host="192.168.64.20"
+redis.port="6379"
+redis.pool.maxIdle=10
+redis.pool.maxTotal=100
+redis.timeout=10000
+#redis.password="Click1234"
+#redis.database=0
+#redis.pool.maxIdle
+#redis.pool.minIdle
+#redis.pool.maxWaitMillis
+#redis.pool.testOnBorrow
+#redis.pool.testOnReturn
+#redis.pool.testWhileIdle
+#redis.pool.timeBetweenEvictionRunsMillis
+#redis.pool.numTestsPerEvictionRun
+#redis.pool.minEvictableIdleTimeMillis
+#redis.pool.softMinEvictableIdleTimeMillis
+#redis.pool.lifo
+#redis.pool.blockWhenExhausted
+
+
+#ozoneTel
+ozone.API.key=KKf21e4426d9696926ce24d6941516824a
+ozone.url= "http://www.kookoo.in/outbound/outbound.php"
+ozone.ctUrl= "http://client.clicktable.com:9000/ozoneCallBack"
+ozone.ctCallBackUrl= "http://client.clicktable.com:9000/ozoneTel"
+
+
+#onelogin
+onelogin.key="client_id:9ff1c5b312f41a74dd5ae354ac688f5863ad85b5ea5c3c43fb8e071b10c6dcb3,client_secret:3422f8f14d84b13a78518bd8b6b27893295c92749a47cd65f4eb4ab0d200d4b9"
+onelogin.tokenUrl="https://api.us.onelogin.com/auth/oauth2/token"
+onelogin.authUrl="https://api.us.onelogin.com/api/1/login/auth"
+
+#Stream.io
+stream.api.key="kqmnk9vbap2m"
+stream.api.secret="cd476v5hdt8akz6bx38fnzvjufxu3m9umq3b395ze7bzattcg2wnqy9rt5s8y6ys"
+
+#Consumer reservation open URI for sms notification
+consumer.uri="http://dev.clicktable.com/reserve-open-pages/"
+
+#Branch IO
+branch.url="http://api.branch.io/v1/url"
+branch.customer_key="key_test_egrdgy9pxU5zBuJLytC3TnpbtEb2yhzf"
+branch.restaurant.key="key_test_egrdgy9pxU5zBuJLytC3TnpbtEb2yhzf"
+
+#Twilio Lookup API
+twilio.accountSid=ACb26aa7237a9695249d52071e740e0af4
+twilio.authToken=9487c509f08763b2c5f25f62071bd89c
+
+#Ienerizer
+ie.username="apictuser"
+ie.password="rz3Eur$z9w4zQ4T"
+
+#ivr Testing
+
+ie.url="https://ingapps12.ienergizer.in/iewebapitest/Test_Web.asmx/"
+ie.listingMethod=SendIVRData_NR
+ie.clicktableMethod=SendIVRData
+ie.callingMethod=SendCallingData
+
+
+#Localytics
+localytics.push.url="https://messaging.localytics.com/v2/push/"
+localytics.app.id=68b80c722fcdac9edb8391d-23807f44-a260-11e6-66f0-007933b47d84
+localytics.push.api.key=093a0d7ae4bdcea19a04456-045fe702-481e-11e6-b205-00342b7f5075
+localytics.push.api.secret=d579e0a13809ef7b4830327-045fe9f6-481e-11e6-b205-00342b7f5075
+
+helloStaff.password="H3110_5t@44"
+
+audio.baseUrl="https://ct-cc.s3.amazonaws.com"
+audio.inuptMp3="/static/input.mp3"
+audio.welcomePath="/welcome/"
+audio.noInputMp3="/static/no_input.mp3"
+
+
+## Amazon Credentials
+aws.access.key = "AKIAJHATJAHCNCIGTTWQ"
+aws.secret.key = "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"
+aws.bucket="ct-cc"

@@ -1,0 +1,110 @@
+/**
+ * 
+ */
+package com.clicktable.controllers;
+
+import static com.clicktable.util.Constants.ACCESS_TOKEN;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.F.Promise;
+import play.libs.Json;
+import play.libs.ws.WS;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.InvoiceService;
+import com.clicktable.util.Constants;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class InvoiceController extends Controller {
+
+	@Autowired
+	AuthorizationService authService;
+
+	@Autowired
+	InvoiceService invoiceService;
+
+	public Result getInvoice() {
+
+		String uri = request().uri();
+
+		BaseResponse response = null;
+		JsonNode jsonResult = null;
+		String token = request().getHeader(ACCESS_TOKEN);
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+		if ((userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID))
+				|| (userInfo.getRoleId().equals(Constants.ADMIN_ROLE_ID))
+				|| (userInfo.getRoleId().equals(Constants.MANAGER_ROLE_ID))) {
+
+			jsonResult = getInvoiceDetails(userInfo.getRestGuid(), uri);
+		} else {
+ 			response = new BaseResponse(
+					ResponseCodes.UNAUTHORIZED_ACCESS_TO_INVOICE, false,
+					userInfo);
+ 			jsonResult = Json.toJson(response);
+		}
+
+		
+		Logger.debug(Json.stringify(jsonResult));
+		return ok(jsonResult);
+	}
+
+	
+	public Result getInvoiceTxn() {
+
+		
+		String uri = request().uri();
+
+		BaseResponse response = null;
+		JsonNode jsonResult = null;
+		String token = request().getHeader(ACCESS_TOKEN);
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+		if ((userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID))
+				|| (userInfo.getRoleId().equals(Constants.ADMIN_ROLE_ID))
+				|| (userInfo.getRoleId().equals(Constants.MANAGER_ROLE_ID))) {
+
+			jsonResult = getInvoiceDetails(userInfo.getRestGuid(), uri);
+		} else {
+ 			response = new BaseResponse(
+					ResponseCodes.UNAUTHORIZED_ACCESS_TO_INVOICE, false,
+					userInfo);
+ 			jsonResult = Json.toJson(response);
+		}
+		Logger.debug(Json.stringify(jsonResult));
+		return ok(jsonResult);
+	}
+	
+	private JsonNode getInvoiceDetails(
+			String restGuid, String uri) {
+
+		Promise<JsonNode> accResponse = WS
+				.url(UtilityMethods.getConfString(Constants.CT_SUPPORT_URL)
+						+ uri)
+				.setQueryParameter("restGuid",
+						restGuid)
+						.get()
+				.map(accessResponse -> {
+					JsonNode responseJson = accessResponse.asJson();
+					return responseJson;
+				});
+
+		JsonNode responseJson = accResponse.get(20000);
+		return responseJson;
+	}
+}

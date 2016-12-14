@@ -1,0 +1,26 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.TaxLayer;
+import com.clicktable.support.model.Tax;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface TaxLayerService {
+	
+	TaxLayer create(TaxLayer taxLayer);
+
+
+
+	List<TaxLayer> getTaxLayers(Tax tax);
+
+}

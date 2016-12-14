@@ -1,0 +1,29 @@
+/**
+ * 
+ */
+package String;
+
+import java.util.Scanner;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class Atoi {
+
+	public static void main(String[] args) {
+		Scanner input = new Scanner(System.in);
+		Atoi.atoi(input.nextLine());
+		input.close();
+		
+	}
+	static int atoi(String input) {
+		char[] inputArray = input.toCharArray();
+		int length = inputArray.length;
+		int result = 0;
+		for(int i=0;i<length;i++) {
+			result = result*10 + inputArray[i] -'0';
+		}
+		return result;
+	}
+}

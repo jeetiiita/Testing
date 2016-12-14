@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>.org.eclipse.jdt.core.external.folders</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+	</buildSpec>
+	<natures>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>.link0</name>
+			<type>2</type>
+			<location>C:/Users/j.yadav/R5/clicktable-app/target/scala-2.11/classes_managed</location>
+		</link>
+		<link>
+			<name>.link1</name>
+			<type>2</type>
+			<location>C:/Users/j.yadav/R4/support-services/target/scala-2.11/classes_managed</location>
+		</link>
+		<link>
+			<name>.link2</name>
+			<type>2</type>
+			<location>C:/Users/j.yadav/R4/reserve-services/target/scala-2.11/classes_managed</location>
+		</link>
+		<link>
+			<name>.link3</name>
+			<type>2</type>
+			<location>C:/Users/j.yadav/.groovy/greclipse/global_dsld_support</location>
+		</link>
+		<link>
+			<name>.link4</name>
+			<type>2</type>
+			<location>E:/Softwares/IDE/eclipse-jee-mars-2-win32-x86_64/eclipse/plugins/org.codehaus.groovy_2.4.3.xx-201607251752-e45/plugin_dsld_support</location>
+		</link>
+	</linkedResources>
+</projectDescription>

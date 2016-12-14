@@ -1,0 +1,80 @@
+import java.util.*;
+
+import play.mvc.Controller;
+
+import com.ning.billing.recurly.RecurlyClient;
+import com.ning.billing.recurly.model.Account;
+import com.ning.billing.recurly.model.Address;
+import com.ning.billing.recurly.model.BillingInfo;
+
+
+public class Addcustomer extends Controller{
+    
+	final private static String API_KEY = "3daa12db9a5e4bfd8afe6d73deb0ebdb";
+    final private static String DOMAIN_RECURLY = "clicktable";
+
+    public static void main(String[] args) {
+        
+        RecurlyClient recurlyClient = new RecurlyClient (API_KEY, DOMAIN_RECURLY);
+        recurlyClient.open();
+        
+        if (recurlyClient != null ){
+        	
+        Account accountData = Addcustomer.createRandomAccount();
+        recurlyClient.createAccount(accountData);
+        System.out.println ("client not  null");
+           
+        }
+        else System.out.println ("client null");
+        
+        recurlyClient.close();
+        
+        
+        
+        
+        
+    
+  
+
+}
+    
+    public static Account createRandomAccount() {
+        final Account account = new Account();
+        account.setAcceptLanguage("en_US");
+        account.setAccountCode(UUID.randomUUID().toString());
+        account.setCompanyName("jitendra12");
+        account.setEmail("jeet@gmail.com");
+        account.setFirstName("jiten");
+        account.setLastName("yadav");
+
+        final Address address = new Address();
+        address.setAddress1(UUID.randomUUID().toString());
+        address.setAddress2(UUID.randomUUID().toString());
+        address.setCity(UUID.randomUUID().toString());
+        address.setState(UUID.randomUUID().toString());
+        address.setZip(49302);
+        address.setCountry(UUID.randomUUID().toString());
+        address.setPhone(UUID.randomUUID().toString());
+        account.setAddress(address);
+
+        return account;
+    }
+    
+    public static BillingInfo createRandomBillingInfo() {
+        final BillingInfo info = new BillingInfo();
+        info.setAccount(createRandomAccount());
+        info.setFirstName("jiten");
+        info.setLastName("yadav");
+        info.setCompany("clicktable");
+        info.setAddress1("indira");
+        info.setAddress2("puram");
+        info.setCity("Ghaziabad");
+        info.setState("UP");
+        info.setZip("285001");
+        info.setCountry("India");
+        info.setPhone(99684500);
+        info.setVatNumber(123456);
+        return info;
+    }
+}
+

@@ -1,0 +1,188 @@
+package com.clicktable.support.service.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.libs.F.Promise;
+import play.libs.ws.WS;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.ConversationDao;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.InvoiceTxnDao;
+import com.clicktable.support.dao.intf.TaxCategoryDao;
+import com.clicktable.support.model.InvoiceTxn;
+import com.clicktable.support.response.SqlResponse;
+import com.clicktable.support.service.intf.InvoiceTxnService;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.InvoiceTxnValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+@Component
+public class InvoiceTxnServiceImpl implements InvoiceTxnService {
+
+	@Autowired
+	InvoiceTxnDao invoiceTxnDao;
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Autowired
+	ConversationDao conversationDao;
+
+	@Autowired
+	TaxCategoryDao taxCategoryDao;
+
+	@Autowired
+	InvoiceTxnValidator invoiceTxnValidator;
+
+	@Override
+	@Transactional
+	public BaseResponse insertDailyInvoiceTxn() {
+
+		BaseResponse responseResult = null;
+
+		List<Object[]> conversationList = getDeliveredConversationCountForToday();// invoiceTxnDao.getConversation();
+
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode jNode = mapper.createObjectNode();
+		
+		jNode.put("userName",UtilityMethods.getConfString(Constants.CLICKTABLE_USER)).
+		put("password", UtilityMethods.getConfString(Constants.CLICKTABLE_PASSWORD));
+		
+		WS.url(UtilityMethods.getConfString(Constants.CLICKTABLE_URL)).post(jNode)
+		.map(response -> {
+			JsonNode responseJson = response.asJson();
+			String	accessToken = responseJson.get("token").toString();	
+			
+		for (int i = 0; i < conversationList.size(); i++) {
+			Object[] conversationInfo = conversationList.get(i);
+
+			String restGuid = (String) conversationInfo[0];
+
+			// Fetch restaurant data from guid
+			// Restaurant restaurant = getRestaurantDetail(restGuid);
+
+			
+			List<Object[]> taxAndUnitPriceInfo = invoiceTxnDao
+					.getTaxAndUnitPrice(/* restaurant.getState() */);
+
+			InvoiceTxn invoiceTxn = new InvoiceTxn(conversationInfo,
+					taxAndUnitPriceInfo.get(0));
+
+			List<ValidationError> errorList = invoiceTxnValidator
+					.validateInvoiceTxnOnAdd(invoiceTxn);
+
+			if (errorList.isEmpty()) {
+
+				invoiceTxnDao.insertTxn(invoiceTxn);
+
+				responseResult = new UpdateResponse<>(
+						ResponseCodes.INVOICE_TXN_ADDED_SUCCESSFULLY,
+						invoiceTxn.getGuid());
+			} else {
+
+				response = new ErrorResponse(
+						ResponseCodes.INVOICE_TXN_ADDITION_FAILURE, errorList);
+				return response;
+			}
+		}
+		});
+		return responseResult;
+
+	}
+
+	private List<Object[]> getDeliveredConversationCountForToday() {
+		List<Object[]> list = conversationDao.getDeliveredConversationCount();
+		return list;
+	}
+
+	@Override
+	@Transactional
+	public BaseResponse updateInvoiceGuid() {
+
+		BaseResponse response = null;
+		List<Object[]> invoiceGuidList = invoiceDao
+				.findAllInvoiceGuidForCurrentMonth();
+
+		String restGuid = null;
+		String invoiceGuid = null;
+		for (int i = 0; i < invoiceGuidList.size(); i++) {
+			Object[] restAndInvoiceList = invoiceGuidList.get(i);
+			restGuid = (String) restAndInvoiceList[0];
+			invoiceGuid = (String) restAndInvoiceList[1];
+
+			Integer result = invoiceTxnDao.updateInvoiceTxn(restGuid,
+					invoiceGuid);
+
+			if (result < 0) {
+				response = new UpdateResponse<>(
+						ResponseCodes.INVOICE_TXN_GUID_UPDATION_FAILURE,
+						restGuid);
+				return response;
+			}
+		}
+
+		response = new UpdateResponse<>(
+				ResponseCodes.INVOICE_TXN_UPDATED_SUCCESSFULLY, restGuid);
+		return response;
+
+	}
+
+	@Override
+	@Transactional
+	public BaseResponse getUnbilledAmount() {
+
+		List<Object[]> resultList = invoiceTxnDao.getUnbilledAmountAndTax();
+
+		BaseResponse response = new SqlResponse(
+				ResponseCodes.INVOICE_TXN_AMOUNT_FETCHED_SUCCESSFULLY,
+				resultList);
+
+		return response;
+
+	}
+
+	@Override
+	public BaseResponse getInvoiceTxn(Map<String, Object> params) {
+		Map<String, Object> validParams = invoiceTxnValidator
+				.validateFinderParams(params, InvoiceTxn.class);
+
+		List<InvoiceTxn> list = invoiceTxnDao.findByFields(InvoiceTxn.class,
+				validParams);
+
+		BaseResponse response = new GetResponse<InvoiceTxn>(ResponseCodes.INVOICE_TXN_FETCHED_SUCCESSFULLY, list);
+		return response;
+	}
+	public String getAccessToken() {
+		
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode jNode = mapper.createObjectNode();
+		
+		jNode.put("userName",UtilityMethods.getConfString(Constants.CLICKTABLE_USER)).put("password", UtilityMethods.getConfString(Constants.CLICKTABLE_PASSWORD));
+		
+		Promise<Object> result = WS.url(UtilityMethods.getConfString(Constants.CLICKTABLE_URL)).post(jNode)
+		.map(response -> {
+			JsonNode responseJson = response.asJson();
+			String	accessToken = responseJson.get("token").toString();		
+			return accessToken;
+		});
+		
+		System.out.println(result.get(0).toString());
+		return result.get(0).toString();
+	}
+	
+	
+}

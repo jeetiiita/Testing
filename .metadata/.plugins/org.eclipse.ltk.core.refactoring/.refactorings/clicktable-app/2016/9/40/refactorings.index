@@ -1,0 +1,8 @@
+1474889637448	Delete elements
+1474894546386	Rename method 'getGuestInfoArrayForRest'
+1474894578727	Rename method 'getGuestRatingInfoArrayForRest'
+1474900488882	Rename method 'notifyByEmail'
+1474900541857	Rename method 'sendSMSForRest'
+1474900557629	Rename method 'sendSMS'
+1475218126521	Rename method 'getGuestRestDetailParams'
+1475230705321	Extract constant 'REJECTED'

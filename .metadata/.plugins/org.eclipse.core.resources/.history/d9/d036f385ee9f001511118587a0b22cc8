@@ -1,0 +1,706 @@
+package com.clicktable.util;
+
+import static com.clicktable.util.Constants.ALPHABET;
+import static com.clicktable.util.Constants.BASE;
+
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URLEncoder;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+
+import javax.ws.rs.core.MultivaluedMap;
+
+import org.apache.commons.beanutils.BeanUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.springframework.data.neo4j.annotation.GraphProperty;
+
+import play.Logger;
+import play.Play;
+import play.i18n.Messages;
+import play.libs.Json;
+
+import com.clicktable.model.Oauth;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.io.CharStreams;
+import com.microtripit.mandrillapp.lutung.MandrillApi;
+import com.stormpath.sdk.impl.util.Base64;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+
+public class UtilityMethods {
+	static MandrillApi mandrillApi = new MandrillApi(getConfString(Constants.MANDRILL_API_KEY));
+
+	/**
+	 * utility method to generate ct_id
+	 * 
+	 * @return
+	 */
+	public static String generateCtId() {
+		return UUID.randomUUID().toString();
+	}
+
+	/**
+	 * utility method to get start index
+	 * 
+	 * @param pageNoStr
+	 * @param pageSizeStr
+	 * @return
+	 */
+	public static int getStartIndex(String pageNoStr, int pageSize) {
+		// code for geting start index for pagination
+
+		int startIndex = 0;
+		// int pageSize = Integer.parseInt(pageSizeStr);
+		try {
+			int pageNo = Integer.parseInt(pageNoStr);
+			if (pageNo > 0) {
+				startIndex = pageNo * pageSize;
+			}
+
+		} catch (NumberFormatException nfe) {
+			Logger.debug("Exception is ------------ " + nfe.getLocalizedMessage());
+			System.out.println("Number Format Exception");
+		}
+		return startIndex;
+	}
+
+	/**
+	 * utility method to generate password
+	 * 
+	 * @return
+	 */
+	public static String generatePassword() {
+		StringBuilder password = new StringBuilder("Ct12");
+
+		for (int i = 0; i < 10; i++) {
+			// select a random character from string CHAR_LIST defined in
+			// Constants class
+			int number = getRandomNumber(Constants.CHAR_LIST);
+			char ch = Constants.CHAR_LIST.charAt(number);
+			password.append(ch);
+		}
+		return password.toString();
+
+	}
+
+	/**
+	 * private method used in generate password method
+	 * 
+	 * @param CHAR_LIST
+	 * @return
+	 */
+	private static int getRandomNumber(String CHAR_LIST) {
+		int randomInt = 0;
+		Random randomGenerator = new Random();
+		randomInt = randomGenerator.nextInt(CHAR_LIST.length());
+		if (randomInt - 1 == -1) {
+			return randomInt;
+		} else {
+			return randomInt - 1;
+		}
+	}
+
+	/**
+	 * utility method to create response
+	 * 
+	 * @param res
+	 * @param message
+	 * @param status
+	 * @return
+	 */
+	/*
+	 * public static BaseResponse createResponse(BaseResponse res, String
+	 * message, boolean status, Object... obj) {
+	 * 
+	 * if (null != message) { res.setResponseCode(message);
+	 * res.setResponseMessage(Messages.get(message, obj));
+	 * res.setResponseStatus(status); } return res; }
+	 */
+
+	/**
+	 * utility method to convert string to date
+	 * 
+	 * @param dateStr
+	 * @return
+	 */
+	public static Date parseDate(String dateStr, String format) {
+		Date date = null;
+		SimpleDateFormat dateFormat = new SimpleDateFormat(format);
+		if (isValidDate(dateStr, dateFormat)) {
+			try {
+				date = dateFormat.parse(dateStr);
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				Logger.debug("Exception is ------------ " + e.getLocalizedMessage());
+				date = null;
+			}
+		}
+
+		return date;
+	}
+
+	/**
+	 * utility method to convert string to date
+	 * 
+	 * @param dateStr
+	 * @return
+	 */
+	public static String parseCustomeDate(String dateStr, String format, String convertFormat) {
+		SimpleDateFormat sdf = new SimpleDateFormat(format);
+		Date date = null;
+		try {
+			date = sdf.parse(dateStr);
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		// System.out.println("date is "+date.toString());
+		SimpleDateFormat timeFormat = new SimpleDateFormat(convertFormat);
+		System.out.println("time format date is " + timeFormat.format(date));
+		return timeFormat.format(date);
+	}
+
+	/**
+	 * public utility method to vaidate date
+	 * 
+	 * @param dateStr
+	 * @param dateFormat
+	 * @return
+	 */
+	public static boolean isValidDate(String dateStr, SimpleDateFormat dateFormat) {
+		boolean isValidDate = false;
+
+		Logger.debug("date in is valid date is " + dateStr);
+		dateFormat.setLenient(false);
+		try {
+			dateFormat.parse(dateStr);
+			isValidDate = true;
+		} catch (ParseException pe) {
+			Logger.warn("Invalid Date :" + pe.getMessage());
+			isValidDate = false;
+		}
+
+		return isValidDate;
+	}
+
+	/**
+	 * public utility method to vaidate date
+	 * 
+	 * @param dateStr
+	 * @param dateFormat
+	 * @return
+	 */
+	/*
+	 * public static boolean isValidTimestamp(String dateStr, SimpleDateFormat
+	 * dateFormat) { boolean isValidDate = false;
+	 * 
+	 * // dateFormat.setLenient(false); try { dateFormat.parse(dateStr);
+	 * isValidDate = true; } catch (ParseException pe) {
+	 * Logger.warn("Invalid Date :" + pe.getMessage()); isValidDate = false; }
+	 * 
+	 * return isValidDate; }
+	 */
+
+	public static List<String> getEnumValues(String module, String key) {
+
+		Config config = ConfigFactory.load(Constants.ENUMS_FILE).getConfig(module);
+		if (config.hasPath(key))
+			return Arrays.asList(config.getString(key).split(","));
+		return new ArrayList<String>();
+	}
+
+	public static String getProperty(String fileName, String module, String key) {
+		return ConfigFactory.load(fileName).getConfig(module).getString(key);
+	}
+
+	public static String getErrorMsg(String key) {
+		Logger.debug("key is " + key);
+		Logger.debug("error is " + ConfigFactory.load(Constants.ERRORS_FILE).getString(key));
+		return ConfigFactory.load(Constants.ERRORS_FILE).getString(key);
+	}
+
+	public static String getConfString(String key) {
+		return ConfigFactory.load().getString(key);
+	}
+
+	public static Config getConfigForModule(String key) {
+		return ConfigFactory.load().getConfig(key);
+		// return set;
+	}
+
+	public static String getPropertyName(String key, Class type) {
+
+		String propertyName = key;
+		GraphProperty property = null;
+		try {
+			property = UtilityMethods.getClassField(key, type).getAnnotation(GraphProperty.class);
+		} catch (SecurityException e) {
+			Logger.debug("Exception is ------------ " + e.getLocalizedMessage());
+			Logger.debug("Graphproperty not set for " + key);
+		} catch (NullPointerException e1) {
+			Logger.debug("Exception is ------------ " + e1.getLocalizedMessage());
+			Logger.debug("Graphproperty not allowed " + key);
+		}
+		if (property != null)
+			propertyName = property.propertyName();
+
+		return propertyName;
+
+	}
+
+	/**
+	 * static method to generate a token on basis of ctId
+	 * 
+	 * @param ctId
+	 * @return
+	 */
+	public static String generateToken(String userInfo) {
+		// yet to be implemented.Right now it's using generatePassword method
+		String token = userInfo;
+		return token;
+	}
+
+	/*
+	 * public static Map<String, Map<String, List<Role>>> getPermissions(String
+	 * filename) {
+	 * 
+	 * Map<String, Map<String, List<Role>>> permissions = new HashMap<String,
+	 * Map<String, List<Role>>>();
+	 * 
+	 * JsonNode json = readJsonFromFile(filename, "ApiPermissions");
+	 * 
+	 * for (Iterator<Entry<String, JsonNode>> itr1 = json.fields();
+	 * itr1.hasNext();) { Entry<String, JsonNode> entry = itr1.next(); String
+	 * uri = entry.getKey(); Map<String, List<Role>> permissionMap = new
+	 * HashMap<String, List<Role>>(); for (Iterator<JsonNode> itr =
+	 * entry.getValue().elements(); itr.hasNext();) { JsonNode elem =
+	 * itr.next(); for (Iterator<Entry<String, JsonNode>> itr2 = elem.fields();
+	 * itr2.hasNext();) { Entry<String, JsonNode> entry1 = itr2.next(); String
+	 * method = entry1.getKey(); List<Role> roleList = new ArrayList<Role>();
+	 * for (Iterator<JsonNode> itr3 = entry1.getValue().elements();
+	 * itr3.hasNext();) { Role role = Json.fromJson(itr3.next(), Role.class);
+	 * roleList.add(role); } permissionMap.put(method, roleList); }
+	 * permissions.put(uri, permissionMap); } }
+	 * 
+	 * return permissions; }
+	 */
+
+	public static JsonNode readJsonFromFile(String filename, String masterobj) {
+
+		InputStream file = Play.application().resourceAsStream(filename);
+		// CharStreams.toString(new InputStreamReader(file));
+		// IOUtils.toString(file);
+		String jsonStr = null;
+		try {
+			jsonStr = CharStreams.toString(new InputStreamReader(file));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		/*
+		 * try { jsonStr = new String(Files.readAllBytes(Paths.get(filename)),
+		 * "utf-8"); } catch (IOException e) { e.printStackTrace(); }
+		 */
+
+		JsonNode json = Json.parse(jsonStr).get(masterobj);
+
+		return json;
+	}
+
+	public static Long timestamp() {
+		return System.currentTimeMillis();
+	}
+
+	/**
+	 * static method to check a string containing numeric numbers only
+	 * 
+	 * @param str
+	 * @return
+	 */
+	public static boolean isValidNumericNumber(String str) {
+		int x;
+		for (int j = 0; j < str.length(); j++) {
+			x = (int) str.charAt(j);
+			if (x < 48 || x > 57)
+				return false;
+		}
+		return true;
+	}
+
+	/*
+	 * public static JsonNode dateFormatJson(BaseResponse response) {
+	 * ObjectMapper ow = new ObjectMapper(); ow.writer().with(new
+	 * SimpleDateFormat(Constants.TIMESTAMP_FORMAT));
+	 * Logger.info("within date format json");
+	 * 
+	 * String json = ""; try { json = ow.writeValueAsString(response); } catch
+	 * (JsonProcessingException e) { e.printStackTrace(); } return
+	 * Json.parse(json); }
+	 */
+
+	public static Map<String, Object> convertQueryStringToMap(Map<String, String[]> queryString) {
+		// convert the map of type <String,String[]> to that of type
+		// <String,Object>
+		Map<String, Object> stringParamMap = new HashMap<String, Object>();
+		Logger.debug(stringParamMap.toString());
+		for (Map.Entry<String, String[]> entry : queryString.entrySet()) {
+			stringParamMap.put(entry.getKey(), entry.getValue()[0]);
+			Logger.debug("********Hello***********",entry.getKey().toString(), entry.getValue()[0].toString());
+		}
+
+		return stringParamMap;
+	}
+
+	public static String[] replaceSpecialCharacter(String s) {
+		return s.replaceAll("[\\[\\]\"]", "").split(",");
+	}
+
+	public static Field getClassField(String fieldName, Class type) {
+		Field field = null;
+		try {
+			field = type.getDeclaredField(fieldName);
+		} catch (NoSuchFieldException | SecurityException e) {
+			Logger.debug("Exception is ------------ " + e.getLocalizedMessage());
+
+			try {
+				field = type.getSuperclass().getDeclaredField(fieldName);
+			} catch (NoSuchFieldException | SecurityException e1) {
+				Logger.debug("Exception is ------------ " + e1.getLocalizedMessage());
+				Logger.warn("field " + fieldName + "not in class " + type.getCanonicalName());
+			}
+		}
+		return field;
+	}
+
+	public static Set<Entry<String, ConfigValue>> getEnumsForModule(String module) {
+		return ConfigFactory.load(Constants.ENUMS_FILE).getConfig(module).entrySet();
+	}
+
+	public static Map<String, Object> entityConversionToMap(Object type) {
+		Map<String, Object> objectAsMap = new HashMap<String, Object>();
+		try {
+			objectAsMap = BeanUtils.describe(type);
+		} catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return objectAsMap;
+		// return introspect(type);
+	}
+
+	public static Map<String, Object> introspect(Object obj) {
+		Map<String, Object> result = new HashMap<String, Object>();
+		BeanInfo info;
+		try {
+			info = Introspector.getBeanInfo(obj.getClass());
+			for (PropertyDescriptor pd : info.getPropertyDescriptors()) {
+				Method reader = pd.getReadMethod();
+				if (reader != null) {
+					if (reader.invoke(obj) != null)
+						result.put(pd.getName(), reader.invoke(obj));
+				}
+			}
+		} catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
+		result.remove("class");
+		return result;
+	}
+
+	public static int getDay(String day) {
+		return getEnumValues(Constants.EVENT_MODULE, Constants.DAY_OF_THE_WEEK).indexOf(day) + 1;
+	}
+
+	/*
+	 * public static List<String> getGuids(List<? extends Entity> entities) {
+	 * List<String> guids = new ArrayList<String>(); entities.forEach((e)->
+	 * {guids.add(e.getGuid());}); return guids; }
+	 * 
+	 * /* public static Date convertDateFormat(Date date, String dateFormat) {
+	 * SimpleDateFormat format = new SimpleDateFormat(dateFormat);
+	 * format.setTimeZone(TimeZone.getTimeZone(Constants.DEFAULT_TIMEZONE));
+	 * String str = format.format(date); try { date = format.parse(str); } catch
+	 * (ParseException e) { // TODO Auto-generated catch block
+	 * e.printStackTrace(); } // return parseDate(str, dateFormat); return date;
+	 * }
+	 */
+
+	public static DateTime addTimeToDate(Date date, Date time) {
+		DateTime sd = new DateTime(date);
+		DateTime st = new DateTime(time);
+		DateTime eventStart = sd.plusHours(st.getHourOfDay());
+		eventStart = eventStart.plusMinutes(st.getMinuteOfHour());
+		eventStart = eventStart.plusSeconds(st.getSecondOfMinute());
+		return eventStart;
+	}
+
+	public static DateTime minusTimeToDate(Date date, Date time) {
+		DateTime sd = new DateTime(date);
+		DateTime st = new DateTime(time);
+		DateTime eventStart = sd.minusHours(st.getHourOfDay());
+		eventStart = eventStart.minusMinutes(st.getMinuteOfHour());
+		eventStart = eventStart.minusSeconds(st.getSecondOfMinute());
+		return eventStart;
+	}
+
+	public static Date truncateDate(Date date) {
+		DateTime dt = new DateTime(date);
+		long mili = dt.toDateTime(DateTimeZone.UTC).getMillisOfDay();
+		return new Date(mili);
+
+	}
+
+	public static Date truncateTime(Date date) {
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(date);
+		cal.set(Calendar.HOUR_OF_DAY, 0);
+		cal.set(Calendar.MINUTE, 0);
+		cal.set(Calendar.SECOND, 0);
+		cal.set(Calendar.MILLISECOND, 0);
+		return cal.getTime();
+	}
+
+	// method to verify code for onboarding
+	/**
+	 * TO DO: to change when Authy will get implement
+	 * 
+	 * @param code
+	 * @return
+	 */
+	public static Boolean verifyCode(String code) {
+		Boolean isVerified = false;
+		if (code.equals("1234")) {
+			isVerified = true;
+		}
+		return isVerified;
+	}
+
+	// method to resend code for onboarding
+	/**
+	 * TO DO: to change when Authy will get implement
+	 * 
+	 * @param code
+	 * @return
+	 */
+	public static Boolean resendCode() {
+		Boolean isResend = true;
+
+		return isResend;
+	}
+
+	public static String cypherCompatibleString(List<String> list) {
+
+		StringBuilder str = new StringBuilder();
+		if (list.size() > 0) {
+			for (String string : list) {
+				str.append('\'').append(string).append('\'').append(',');
+			}
+
+			return str.toString().substring(0, str.length() - 1);
+		} else
+			return str.toString();
+	}
+
+	public static String autoResponseSms(String customerName, String status) {
+		return Messages.get("auto_response_sms", customerName, status);
+	}
+
+	// method to get data of enum.properties file
+	public static Map<String, String> getAllEnums() {
+
+		Config config = ConfigFactory.parseResources(Constants.ENUMS_FILE);
+		Map<String, String> enumMap = new HashMap<>();
+
+		Set<Entry<String, ConfigValue>> entrySet = config.entrySet();
+
+		for (Entry<String, ConfigValue> entry : entrySet) {
+
+			enumMap.put(entry.getKey(), entry.getValue().render().replaceAll("\"", ""));
+		}
+
+		return enumMap;
+	}
+
+	/**
+	 * utility method to generate account id
+	 * 
+	 * @return
+	 */
+	/*
+	 * public static String generateAccountId(Restaurant rest) { String
+	 * accountId = Constants.ACCOUNT_ID_PREFIX_STRING; SimpleDateFormat sdf =
+	 * new SimpleDateFormat(Constants.DATE_FORMAT_STRING); String currentDateStr
+	 * = sdf.format(new Date()); Logger.debug("current date str is " +
+	 * currentDateStr); return accountId + currentDateStr; }
+	 */
+
+	public static void requestTracking(String method, String ip, String uri, String input) {
+		Date date = Calendar.getInstance().getTime();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		System.out.println(sdf.format(date));
+		String text = method + "-" + uri + "-" + ip + "-" + input;
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("logs/" + sdf.format(date) + ".txt", true)))) {
+			out.println(text);
+		} catch (IOException e) {
+
+			System.out.println("UtilityMethods.requestTracking()");
+			System.err.println(e);
+			// exception handling left as an exercise for the reader
+		}
+
+	}
+
+	/**
+	 * utility method to generate parent account id
+	 * 
+	 * @return
+	 */
+	/*
+	 * public static String generateParentAccountId(Restaurant rest) { String
+	 * parentAccountId = Constants.PARENT_ACCOUNT_ID_PREFIX_STRING;
+	 * SimpleDateFormat sdf = new
+	 * SimpleDateFormat(Constants.DATE_FORMAT_STRING); String currentDateStr =
+	 * sdf.format(new Date()); Logger.debug("current date str is " +
+	 * currentDateStr); return parentAccountId + currentDateStr;
+	 * 
+	 * }
+	 */
+
+	public static Date getDateFromString(String currentDateStr, SimpleDateFormat dateFormat) {
+
+		Date date = new Date();
+
+		try {
+			date = dateFormat.parse(currentDateStr);
+		} catch (ParseException e1) {
+			e1.printStackTrace();
+		}
+
+		return date;
+
+	}
+
+	public static int generateOTP() {
+		int max = 999999;
+		int min = 100000;
+		return (int) Math.round(Math.random() * (max - min + 1) + min);
+	}
+
+	/*
+	 * public static Oauth getOauthTokens(MultivaluedMap<String, String>
+	 * formData) { Oauth oauth_model = null; try { String urlString =
+	 * Constants.STORMPATH_HREF_APP_STRING +
+	 * getConfigForModule(Constants.STROMPATH_APPLICATION_KEY
+	 * ).getString(Constants.STROMPATH_APPLICATION_ID) +
+	 * Constants.OAUTH_TOKEN_PATH;
+	 * 
+	 * String authrizationHeader =
+	 * getConfigForModule(Constants.STROMPATH_APPLICATION_KEY
+	 * ).getString(Constants.STROMPATH_ID) + ":" +
+	 * getConfigForModule(Constants.STROMPATH_APPLICATION_KEY
+	 * ).getString(Constants.STROMPATH_SECRET); String encodeAuthrizationHeader
+	 * = "Basic " +
+	 * Base64.encodeBase64String(authrizationHeader.getBytes("UTF-8"));
+	 * 
+	 * com.sun.jersey.api.client.Client restClient =
+	 * com.sun.jersey.api.client.Client.create(); WebResource webResource =
+	 * restClient.resource(urlString); ClientResponse resp =
+	 * webResource.header("Authorization",
+	 * encodeAuthrizationHeader).type("application/x-www-form-urlencoded"
+	 * ).post(ClientResponse.class, formData);
+	 * 
+	 * if (resp.getStatus() != 200) {
+	 * System.err.println("Unable to connect to the server"); } else {
+	 * 
+	 * // String response= resp.getEntity(String.class); oauth_model =
+	 * Json.fromJson(Json.parse(resp.getEntity(String.class)), Oauth.class);
+	 * System.out.println("----- +++++ Refresh Token " +
+	 * oauth_model.getAccess_token()); }
+	 * 
+	 * } catch (Exception e) { e.printStackTrace(); }
+	 * 
+	 * return oauth_model; }
+	 */
+
+	public static String convertToBase62(long digit) {
+		StringBuilder sb = new StringBuilder("");
+		while (digit > 0) {
+			int rem = (int) (digit % BASE);
+			sb.append(ALPHABET.charAt(rem));
+			digit = digit / BASE;
+		}
+		return sb.toString();
+	}
+
+	public static String sendSMSFormat(Object message[], String key) {
+		String sms_key = ConfigFactory.load(Constants.SMS_FILE).getString(key);
+		System.out.println("---" + MessageFormat.format(sms_key, message));
+		return MessageFormat.format(sms_key, message);
+
+	}
+
+	public static Oauth getOauthTokens(MultivaluedMap<String, String> formData) {
+		Oauth oauth_model = null;
+		try {
+			String urlString = Constants.STORMPATH_HREF_APP_STRING + getConfigForModule(Constants.STROMPATH_APPLICATION_KEY).getString(Constants.STROMPATH_APPLICATION_ID) + Constants.OAUTH_TOKEN_PATH;
+
+			String authrizationHeader = getConfigForModule(Constants.STROMPATH_APPLICATION_KEY).getString(Constants.STROMPATH_ID) + ":"
+					+ getConfigForModule(Constants.STROMPATH_APPLICATION_KEY).getString(Constants.STROMPATH_SECRET);
+			String encodeAuthrizationHeader = "Basic " + Base64.encodeBase64String(authrizationHeader.getBytes("UTF-8"));
+
+			com.sun.jersey.api.client.Client restClient = com.sun.jersey.api.client.Client.create();
+			WebResource webResource = restClient.resource(urlString);
+			ClientResponse resp = webResource.header("Authorization", encodeAuthrizationHeader).type("application/x-www-form-urlencoded").post(ClientResponse.class, formData);
+			oauth_model = Json.fromJson(Json.parse(resp.getEntity(String.class)), Oauth.class);
+			if (resp.getStatus() != 200) {
+				System.err.println("Unable to connect to the server");
+			} else {
+
+				// String response= resp.getEntity(String.class);
+				oauth_model.setCode(Constants.SERVER_OK);
+				oauth_model.setStatus(Constants.SERVER_OK);
+				System.out.println("----- +++++ Refresh Token " + oauth_model.getAccess_token());
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return oauth_model;
+	}
+
+}

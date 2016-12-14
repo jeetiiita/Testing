@@ -1,0 +1,50 @@
+common.status=ACTIVE,INACTIVE,DELETED
+common.languageCode=EN-US,FR-FR,DE-CH
+common.orderPreference=ASC,DESC
+customer.reason=INVESTOR,MP,CELEBRITY
+customer.gender=MALE,FEMALE
+
+table.area=INDOOR,OUTDOOR
+table.type=SMOKING,NONSMOKING
+
+restaurant.timezone=IST,PST,GMT
+restaurant.currency=INR,USD
+#restaurant.tempratureScale=Fahrenheit,Celsius,Kelvin
+restaurantGeneralInfo.preferredDateFormat=YYYY-MM-DD,MM-DD-YYYY,DD-MM-YYYY,YYYY-DD-MM
+restaurantGeneralInfo.preferredTimeFormat=24 HOUR,12 HOUR
+restaurantGeneralInfo.tempratureScale=Fahrenheit,Celsius,Kelvin
+restaurantGeneralInfo.currency=INR,USD
+
+reservation.reservationStatus=CREATED,CONFIRMED,WAITING,CANCELLED,ALLOCATED,NO_SHOW,ARRIVED,SEATED,MSG_SENT,CALLED,FINISHED
+reservation.modifier=CUSTOMER,RESTAURANT
+reservation.bookingMode=WALKIN,ONLINE
+onboarding.requestStatus=NEW_REQUEST,APPROVED
+
+event.type=EVENT,OFFER
+event.category=HOLIDAY,HAPPY_HR,OP_HR,BLOCK,FULL_BLOCK
+event.dayOfTheWeek=SUNDAY,MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY
+event.subCategory=LUNCH,BREAKFAST,DINNER
+event.blockingType=VIP,BUFFER
+event.blockingAreaType=Section,Table
+event.recurrenceType=DAILY,WEEKLY,MONTHLY
+event.recurEndType=END_ON_DATE,END_AFTER,NEVER
+
+
+#Conflicting Event Categories
+category.HOLIDAY=BLOCK,FULL_BLOCK
+category.OP_HR=HOLIDAY
+category.FULL_BLOCK=BLOCK,FULL_BLOCK,HOLIDAY
+category.BLOCK=FULL_BLOCK,HOLIDAY
+category.HAPPY_HR=HOLIDAY
+
+
+tag.type=Food Preferences,Seating Preferences,Events And Offers,SPECIAL_EVENTS
+
+
+device.type=IOS,Android
+
+Menu.type=Food,Beverages,Happy Hour
+MenuItem.itemType=Vegetarian, Non-Vegetarian, Contains Egg
+MenuItem.spiceLevel=Spicy, Medium, Light
+
+GuestConversation.origin=EVENT,RESERVATION

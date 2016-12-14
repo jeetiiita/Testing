@@ -1,0 +1,36 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.model.AggregateTax;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class AggregateTaxDaoImpl extends JPADao<AggregateTax> implements AggregateTaxDao  {
+
+	@Override
+	public List<AggregateTax> updateMultiple(List<String> guidList,
+			Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+}

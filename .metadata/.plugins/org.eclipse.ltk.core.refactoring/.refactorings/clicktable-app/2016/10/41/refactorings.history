@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;url&apos; in &apos;com.clicktable.service.impl.CommunicationServiceImpl.notifyByEmailToCustomer(...)&apos; to &apos;shorturl&apos;&#x0D;&#x0A;- Original project: &apos;clicktable-app&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.service.impl.CommunicationServiceImpl.notifyByEmailToCustomer(ReservationDetail, String, String).url&apos;&#x0D;&#x0A;- Renamed element: &apos;url&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;url&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/app&lt;com.clicktable.service.impl{CommunicationServiceImpl.java[CommunicationServiceImpl~notifyByEmailToCustomer~QReservationDetail;~QString;~QString;@url!18335!18344!18342!18344!QString;!0!true" name="shorturl" references="true" stamp="1475576354307" version="1.0"/>
+</session>

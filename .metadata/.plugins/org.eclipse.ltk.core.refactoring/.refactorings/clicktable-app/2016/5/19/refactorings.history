@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;clicktable-app/conf/application-logger.XML&apos; to &apos;application-logger.xml&apos;" description="Rename resource &apos;application-logger.XML&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="conf/application-logger.XML" name="application-logger.xml" stamp="1462345226199" updateReferences="true"/>
+</session>

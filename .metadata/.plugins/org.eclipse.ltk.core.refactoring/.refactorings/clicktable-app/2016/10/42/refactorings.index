@@ -1,0 +1,6 @@
+1476097661325	Delete elements
+1476257861122	Rename local variable 'actEndDate'
+1476265718004	Rename local variable 'startHour'
+1476265741280	Rename local variable 'numCovers'
+1476269189154	Rename method 'coverDistForWaitList'
+1476269227561	Rename local variable 'walkinCoversMapForQueue'

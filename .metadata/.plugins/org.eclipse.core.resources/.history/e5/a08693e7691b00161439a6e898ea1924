@@ -1,0 +1,12 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface ItemTaxService {
+
+}

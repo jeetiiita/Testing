@@ -1,0 +1,14 @@
+logs
+project/project
+project/target
+target
+tmp
+.history
+.project
+.classpath
+.settings/
+.DS_Store
+.cache
+*_.java
+bin
+.factorypath

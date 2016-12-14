@@ -1,0 +1,29 @@
+
+import com.ning.billing.recurly.RecurlyClient;
+
+public class Recur {
+
+	RecurlyClient recurlyClient;
+    public static final String KILLBILL_PAYMENT_RECURLY_API_KEY = "cc05476af9064906afe93e929ba6d4e1";
+    public static final String KILLBILL_PAYMENT_RECURLY_SUBDOMAIN = "killbill.payment.recurly.subDomain";
+    public static final String KILLBILL_PAYMENT_RECURLY_DEFAULT_CURRENCY_KEY = "killbill.payment.recurly.currency";
+
+ 
+    public void main(String[] args) {
+        final String apiKey = System.getProperty(KILLBILL_PAYMENT_RECURLY_API_KEY);
+        String subDomainTemp = System.getProperty(KILLBILL_PAYMENT_RECURLY_SUBDOMAIN);
+        if (apiKey == null) {
+            System.out.println("You need to set your Recurly api key to run integration tests:" +
+                        " -Dkillbill.payment.recurly.apiKey=...");
+        }
+        
+        if (subDomainTemp == null) {
+          subDomainTemp = "api";
+        }
+        
+        final String subDomain = subDomainTemp;
+
+        recurlyClient = new RecurlyClient(apiKey, subDomain);
+        recurlyClient.open();
+    }
+}

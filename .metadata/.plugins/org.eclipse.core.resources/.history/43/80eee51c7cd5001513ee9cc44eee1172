@@ -1,0 +1,181 @@
+package com.clicktable.support.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.libs.Json;
+import play.libs.F.Promise;
+import play.libs.ws.WS;
+
+import com.clicktable.model.Onboarding;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.InvoiceTxnDao;
+import com.clicktable.support.model.Invoice;
+import com.clicktable.support.model.InvoiceTxn;
+import com.clicktable.support.response.SqlResponse;
+import com.clicktable.support.service.intf.InvoiceService;
+import com.clicktable.support.service.intf.InvoiceTxnService;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.InvoiceValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+@Component
+public class InvoiceServiceImpl implements InvoiceService {
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Autowired
+	InvoiceValidator invoicevalidator;
+
+	@Autowired
+	InvoiceTxnService invoiceTxnService;
+
+	@Autowired
+	InvoiceTxnDao invoiceTxnDao;
+
+	/*
+	 * Update unbilledAmount daily except 1st of the
+	 */
+
+	@Override
+	@Transactional
+	public BaseResponse updateInvoiceUnbilledAmount() {
+
+		BaseResponse response = null;
+
+		List<Object[]> resultList = invoiceTxnDao.getUnbilledAmountAndTax();
+
+		for (int i = 0; i < resultList.size(); i++) {
+			Object[] unbilledAmountArray = resultList.get(i);
+			
+			Invoice invoice = new Invoice(unbilledAmountArray);
+
+			DateTime currentDate = new DateTime().withTimeAtStartOfDay();
+			DateTime previousDate = currentDate.minusDays(1);
+
+			List<Object[]> invoiceList = invoiceDao
+					.findInvoiceByRestGuid(invoice);
+
+			if (invoiceList.size() == 0 || previousDate.getDayOfYear() == 1) {
+				// invoice.setInvoiceGuid(UUID.randomUUID().toString());
+				invoice.setGuid(UUID.randomUUID().toString());
+				invoicevalidator.validateInvoiceOnAdd(invoice);
+				invoiceDao.insertInvoice(invoice);
+				System.out.println("Inside insert");
+
+				response = new UpdateResponse<>(
+						ResponseCodes.INVOICE_CREATED_SUCCESSFULLY,
+						invoice.getGuid());
+			} else { // here validation required for the updation..
+				invoiceDao.updateInvoiceUnbilledAmountDaily(invoice,
+						invoiceList);
+
+				System.out.println("Update Unbilled Amount");
+				response = new UpdateResponse<>(
+						ResponseCodes.INVOICE_UPDATED_SUCCESSFULLY,
+						invoice.getGuid());
+			}
+		}
+
+		return response;
+	}
+
+	@Override
+	public BaseResponse generateInvoice() {
+
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode jNode = mapper.createObjectNode();
+
+		Promise<JsonNode> accResponse = WS
+				.url(UtilityMethods.getConfString(Constants.CLICKTABLE_URL))
+				.post(jNode).map(accessResponse -> {
+					JsonNode responseJson = accessResponse.asJson();
+					return responseJson;
+				});
+
+					JsonNode responseJson = accessResponse.asJson();
+					String accessToken = responseJson.get("token").asText();
+
+					List<Object[]> invoiceTxnList = invoiceDao
+							.generateInvoiceOn1st();
+
+					for (int i = 0; i < invoiceTxnList.size(); i++) {
+						Object[] taxAndSubTotalArray = invoiceTxnList.get(i);
+
+						String restGuid = (String) taxAndSubTotalArray[0];
+
+						WS.url(UtilityMethods
+								.getConfString(Constants.ONBOARDING_URL))
+								.setHeader("access_token", accessToken)
+								.setQueryParameter("restGuid", restGuid)
+								.get()
+								.map(response -> {
+
+									JsonNode onboardingJson = response.asJson()
+											.get("list").get(0);
+
+									Onboarding restInfo = Json.fromJson(
+											onboardingJson, Onboarding.class);
+
+									Invoice invoice = new Invoice(restInfo,
+											taxAndSubTotalArray);
+
+									Map<String, Object> params = new HashMap<String, Object>();
+									params.put("restGuid",
+											invoice.getRestGuid());
+									params.put("month", invoice.getMonth());
+									params.put("year", invoice.getYear());
+
+									List<Invoice> invoiceList = invoiceDao
+											.findByFields(Invoice.class, params);
+
+									invoice.setGuid(invoiceList.get(0)
+											.getGuid());
+
+									List<ValidationError> errorList = invoicevalidator
+											.validateInvoiceOnAdd(invoice);
+
+									if (errorList.isEmpty()) {
+										invoiceDao.update(invoice);
+
+									}
+									return response;
+								});
+					}
+		return new SqlResponse(ResponseCodes.INVOICE_GENERATED_SUCCESSFULLY);
+	}
+
+	@Override
+	public BaseResponse getInvoice(Map<String, Object> params) {
+		Map<String, Object> validParams = invoicevalidator
+				.validateFinderParams(params, InvoiceTxn.class);
+		List<Invoice> list = invoiceDao
+				.findByFields(Invoice.class, validParams);
+		BaseResponse response = new GetResponse<Invoice>(
+				ResponseCodes.INVOICE_FETCHED_SUCCESSFULLY, list);
+		return response;
+	}
+
+	@Override
+	public BaseResponse paymentCallback() {
+
+		return null;
+	}
+
+}

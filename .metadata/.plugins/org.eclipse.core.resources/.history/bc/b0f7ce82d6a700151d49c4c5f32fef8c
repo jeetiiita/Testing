@@ -1,0 +1,17 @@
+<project>
+<modelVersion>4.0.0</modelVersion>
+  <groupId>Recur</groupId>
+  <artifactId>Recur</artifactId>
+  <version>1</version>
+  <dependency>
+  <modelVersion>4.0.0</modelVersion>
+    <groupId>com.ning.billing</groupId>
+    <artifactId>recurly-java-library</artifactId>
+    <packaging>jar</packaging>
+    <version>0.4.1-SNAPSHOT</version>
+    <name>Recurly Java library</name>
+    <description>Java library for Recurly</description>
+    <url>http://github.com/killbilling/recurly-java-library</url>
+    <inceptionYear>2012</inceptionYear>
+    </dependency>
+   </project>

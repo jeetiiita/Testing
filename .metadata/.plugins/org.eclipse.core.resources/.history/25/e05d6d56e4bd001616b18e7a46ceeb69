@@ -1,0 +1,598 @@
+package com.clicktable.consumer.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.consumer.dao.intf.CustomerDao;
+import com.clicktable.consumer.dao.intf.ReservationDao;
+import com.clicktable.consumer.dao.intf.RestaurantDao;
+import com.clicktable.consumer.dao.intf.ReviewRatingDao;
+import com.clicktable.consumer.service.intf.AuthorizationService;
+import com.clicktable.consumer.service.intf.CommunicationService;
+import com.clicktable.consumer.service.intf.ReviewRatingService;
+import com.clicktable.consumer.util.ErrorCodes;
+import com.clicktable.consumer.util.ReserveConstants;
+import com.clicktable.consumer.util.ResponseCodes;
+import com.clicktable.consumer.validate.RestaurantDetailValidator;
+import com.clicktable.consumer.validate.RestaurantValidator;
+import com.clicktable.consumer.validate.ReviewRatingValidator;
+import com.clicktable.model.GuestProfile;
+import com.clicktable.model.GuestReviewRating;
+import com.clicktable.model.Reservation;
+import com.clicktable.model.ReservationDetail;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.RestaurantBasicInfo;
+import com.clicktable.model.ReviewRating;
+import com.clicktable.model.ReviewRatingResponse;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+
+import play.Logger;
+import play.libs.F;
+
+/**
+ * @author a.thakur
+ *
+ */
+@org.springframework.stereotype.Service
+public class ReviewRatingServiceImpl implements ReviewRatingService {
+
+	@Autowired
+	AuthorizationService authorizationService;
+	@Autowired
+	ReviewRatingDao reviewRatingDao;
+	@Autowired
+	ReservationDao reservationDao;
+	@Autowired
+	RestaurantValidator validateRestObject;
+	@Autowired
+	RestaurantDao restDao;
+	@Autowired
+	CustomerDao guestDao;
+	@Autowired
+	ReviewRatingDao reviewDao;
+	@Autowired
+	ReviewRatingValidator reviewRatingValidator;
+	
+	@Autowired
+	CommunicationService communicationService;
+	
+	@Autowired
+	RestaurantDetailValidator restaurantDetailValidator;
+
+	 private static final Logger.ALogger log = Logger.of(ReviewRatingServiceImpl.class);
+	@Override
+	public BaseResponse addReviewRate(ReviewRating reviewRating, String token) {
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+		BaseResponse response = null;
+		reviewRating.setInfoOnCreate(userInfo);
+		Map<String, Object> params = new HashMap<>();
+		List<ValidationError> listOfError = new ArrayList<>();
+		params.put(ReserveConstants.FINISHED, "FINISHED");
+		params.put(ReserveConstants.CREATED_DT, reviewRating.getCreatedDate().getTime());
+		params.put(ReserveConstants.UPDATED_DT, reviewRating.getUpdatedDate().getTime());
+		params.put(ReserveConstants.CREATED_BY, reviewRating.getCreatedBy());
+		params.put(ReserveConstants.UPDATED_BY, reviewRating.getUpdatedBy());
+		params.put(ReserveConstants.READ, false);
+		params.put(ReserveConstants.REPLY, false);
+
+		/* Validating User Info Model */
+		if (null != userInfo) {
+			if (userInfo.getRoleId().equals(ReserveConstants.CUSTOMER_ROLE_ID)) {
+				params.put(ReserveConstants.GUEST_GUID, userInfo.getGuid());
+			} else {
+				/* Only Customer is allow to set Review and Ratings */
+				listOfError.add(new ValidationError(ReserveConstants.ACCESS_DENIED,
+						UtilityMethods.getErrorMsg(ErrorCodes.ADMIN_CAN_CREATE_OR_UPDATE_REVIEW),
+						ErrorCodes.ADMIN_CAN_CREATE_OR_UPDATE_REVIEW));
+			}
+		} else {
+			/* Throw Error as USER info cant be Null */
+			listOfError.add(new ValidationError(ReserveConstants.ACCESS_TOKEN,
+					UtilityMethods.getErrorMsg(ErrorCodes.ACCESS_TOKEN_MISSING), ErrorCodes.ACCESS_TOKEN_MISSING));
+		}
+
+		
+		listOfError.addAll(reviewRatingValidator.validateOnAddReview(reviewRating));
+		
+		if (!listOfError.isEmpty()) {
+			response = new ErrorResponse(ResponseCodes.REVIEW_ADDED_FAILURE, listOfError);
+			return response;
+		}
+		
+		Restaurant rest = restaurantDetailValidator.validateMaskedGuid(reviewRating.getRestGuid(), listOfError);
+		
+        if (null != reviewRating && null != reviewRating.getRestGuid() && listOfError.isEmpty()) {
+        	reviewRating.setRestGuid(rest.getGuid());
+            params.put(ReserveConstants.REST_GUID, rest.getGuid());
+        } 
+        if (null != reviewRating && null != reviewRating.getResvGuid() && listOfError.isEmpty()) {
+            params.put(ReserveConstants.RESERVATION_GUID, reviewRating.getResvGuid());
+        }
+        if (null != reviewRating.getRating() && null != reviewRating.getResvGuid() && listOfError.isEmpty()) {
+            params.put(ReserveConstants.RESERVATION_GUID, reviewRating.getResvGuid());
+        }
+        
+		/* Fetch Last Reservation of customer */
+		Map<String, Object> mapData = null;
+		if (listOfError.isEmpty()) {
+			mapData = validateReviewAndReservation(params, listOfError);
+		}
+
+		if (null != mapData && listOfError.isEmpty()) {
+			params = UtilityMethods.introspectWithNullValues(reviewRating);
+			params.put(ReserveConstants.RESERVATION_GUID, mapData.get(ReserveConstants.RESERVATION_GUID).toString());
+			params.put(ReserveConstants.REST_GUID, mapData.get(ReserveConstants.REST_GUID).toString());
+			params.put(ReserveConstants.GUEST_GUID, mapData.get(ReserveConstants.GUEST_GUID).toString());
+			params.put(ReserveConstants.CREATED_DT, Calendar.getInstance().getTimeInMillis());
+			params.put(ReserveConstants.UPDATED_DT, Calendar.getInstance().getTimeInMillis());
+
+			if (reviewRating.getRating() == 1)
+				params.put(ReserveConstants.ONE, 1);
+			if (reviewRating.getRating() == 2)
+				params.put(ReserveConstants.TWO, 1);
+			if (reviewRating.getRating() == 3)
+				params.put(ReserveConstants.THREE, 1);
+			if (reviewRating.getRating() == 4)
+				params.put(ReserveConstants.FOUR, 1);
+			if (reviewRating.getRating() == 5)
+				params.put(ReserveConstants.FIVE, 1);
+			if (reviewRating.getRating() == 6)
+				params.put(ReserveConstants.SIX, 1);
+			if (reviewRating.getRating() == 7)
+				params.put(ReserveConstants.SEVEN, 1);
+			if (reviewRating.getRating() == 8)
+				params.put(ReserveConstants.EIGHT, 1);
+			if (reviewRating.getRating() == 9)
+				params.put(ReserveConstants.NINE, 1);
+			if (reviewRating.getRating() == 10)
+				params.put(ReserveConstants.TEN, 1);
+			if (null != reviewRating.getRating()) {
+				params.put(ReserveConstants.RATING, reviewRating.getRating());
+			}
+			if (null != reviewRating.getReview()) {
+				params.put(ReserveConstants.REVIEW, reviewRating.getReview());
+			}
+			
+			String reviewGuid = "";
+			if (null != mapData.get(ReserveConstants.REVIEW_GUID)) {
+				params.put(ReserveConstants.REVIEW_GUID, mapData.get(ReserveConstants.REVIEW_GUID));
+				reviewGuid = (String) mapData.get(ReserveConstants.REVIEW_GUID);
+				reviewRating.setGuid(reviewGuid);
+			} else {
+				/*
+				 * If Review Rating Node is missing internally , it will alow
+				 *run
+				 * other reservation to add Review
+				 */
+				reviewGuid = UtilityMethods.generateCtId();
+				params.put(ReserveConstants.GUID, reviewGuid);
+				reviewRating.setGuid(reviewGuid);
+			}
+			reviewRatingDao.addOrUpdateReviewRate(params);
+			if(StringUtils.isNotBlank(reviewRating.getReview())) {
+				reviewRating.setGuestGuid(userInfo.getGuid());
+				sendNotificationToRestaurant(reviewRating);
+			}
+
+			return new PostResponse<ReviewRating>(ResponseCodes.REVIEW_ADDED_SUCCESFULLY,
+					reviewGuid);
+
+		}
+		return new ErrorResponse(ResponseCodes.REVIEW_ADDED_FAILURE, listOfError);
+
+	}
+	 
+	private Map<String,Object> validateReviewAndReservation(Map<String,Object> params,List<ValidationError> listOfError) {
+
+		Map<String,Object> mapData = reviewRatingDao.findGuestReservation(params);
+		if (null != mapData) {
+			/* Call to add Review */
+			if (null == mapData.get(ReserveConstants.GUEST_GUID)) {
+				listOfError.add(new ValidationError(ReserveConstants.GUEST_GUID,
+						UtilityMethods.getErrorMsg(ErrorCodes.GUESTPROFILE_DOES_NOT_EXISTS),
+						ErrorCodes.GUESTPROFILE_DOES_NOT_EXISTS));
+			}
+			if (null == mapData.get(ReserveConstants.REST_GUID) && listOfError.isEmpty()) {
+				listOfError.add(new ValidationError(ReserveConstants.REST_GUID,
+						UtilityMethods.getErrorMsg(ErrorCodes.REST_GUID_REQUIRED), ErrorCodes.REST_GUID_REQUIRED));
+			}
+
+			if (null == mapData.get(ReserveConstants.RESERVATION_GUID) && listOfError.isEmpty()) {
+				listOfError.add(new ValidationError(ReserveConstants.RESERVATION_GUID,
+						UtilityMethods.getErrorMsg(ErrorCodes.RESERVATION_NOT_FOUND),
+						ErrorCodes.RESERVATION_NOT_FOUND));
+			}
+			if (null != mapData.get(ReserveConstants.RESV_HAS_REVIEW)
+					&& (Integer) mapData.get(ReserveConstants.RESV_HAS_REVIEW) > 0
+					&& (Boolean) mapData.get(ReserveConstants.IS_REVIEWED) && listOfError.isEmpty()) {
+				listOfError.add(new ValidationError(ReserveConstants.RESV_HAS_REVIEW,
+						UtilityMethods.getErrorMsg(ErrorCodes.RESERVATION_REVIEW_ALREADY_EXIST),
+						ErrorCodes.RESERVATION_REVIEW_ALREADY_EXIST));
+			}
+			if (listOfError.isEmpty() && null != mapData.get(ReserveConstants.RESERVATION_STATUS)
+					&& !mapData.get(ReserveConstants.RESERVATION_STATUS).toString()
+							.equalsIgnoreCase(ReserveConstants.FINISHED)) {
+				listOfError.add(new ValidationError(ReserveConstants.RESERVATION_STATUS,
+						UtilityMethods.getErrorMsg(ErrorCodes.REVIEW_CAN_NOT_BE_ADDED),
+						ErrorCodes.REVIEW_CAN_NOT_BE_ADDED));
+			}
+
+		}
+		
+		return mapData;
+	
+	}
+	
+	
+	@Override
+	public BaseResponse addGuestReviewByOpenLink(ReviewRating reviewRating) {
+		List<ValidationError> listOfError = new ArrayList<>();
+		BaseResponse response = null;
+		Reservation reservation = reservationDao.find(reviewRating.getResvGuid());
+		Map<String, Object> params = new HashMap<>();
+		if (reservation != null) {
+			params.put("resvGuid", reservation.getGuid());
+			reviewRating.setUpdatedDate(Calendar.getInstance().getTime());
+			reviewRating.setRestGuid(reservation.getRestaurantGuid());
+			reviewRating.setGuestGuid(reservation.getGuestGuid());
+			listOfError = reviewRatingValidator.validateOnAddReview(reviewRating);
+		} else {
+			listOfError.add(new ValidationError(ReserveConstants.RESERVATION_GUID, UtilityMethods
+	                    .getErrorMsg(ErrorCodes.INVALID_GUID), ErrorCodes.INVALID_GUID));
+		}
+		
+		if (listOfError.isEmpty()) {
+			List<ReviewRating> reviewRatingList = reviewDao.findByFields(ReviewRating.class, params);
+			params.put(ReserveConstants.UPDATED_DT, Calendar.getInstance().getTimeInMillis());
+			params.put(ReserveConstants.UPDATED_BY, reservation.getGuestGuid());
+
+			if (!reviewRatingList.isEmpty()) {
+				params.put(ReserveConstants.REVIEW_GUID, reviewRatingList.get(0).getGuid());
+
+			} else {
+				params.put(ReserveConstants.GUID, UtilityMethods.generateCtId());
+				params.put(ReserveConstants.CREATED_DT, Calendar.getInstance().getTimeInMillis());
+				params.put(ReserveConstants.READ, false);
+				params.put(ReserveConstants.REPLY, false);
+			}
+
+			params.put(ReserveConstants.REST_GUID, reservation.getRestaurantGuid());
+			params.put(ReserveConstants.RESERVATION_GUID, reservation.getGuid());
+			params.put(ReserveConstants.GUEST_GUID, reservation.getGuestGuid());
+
+			Map<String, Object> mapResult = validateReviewAndReservation(params, listOfError);
+
+			if (mapResult != null && listOfError.isEmpty()) {
+				setReviewRatingInParams(reviewRating, params);
+
+				if (null != reviewRating.getRating()) {
+					params.put(ReserveConstants.RATING, reviewRating.getRating());
+				}
+				if (!StringUtils.isBlank(reviewRating.getReview())) {
+					params.put(ReserveConstants.REVIEW, reviewRating.getReview());
+				}
+				reviewRatingDao.addOrUpdateReviewRate(params);
+				if (params.containsKey(ReserveConstants.REVIEW_GUID)) {
+					reviewRating.setGuid(String.valueOf(params.get(ReserveConstants.REVIEW_GUID)));
+					response = new PostResponse<>(ResponseCodes.REVIEW_ADDED_SUCCESFULLY,
+							params.get(ReserveConstants.REVIEW_GUID).toString());
+				} else {
+					reviewRating.setGuid(String.valueOf(params.get(ReserveConstants.GUID)));
+
+					response = new PostResponse<>(ResponseCodes.REVIEW_ADDED_SUCCESFULLY,
+							params.get(ReserveConstants.GUID).toString());
+				}
+				if(StringUtils.isNotBlank(reviewRating.getReview())) {
+					F.Promise.promise(() -> sendNotificationToRestaurant(reviewRating));
+				}
+			} else {
+				response = new ErrorResponse(ResponseCodes.REVIEW_ADDED_FAILURE, listOfError);
+			}
+		} else {
+			response = new ErrorResponse(ResponseCodes.REVIEW_ADDED_FAILURE, listOfError);
+		}
+		return response;
+	}
+	
+	private void setReviewRatingInParams(ReviewRating reviewRating, Map<String, Object> params) {
+		switch (reviewRating.getRating()) {
+		case 1:
+			params.put(ReserveConstants.ONE, 1);
+			break;
+		case 2:
+			params.put(ReserveConstants.TWO, 1);
+			break;
+		case 3:
+			params.put(ReserveConstants.THREE, 1);
+			break;
+		case 4:
+			params.put(ReserveConstants.FOUR, 1);
+			break;
+		case 5:
+			params.put(ReserveConstants.FIVE, 1);
+			break;
+		case 6:
+			params.put(ReserveConstants.SIX, 1);
+			break;
+		case 7:
+			params.put(ReserveConstants.SEVEN, 1);
+			break;
+		case 8:
+			params.put(ReserveConstants.EIGHT, 1);
+			break;
+		case 9:
+			params.put(ReserveConstants.NINE, 1);
+			break;
+		case 10:
+			params.put(ReserveConstants.TEN, 1);
+			break;
+		}
+	}
+
+	@Override
+	public BaseResponse updateReviewRate(ReviewRating reviewRating, String token) {
+		BaseResponse response=null;
+		List<ValidationError> listOfError = new ArrayList<>();
+		ReviewRating revRat;
+		if (reviewRating.getGuid() == null) {
+			listOfError.add(new ValidationError(ReserveConstants.GUID, UtilityMethods.getErrorMsg(ErrorCodes.GUID_REQUIRED),
+					ErrorCodes.GUID_REQUIRED));
+			response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+			return response;
+		} else {
+			revRat = reviewRatingDao.find(reviewRating.getGuid());
+			if (revRat == null) {
+
+				listOfError.add(new ValidationError(ReserveConstants.GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_GUID),
+						ErrorCodes.INVALID_GUID));
+				response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+				return response;
+			}
+		}
+
+		if (listOfError.isEmpty()) {
+			if (revRat.getReview() == null || ("").equalsIgnoreCase(revRat.getReview().trim())) {
+				revRat.setReview(reviewRating.getReview());
+				revRat.setUpdatedDate(Calendar.getInstance().getTime());
+			} else {
+				listOfError.add(new ValidationError(ReserveConstants.REVIEW,
+						UtilityMethods.getErrorMsg(ErrorCodes.REVIEW_CAN_NOT_BE_UPDATED),
+						ErrorCodes.REVIEW_CAN_NOT_BE_UPDATED));
+				response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+				return response;
+			}
+		}
+		if (listOfError.isEmpty()) {
+
+			ReviewRating revRatRes = reviewRatingDao.update(revRat);
+			reviewRatingDao.incrementReviewCountInExtension(revRatRes.getRestGuid());
+			if(StringUtils.isNotBlank(revRatRes.getReview())) {
+				F.Promise.promise(()->sendNotificationToRestaurant(revRatRes));
+			}
+			response = new PostResponse<ReviewRating>(ResponseCodes.REVIEW_RATING_UPDATED_SUCCESFULLY,
+					revRatRes.getGuid());
+		}
+		return response;
+	}
+	
+	/*Used By Mobile App*/
+	@Override
+	public BaseResponse getRestaurantReview(Map<String, Object> params, String token) {
+		BaseResponse getResponse;
+		List<ReviewRatingResponse> reviewRatingResponse ;
+		List<ValidationError> listOfError = new ArrayList<>();
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+		
+		if (null != params.get(ReserveConstants.REST_GUID)){
+			
+			Restaurant rest = restaurantDetailValidator.validateMaskedGuid((String) params.get(ReserveConstants.REST_GUID), listOfError);
+			if(rest != null)
+				params.put(ReserveConstants.REST_GUID, rest.getGuid());
+		}
+		
+		if (null != userInfo) {
+			if (!userInfo.getRoleId().equals(ReserveConstants.CT_ADMIN_ROLE_ID)
+					&& !userInfo.getRoleId().equals(ReserveConstants.CUSTOMER_ROLE_ID)) {
+				/* Only Customer is allow to set Review and Ratings */
+				params.put(ReserveConstants.REST_GUID, userInfo.getRestGuid());
+
+			} else if (!userInfo.getRoleId().equals(ReserveConstants.CUSTOMER_ROLE_ID)) {
+				/* Only Customer is allow to set Review and Ratings */
+				listOfError.add(new ValidationError(ReserveConstants.ACCESS_DENIED,
+						UtilityMethods.getErrorMsg(ErrorCodes.ADMIN_CAN_CREATE_OR_UPDATE_REVIEW),
+						ErrorCodes.ADMIN_CAN_CREATE_OR_UPDATE_REVIEW));
+
+			}
+		} else {
+			/* Throw Error as USER info cant be Null */
+			listOfError.add(new ValidationError(ReserveConstants.ACCESS_TOKEN,
+					UtilityMethods.getErrorMsg(ErrorCodes.ACCESS_TOKEN_MISSING), ErrorCodes.ACCESS_TOKEN_MISSING));
+		}
+
+		
+		if (null == params.get(ReserveConstants.REST_GUID) && listOfError.isEmpty()) {
+			listOfError.add(new ValidationError(ReserveConstants.REST_GUID,
+					UtilityMethods.getErrorMsg(ErrorCodes.REST_GUID_REQUIRED), ErrorCodes.REST_GUID_REQUIRED));
+		}
+
+		if (listOfError.isEmpty()) {
+			reviewRatingResponse = reviewRatingDao.findAllReviewofRestaurant(params);
+			getResponse = new GetResponse<ReviewRatingResponse>(ResponseCodes.REVIEW_RATING_RECORD_FETCH_SUCCESSFULLY,
+					reviewRatingResponse);
+		} else {
+			getResponse = new ErrorResponse(ResponseCodes.REVIEW_RATING_RECORD_FETCH_FAILURE, listOfError);
+		}
+		return getResponse;
+	}
+	
+	/*Not in use*/
+	@Override
+	public BaseResponse getAllGuestReviewList(Map<String, Object> params, String header) {
+		BaseResponse getResponse;
+		List<GuestReviewRating> guestReviewResponse;
+		List<ValidationError> listOfError = new ArrayList<>();
+		String restMaskedGuid = params.get(ReserveConstants.REST_GUID) == null ? null : (String)params.get(ReserveConstants.REST_GUID);
+
+		if (null == restMaskedGuid ) {
+			listOfError.add(new ValidationError(ReserveConstants.REST_GUID,
+					UtilityMethods.getErrorMsg(ErrorCodes.REST_GUID_REQUIRED), ErrorCodes.REST_GUID_REQUIRED));
+			getResponse = new ErrorResponse(ResponseCodes.GUEST_WITH_REVIEW_RATING_RECORD_FETCH_FAILED, listOfError);
+			return getResponse;
+		}
+
+		Restaurant rest = restDao.findRestaurantByMaskedGuid(restMaskedGuid);
+
+		if(rest == null){
+			listOfError.add(new ValidationError(ReserveConstants.REST_GUID,
+					UtilityMethods.getErrorMsg(ErrorCodes.INVALID_RESTAURANT_GUID), ErrorCodes.INVALID_RESTAURANT_GUID));
+			getResponse = new ErrorResponse(ResponseCodes.GUEST_WITH_REVIEW_RATING_RECORD_FETCH_FAILED, listOfError);
+			return getResponse;
+		}
+
+		params.put(ReserveConstants.REST_GUID, rest.getGuid());
+		paramsAdd(params);
+		guestReviewResponse = reviewRatingDao.getAllGuestReviewListOnly(params);
+		getResponse = new GetResponse<GuestReviewRating>(
+				ResponseCodes.GUEST_WITH_REVIEW_RATING_RECORD_FETCH_SUCCESSFULLY, guestReviewResponse);
+
+		return getResponse;
+	}
+	
+	private Map<String, Object> paramsAdd(Map<String, Object> params) {
+		try {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd ");
+			Calendar c1 = Calendar.getInstance();
+			c1.add(Calendar.DATE, -1);
+			Date yesterday = sdf.parse(sdf.format(new java.util.Date(c1.getTimeInMillis())));
+			Long yesterdayTime = yesterday.getTime();
+			params.put(ReserveConstants.YESTERDAY, yesterdayTime);
+
+			c1.add(Calendar.DATE, 1);
+			c1.add(Calendar.WEEK_OF_MONTH, -1);
+			Date lastweek = sdf.parse(sdf.format(new java.util.Date(c1.getTimeInMillis())));
+			Long weekTime = lastweek.getTime();
+			params.put(ReserveConstants.WEEK, weekTime);
+
+			c1.add(Calendar.WEEK_OF_MONTH, 1);
+			c1.add(Calendar.MONTH, -1);
+			Date last = sdf.parse(sdf.format(new java.util.Date(c1.getTimeInMillis())));
+			Long lastmonth = last.getTime();
+			params.put(ReserveConstants.MONTH, lastmonth);
+
+			c1.add(Calendar.MONTH, 1);
+			c1.add(Calendar.YEAR, -1);
+			Date year = sdf.parse(sdf.format(new java.util.Date(c1.getTimeInMillis())));
+			Long lastyear = year.getTime();
+			params.put(ReserveConstants.YEAR, lastyear);
+
+		} catch (Exception e) {
+           log.error(" Exception in parsing Date : methodName =paramsAdd : ",e);
+		}
+		return params;
+	}
+	
+	@Override
+	public Integer sendNotificationToRestaurant(ReviewRating reviewRating) {
+		SimpleDateFormat dateformat = new SimpleDateFormat("EEE, d MMM yyyy");
+		SimpleDateFormat timeformat = new SimpleDateFormat("h:mm a");
+		Restaurant rest = restDao.find(reviewRating.getRestGuid());
+		GuestProfile guest = guestDao.find(reviewRating.getGuestGuid());
+
+		ReservationDetail reservationDetail = new ReservationDetail();
+		reservationDetail.setRestaurantGuid(reviewRating.getRestGuid());
+		reservationDetail.setReservationGuid(reviewRating.getResvGuid());
+		reservationDetail.setGuestGuid(reviewRating.getGuestGuid());
+		
+		reservationDetail.setRating(String.valueOf(reviewRating.getRating()));
+		reservationDetail.setReview(reviewRating.getReview());
+		reservationDetail.setReviewGuid(reviewRating.getGuid());
+
+		if (rest != null) {
+			reservationDetail.setRestaurantName(rest.getName());
+			reservationDetail.setMobiles(Arrays.asList(rest.getPhoneNo1()));
+			reservationDetail.setEmailIds(Arrays.asList(rest.getEmail()));
+		}
+		if (guest != null) {
+			reservationDetail.setGuestName(guest.getFirstName());
+			reservationDetail.setGuestIsdCode(guest.getIsdCode());
+			reservationDetail.setGuestMobile(guest.getMobile());
+		}
+		reservationDetail.setDate(dateformat.format(reviewRating.getUpdatedDate()));
+		reservationDetail.setTime(timeformat.format(reviewRating.getUpdatedDate()));
+		communicationService.reviewInfoToRestaurant(reservationDetail);
+		return 1;
+	}
+
+    @Override
+    public BaseResponse reportReviewRate(ReviewRating reviewRating) {
+        // TODO Auto-generated method stub
+        BaseResponse response=null;
+        List<ValidationError> listOfError = new ArrayList<>();
+        ReviewRating revRat;
+       
+        
+        if (reviewRating.getGuid() == null) {
+            listOfError.add(new ValidationError(ReserveConstants.GUID, UtilityMethods.getErrorMsg(ErrorCodes.GUID_REQUIRED),
+                    ErrorCodes.GUID_REQUIRED));
+            response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+            return response;
+        } else {
+            revRat = reviewRatingDao.find(reviewRating.getGuid());
+            if (revRat == null) {
+
+                listOfError.add(new ValidationError(ReserveConstants.GUID, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_GUID),
+                        ErrorCodes.INVALID_GUID));
+                response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+                return response;
+            }
+        }
+
+        if (listOfError.isEmpty() && (reviewRating.isResponseReported() || reviewRating.isReviewMessageReported())) {
+        	if(reviewRating.isResponseReported()){
+            	revRat.setResponseAbuseReason(reviewRating.getResponseAbuseReason());
+                revRat.setResponseReported(true);
+                revRat.setResponseReportedDate(Calendar.getInstance().getTime());
+                revRat.setResponseReportedBy(reviewRating.getResponseReportedBy());
+            }
+            if(reviewRating.isReviewMessageReported()){
+            	revRat.setReviewAbuseReason(reviewRating.getReviewAbuseReason());
+                revRat.setReviewMessageReported(true);
+                revRat.setReviewReportedDate(Calendar.getInstance().getTime());
+                revRat.setReviewReportedBy(reviewRating.getReviewReportedBy()); 
+            }
+                ReviewRating revRatRes = reviewRatingDao.update(revRat);
+                //F.Promise.promise(()->sendNotificationToRestaurant(revRatRes));
+                response = new PostResponse<ReviewRating>(ResponseCodes.REVIEW_RATING_UPDATED_SUCCESFULLY,
+                        revRatRes.getGuid());
+            } else {
+                listOfError.add(new ValidationError(ReserveConstants.REVIEW,
+                        UtilityMethods.getErrorMsg(ErrorCodes.REVIEW_CAN_NOT_BE_UPDATED),
+                        ErrorCodes.REVIEW_CAN_NOT_BE_UPDATED));
+                response = new ErrorResponse(ResponseCodes.REVIEW_RATING_UPDATION_FAILURE, listOfError);
+                return response;
+            }
+       
+        return response;
+    }
+
+	@Override
+	public RestaurantBasicInfo getReviewInfo(String reviewGuid) {
+		return reviewRatingDao.getReviewInfo(reviewGuid);
+	}
+
+}

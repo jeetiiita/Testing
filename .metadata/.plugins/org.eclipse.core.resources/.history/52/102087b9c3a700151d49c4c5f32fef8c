@@ -1,0 +1,11 @@
+package com.clicktable.controllers;
+
+import play.libs.XML;
+
+public class Addcustomer {
+	
+	
+	public Result AddCusotmer()
+	
+	
+}

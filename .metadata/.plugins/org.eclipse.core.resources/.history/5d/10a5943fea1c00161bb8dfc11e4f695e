@@ -1,0 +1,27 @@
+package com.clicktable.support.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+
+import com.clicktable.support.model.TaxLayer;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.TaxLayerService;
+
+@Component
+public class TaxLayerServiceImpl implements TaxLayerService {
+
+	@Override
+	public TaxLayer create(TaxLayer aggregateTax) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<TaxLayer> getTaxLayers(Tax tax) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

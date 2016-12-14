@@ -1,0 +1,63 @@
+//name := """clicktable-app"""
+
+//version := "1.0-SNAPSHOT"
+
+lazy val commonSettings = Seq(
+  //name := "clicktable-app",
+  organization := "clicktable",
+  version := "1.2-SNAPSHOT",
+  scalaVersion := "2.11.1"
+)
+
+lazy val root = (project in file(".")).enablePlugins(PlayJava).settings(commonSettings: _*)
+		.settings(
+    name:= "clicktable-app",
+//scalaVersion := "2.11.1"
+//organization :=  "clicktable"
+libraryDependencies ++= Seq(
+   javaJpa.exclude("org.hibernate.javax.persistence", "hibernate-jpa-2.0-api"),
+   "org.hibernate" % "hibernate-entitymanager" % "4.3.6.Final",
+   "org.springframework" % "spring-context" % "4.1.4.RELEASE",
+   "org.springframework" % "spring-orm" % "4.1.1.RELEASE",
+   "org.springframework" % "spring-tx" % "4.1.1.RELEASE",
+   "org.springframework.security" % "spring-security-core" % "4.0.0.RELEASE",   
+   cache,javaWs,
+   "org.springframework.data" % "spring-data-neo4j" % "3.4.1.RELEASE",
+   "org.springframework.data" % "spring-data-neo4j-rest" % "3.4.1.RELEASE",
+   "org.springframework.data" % "spring-data-neo4j-tx" % "3.4.1.RELEASE", 
+   "org.neo4j" % "neo4j-rest-graphdb" % "2.0.1",
+   "com.sun.jersey.contribs" % "jersey-multipart" % "1.18.1",
+   "com.sun.jersey" % "jersey-core" % "1.7",
+   "com.sun.jersey" % "jersey-client" % "1.19",
+   "org.jadira.usertype" % "usertype.jodatime" % "2.0.1",
+   ("com.cloudbees.thirdparty" % "zendesk-java-client" % "0.3.1").exclude("com.ning", "async-http-client"),
+   "com.stormpath.sdk" % "stormpath-sdk-api" % "1.0.RC7.4",
+   "com.stormpath.sdk" % "stormpath-sdk-httpclient" % "1.0.RC7.4",
+   "com.stormpath.sdk" % "stormpath-sdk-impl" % "1.0.RC7.4",
+   "com.stormpath.sdk" % "stormpath-sdk-oauth" % "1.0.RC7.4",
+   "com.firebase" % "firebase-token-generator" % "2.0.0",
+   "net.sourceforge.javacsv" % "javacsv" % "2.0",
+   "com.univocity" % "univocity-parsers" % "1.5.6",
+   "org.apache.poi" % "poi" % "3.9", 
+   "commons-logging" % "commons-logging" % "1.2",
+   "com.mandrillapp.wrapper.lutung" % "lutung" % "0.0.5",
+   "net.kencochrane.raven" % "raven-logback" % "6.0.0",
+   "com.twilio.sdk" % "twilio-java-sdk" % "5.4.0",
+   filters
+)
+)
+
+lazy val support = (project in file("support")).enablePlugins(PlayJava).dependsOn(root).
+  settings(commonSettings: _*).
+  settings(
+    name:= "clicktable-support",
+    libraryDependencies ++= Seq(
+       "mysql" % "mysql-connector-java" % "5.1.18",
+       "com.itextpdf" % "itextpdf" % "5.5.8"
+    )
+  )
+
+
+resolvers += "Spring Maven SNAPSHOT Repository" at "http://repo.springsource.org/libs-snapshot"
+
+resolvers += "Neo4j Cypher DSL Repository" at "http://m2.neo4j.org/content/repositories/releases"

@@ -1,0 +1,22 @@
+/**
+ * 
+ */
+package com.clicktable.support.Exception;
+
+import java.util.List;
+
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ValidationException extends RuntimeException {
+
+	private static final long serialVersionUID = 1L;
+
+	ValidationException(List<ValidationError> errorList) {
+		super(errorList.toString());
+	}
+
+}

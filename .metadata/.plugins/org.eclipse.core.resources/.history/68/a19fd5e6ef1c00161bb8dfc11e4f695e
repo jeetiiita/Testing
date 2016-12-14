@@ -1,0 +1,37 @@
+package com.clicktable.support.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.Item;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.ItemTaxService;
+import com.clicktable.support.util.Constants;
+
+@Component
+public class ItemTaxServiceImpl implements ItemTaxService {
+	
+	@Autowired
+	TaxDao taxDao;
+
+	@Override
+	public List<Tax> getTaxesForItem(Item item, Restaurant restaurant) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(Constants.STATUS, Constants.ACTIVE_STATUS);
+		List<Tax> taxes = taxDao.findByFields(Tax.class, params );
+		return taxes;
+	}
+	
+	@Override
+	public Tax getApplicableTaxForItem(Item item, Restaurant restaurant) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

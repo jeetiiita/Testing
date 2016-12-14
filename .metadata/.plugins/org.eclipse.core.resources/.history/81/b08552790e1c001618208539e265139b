@@ -1,0 +1,35 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.Plan;
+import com.clicktable.support.model.RestaurantPlan;
+import com.clicktable.support.service.intf.RestaurantPlanService;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class RestaurantPlanServiceImpl implements RestaurantPlanService {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.RestaurantPlanService#create(com.clicktable.support.model.RestaurantPlan)
+	 */
+	@Override
+	public RestaurantPlan create(RestaurantPlan restPlan) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.RestaurantPlanService#getRestaurantPlan(com.clicktable.model.Restaurant)
+	 */
+	@Override
+	public Plan getRestaurantPlan(Restaurant restaurant) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

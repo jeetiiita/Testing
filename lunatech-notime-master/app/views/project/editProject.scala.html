@@ -1,0 +1,78 @@
+@(id: Long, projectForm: Form[Project])
+
+@import helper._
+@import helper.twitterBootstrap._
+
+@tagField(field: Field, className: String = "tag") = {
+    @input(field, '_label -> "Required tag", '_class -> className) { (id, name, value, _) =>
+        <select id="@id" name="@name">
+        @Tag.options.map { v =>
+            <option value="@v._1" @(if(value == Some(v._1)) "selected" else "")>@v._2</option>
+        }
+    	</select>
+        <a class="removeTag btn btn-danger">Remove</a>
+    }
+}
+
+@script = {
+	<script type="text/javascript" src="@routes.Assets.at("javascripts/project.js")"></script>
+}
+
+@main("Project", script, menus.adminMenu()) {
+		
+	@if(projectForm.hasGlobalErrors()) {
+    	<div class="alert-message error">
+            <strong>Oops!</strong> @projectForm.globalError().message
+        </div>
+    }
+    
+    @form(routes.Projects.update(id), 'id -> "project-form") {
+
+    	<input name="id" type="hidden" value="@id" />
+    	
+    	@inputText(projectForm("name"), '_label -> "Name")
+    	
+    	@inputText(projectForm("code"), '_label -> "Code")
+    	
+    	@inputText(projectForm("description"), '_label -> "Description")
+    	
+    	@select(projectForm("type"), options(Project.types), '_label -> "Type")
+
+    	@select(projectForm("customer.id"), options(Customer.options), '_label -> "Customer")
+    	
+    	@inputText(projectForm("customerContact"), '_label -> "Customer's contact")
+    	
+    	@select(projectForm("projectManager.id"), options(User.options), '_label -> "Project Manager")
+    	
+    	@checkbox(projectForm("defaultProject"), '_label -> "Global Project (assigned to everyone)")
+    	
+    	@checkbox(projectForm("active"), '_label -> "Active")
+
+		<div class="tags">
+
+    		@repeat(projectForm("requiredTags"), min = 0) { tag =>
+    			@tagField(projectForm(tag("id").name))
+    		}
+
+    		@**
+			* Keep an hidden block that will be used as template for Javascript copy code
+			**@
+			@tagField(
+				projectForm("requiredTags[x].id"),
+				className = "tag-template"
+			)
+
+			<div class="clearfix">
+				<div class="input">
+					<a class="addTag btn">Add a required tag</a>
+				</div>
+			</div>
+
+    	</div>
+
+		<input class="btn btn-primary" type="submit" value="Submit">
+    	<a class="btn btn-danger" href="@routes.Projects.all()">Cancel</a>
+    	
+    }
+
+}

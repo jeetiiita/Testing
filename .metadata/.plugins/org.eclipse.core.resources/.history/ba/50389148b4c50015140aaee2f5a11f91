@@ -1,0 +1,326 @@
+1=Invalid Status
+2=Invalid Language Code
+3=Invalid Area
+4=Invalid Mobile No
+5=Invalid email format
+6=Account with specified email doesn't exist
+7=Invalid Value
+8=Required
+9=Not Editable
+
+10001=Customer Id is Required
+10002=Mobile Number must be numeric
+10003=Invalid Customer Id 
+10004=Invalid Date Format
+10005=DOB cannot be after today
+10006=Anniversary cannot be after today
+10007=Anniversary should be after DOB
+10008=Staff can't create or update guest profiles for other restaurant
+10009=Customer Mobile no is required
+10010=Reason for vip is required
+10011=Invalid reason for vip 
+10012=Customer with same mobile no already exists for this restaurant
+10013=Invalid value for gender
+10014=Account with that email already exists.Please choose another email.
+10201=Guest FirstName  must have Minimum Length 1 ! 
+10202=Guest FirstName  must have Maximum Length 50 !
+10203=Guest FirstName field is Missing !
+10204=Guest LastName  must have Minimum Length 1 ! 
+10205=Guest LastName  must have Maximum Length 50 !
+10206=Guest LastName is Missing !
+10207=Guest Mobile  must have Minimum Length 10 !
+10208=Guest Mobile  must have Maximum Length 10 !
+10209=Guest Email  must have Maximum Length 100 !
+10210=Guest Address  must have Maximum Length 500 !
+10211=Guest Country Code  must have Maximum Length 5 !
+10212=Guest State Code  must have Maximum Length 60 !
+10213=Guest City Code  must have Maximum Length 60 !
+10214=Guest Photo URL  must have Maximum Length 300 !
+10215=Guest IS VIP field is Missing !
+10216=Guest Gender field is Missing !
+10217=Restaurant GUID is Missing!
+
+
+
+20001=Invalid Table Id 
+20002=Table Id is Required
+20003=Min Covers can't be Greater then Max Covers
+20004=Table Name already Exists
+20005=Table can't create or update of other restaurant
+20007=Can not delete this table as reservations exist on this table.
+
+20201=Table name is missing!
+20202=Tag name can have maximum 100 characters!
+20203=Restaurant guid is missing!
+20204=Table max covers is missing!
+20205=Table max covers must be less than 500!
+20206=Table max covers must be greater than 0!
+20207=Table min covers is missing!
+20208=Table min covers must be less than 500!
+20209=Table min covers must be greater than 0!
+20210=Table type is missing!
+
+#Restaurant
+######Validation error responses
+30001=Invalid Restaurant Id
+30002=Restaurant Id is Required
+30003=Restaurant can't be changed
+30004=Capacity should be greater than minimum capacity
+30005=Capacity should be less than maximum capacity
+30006=Minimum capacity can't be more than maximum capacity
+30007=Minimum capacity should be greater than zero
+30008=Maximum capacity should be greater than zero
+30009=Admin can update details of his own Restaurant
+30010=Logged in staff member belongs to some other Restaurant
+
+######RestaurantContactInfo model
+30201=Latitude is missing!
+30202=Latitude can have maximum 200 characters!
+30203=Longitude is missing!
+30204=Longitude can have maximum 200 characters!
+30205=Website can have maximum 100 characters!
+30206=Phone no 1 can have maximum 20 characters!
+30207=Phone no 2 can have maximum 20 characters!
+30208=Region is missing!
+30209=Region can have maximum 100 characters!
+30210=Locality is missing!
+30211=Locality can have maximum 500 characters!
+30212=Locality must have minimum 2 characters!
+30213=Building can have maximum 100 characters!
+######RestaurantGeneralInfo model  
+30251=Cost for 2 is missing!
+30252=Tag line can have maximum 200 characters!
+######Restaurant model
+30301=Restaurant name is missing!
+30302=Restaurant name can have maximum 200 characters!
+30303=Display name is missing!
+30304=Display name can have maximum 200 characters!
+30305=Food source can have maximum 100 characters!
+30306=Waste disposal can have maximum 100 characters!
+
+
+#Staff
+######Staff validation errors
+40001=Invalid Staff Id
+40002=Staff Id is Required
+40003=Staff can't create or update staff members for other restaurant
+40004=User can update only his own profile
+40005=Manager can create or update profiles of staff or server only
+40006=Admin can create or update profiles of manager, staff or server only
+40007=Either this password reset sptoken has been expired or it is an invalid password reset sptoken!
+######Staff model
+40201=First name is missing!
+40202=First name can have maximum 50 characters!
+40203=Last name is missing!
+40204=Last name can have maximum 50 characters!
+40205=Nick name can have maximum 20 characters!
+40206=Email is missing!!
+40207=Not a valid email format!
+40208=Email can have maximum 100 characters!
+40209=Mobile no is missing!
+40210=Mobile no can have maximum 10 characters!
+40211=Mobile no must have minimum 10 characters!
+40212=Role id is missing!
+
+
+50001=Invalid Cuisine Id
+50002=Cuisine Id is Required
+50003=Cuisine Name Already Exists
+50201=CuisineName is missing!
+50202=CuisineName can have maximum 100 characters
+
+60001=Invalid Reservation Id
+60002=Reservation Id is Required
+60003=Invalid Booked By
+60004=Invalid Cancelled By
+60005=Invalid Booking Mode
+60006=Invalid Reservation Status
+60007=Cancelled By is Required
+60008=Cancelled By Id is Required
+60009=Cancellation time is Required
+60010=Not permitted to update reservation
+60011=No of covers should be greater than zero
+60012=Reservation can't be updated after FINISHED
+60013=Invalid Preffered Table Type
+60014=Invalid Preferred Section
+
+70001=Invalid Onboarding Id
+70002=Onboarding Id is Required
+70003=Invalid Onboarding requestStatus
+700004=email already exits
+700005=Restaurant name already exits
+700006=Verification code is Required
+700007=Read terms and conditions
+
+80001=Invalid Role Id
+80002=Role Id is Required
+80003=Not Authorized to use this API
+
+110001=Invalid Tag ID
+110006=No Relation Found in DB
+
+120001=Name already exists
+120002=No such section exists for specified restaurant
+120003=Section id is required
+120004=Invalid Section id
+120201=Section name is Missing!
+120202=Section name can have maximum 100 characters!
+120203=Section description can have maximum 1000 characters!
+
+130001=Attribute Name already exists
+130002=Attribute Id is required
+130003=Invalid Attribute Id
+130201=Attribute name is Missing!
+130202=Attribute name can have maximum 100 characters!
+
+140001=Invalid Event GUID
+140002=Event GUID is required
+140003=End date cannot be before start date
+140004=Event cannot be created on back date
+140005=Another Event with same name exists on these dates
+140007=Recurance End date cannot be before start date
+140201=Restaurant GUID is Missing !
+140202=CalenderEvent Name is Missing !
+140203=CalenderEvent Type is Missing !
+140204=CalenderEvent Category is Missing !
+140205=Event Name is Missing !
+140206=Event Name can have maximum 50 characters!
+140207=Event Description is Missing !
+140208=Event Description can have minimum 1 characters!
+140209=Event Description can have maximum 2000 characters!
+140210=Event Start Date is Missing !
+140211=Event End Date is Missing !
+140212=Event Type is Missing !
+140213=Event is_draft is Missing !
+140214=Event Category is Missing !
+140215=Event Start Time is Missing !
+140216=Event End Time is Missing !
+140217=Event Date_Of_Month can have minimum value 0 !
+140218=Event Date_Of_Month can have maximum value 31 !
+140219=Event Week_Of_Month can have minimum value 0 !
+140220=Event Week_Of_Month can have maximum value 5 !
+
+
+150001=Country name already exists
+150002=Country Id is required
+150003=Invalid Country Id
+150201=CountryName is Missing!
+150202=CountryName can have maximum 50 characters!
+150201=CountryCode is Missing!
+150202=CountryCode can have maximum 5 characters!
+
+160001=Tat name already exists
+160002=Tat Id is required
+160003=Invalid Tat Id
+160201=Tat name is Missing!
+160202=Tat name can have maximum 100 characters!
+
+170001=Color code already exists for specified restaurant
+170002=Invalid server id
+170003=Server id is required
+
+
+170004= EST_END_TIME should not be less than EST_START_TIME
+170005= ACT_END_TIME should not be less than ACT_START_TIME
+
+170006= ACT_TIME should not be exceed Reservation slot estimated Time
+170007= Should be not less than Current Time
+170008= Table Already reserved
+170009= Cancellation can't be possible at this time
+170201=Server name is Missing!
+170202=Server name can have maximum 100 characters!
+170203=Color code is Missing!
+170204=Color code can have maximum 100 characters!
+170205=Restaurant GUID is Missing!
+
+
+
+180001= Device Id already exists
+180002= Device GUID required
+180003= Invalid device GUID
+180004= Invalid device type
+180201= DeviceId is Missing!
+180202= DeviceId can have maximum 10 characters!
+180203= DeviceType is Missing!
+180204= DeviceType can have maximum 100 characters!
+180205= DeviceManufacturer is Missing!
+180206= DeviceManufacturer can have maximum 100 characters!
+180207= Restaurant GUID is Missing!
+
+
+190001= Invalid Tag Model with invalid parameter
+190002= Already Exists !
+190003= TAT is Missing for Restaurant covers
+190004= TAT is Missing for covers
+190005= Reservation Status will change by PATCH API only !
+190201=Tag name is Missing!
+190202=Tag name can have maximum 60 characters!
+190203=Tag type is Missing!
+
+200001=Invalid Origin
+200201=Restaurant GUID is Missing!
+200202=Guest Conversation Message is Missing!
+200203=Guest Conversation Message can have maximum 2000 characters!
+200204=Guest GUID is Missing!
+200205=Guest Conversation "SentBy" detail is Missing!
+200206=Guest Conversation "Origin" detail is Missing!
+200207=Guest Conversation "Origin GUID"  is Missing!
+
+#Area
+210001=Not a valid area
+210201=Area GUID is Missing!
+210202=Area status is Missing!
+210203=Area name is Missing!
+210204=City name is Missing!
+210205=Area name can have maximum 50 characters!
+210206=City name can have maximum 50 characters!
+210207=City Name is missing!
+210208=City Name can have maximum 50 characters!
+210209=City ZipCode is Missing!
+210210=City ZipCcode can have maximum 10 characters!
+210211=City StateCode is Missing!
+210212=City StateCode can have maximum 10 characters!
+
+220001=Not a valid locality
+
+230001=Not a valid building
+230201=Guid is Missing!
+230202=Status is Missing!
+230203=Name is Missing!
+230204=Locality name is missing!
+230205=Building name can have maximum 50 characters!
+230206=Locality name can have maximum 30 characters!
+
+240001=There is some error in table assignment details
+240002=There is some error in server guid
+240003=There is some error in restaurant guid
+
+250001=Operation Hours is missing for Restaurant
+250002=Reservation is only possible during Operation Hours of Restaurant
+250003=Reservation can't be possible during Holidays
+250004=Can not modify past Reservation
+250005=Reservation ACT_START_TIME is Missing!
+250006=Reservation ACT_END_TIME is Missing!
+
+
+260201=State guid is Missing!
+260202=State status is Missing!
+260203=State name is Missing!
+260204=State name can have maximum 50 characters!
+260205=Country code is Missing!
+260206=Country code can have maximum 10 characters!
+260207=State code is Missing!
+260208=State code can have maximum 10 characters!
+
+
+270201=Phonecode is Missing!
+270202=Keywords is Missing!
+270203=Location is Missing!
+270204=Carrier is Missing!
+270205=Content is Missing!
+270206=MSISDN is Missing!
+270207=Timestamp is Missing!
+
+280201=Restaurant GUID is Missing!
+
+

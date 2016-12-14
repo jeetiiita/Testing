@@ -1,0 +1,102 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import java.util.Date;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+
+import com.clicktable.support.util.Constants;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+/**
+ * @author j.yadav
+ *
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "item_tax")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class ItemTax {
+	
+	@Id
+	@GeneratedValue
+	private Short id;
+	
+	@OneToOne
+	@JoinColumn(name="tax_id")
+	private Tax tax;  
+	
+	@ManyToOne
+	@JoinColumn(name = "item_id")
+	private Item item;
+	
+	private String status =Constants.ACTIVE;
+	
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date startDate;
+	
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date endDate;
+
+	public Short getId() {
+		return id;
+	}
+
+	public void setId(Short id) {
+		this.id = id;
+	}
+
+	public Tax getTax() {
+		return tax;
+	}
+
+	public void setTax(Tax tax) {
+		this.tax = tax;
+	}
+
+	public Item getItem() {
+		return item;
+	}
+
+	public void setItem(Item item) {
+		this.item = item;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public Date getStartDate() {
+		return startDate;
+	}
+
+	public void setStartDate(Date startDate) {
+		this.startDate = startDate;
+	}
+	
+	
+
+}

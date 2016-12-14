@@ -1,0 +1,29 @@
+package com.clicktable.service.intf;
+
+import java.util.List;
+import java.util.Map;
+
+import com.clicktable.model.Tag;
+import com.clicktable.response.BaseResponse;
+
+@org.springframework.stereotype.Service
+public interface GuestHasTagsService {
+
+	public BaseResponse addTagRestaurant(List<Tag> listTag, String token);
+
+	public BaseResponse removeGuestHasTag(String guid, List<Tag> tags,
+			String rest_guid);
+
+	public BaseResponse removeTag(List<Tag> tags);
+
+	public BaseResponse addGuestProfileTag(String guid, Tag tag, String header);
+
+	public BaseResponse getGuestHasTag(Map<String, Object> stringParamMap,
+			String header);
+
+	public BaseResponse getTag(Map<String, Object> stringParamMap, String header);
+
+	BaseResponse addGuestProfileEventTag(String guid, String rest_guid,
+			List<Tag> tag, String token);
+
+}

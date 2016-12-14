@@ -1,0 +1,46 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+<<<<<<< HEAD
+import com.clicktable.support.model.Item;
+
+/**
+ * @author j.yadav
+ *
+ */
+=======
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.Item;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@Service
+>>>>>>> branch 'R3' of https://git.clicktable.com/sgupta/clicktable-app.git
+public interface ItemService {
+	
+	//From Admin console only
+	
+	/**
+	 * 
+	 */
+	Item create(Item item);
+	
+	/**
+	 * 
+	 */
+	void deactivate();
+	
+	/**
+	 * 
+	 */
+	void activate();
+	
+
+}

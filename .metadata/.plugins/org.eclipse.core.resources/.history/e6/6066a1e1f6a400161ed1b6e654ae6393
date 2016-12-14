@@ -1,0 +1,46 @@
+/**
+ * 
+ */
+package com.clicktable.controllers;
+
+import static com.clicktable.util.EmpowerConstants.ACCESS_TOKEN;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.model.BarEntry;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.util.EmpowerConstants;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class FeedBackController extends Controller {
+	
+	@Autowired
+	AuthorizationService authService;
+	
+	
+	public Result addRestaurantFeedBackConfig() {
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		BarEntry barEntry = Json.fromJson(request().body().asJson(), BarEntry.class);
+		if (!(request().hasHeader(EmpowerConstants.MODE) && request().getHeader(EmpowerConstants.MODE).equals(EmpowerConstants.APP)))
+			barEntry.setInfoOnCreate(userInfo);
+		barEntry.setStatus(EmpowerConstants.CREATED);
+
+		BaseResponse response = barEntryService.addBarEntry(barEntry);
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+}

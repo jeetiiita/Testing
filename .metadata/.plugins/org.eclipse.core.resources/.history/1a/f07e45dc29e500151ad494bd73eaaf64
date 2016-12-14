@@ -1,0 +1,12 @@
+/**
+ * 
+ */
+package com.clicktable.controllers;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PaymentController {
+
+}

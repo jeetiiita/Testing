@@ -1,0 +1,117 @@
+# This is the main configuration file for the application.
+# ~~~~~
+
+# Secret key
+# ~~~~~
+# The secret key is used to secure cryptographics functions.
+#
+# This must be changed for production, but we recommend not changing it in this file.
+#
+# See http://www.playframework.com/documentation/latest/ApplicationSecret for more details.
+application.secret="onjDS_;]USDimgfY5XQsN;npGrZpebI`UCZI4tLHEJlq_RDuQvvaCFrs3a:[BViP"
+
+# The application languages
+# ~~~~~
+application.langs="en"
+
+# Global object class
+# ~~~~~
+# Define the Global object class for this application.
+# Default to Global in the root package.
+# application.global=com.clicktable.config.Global
+
+# Router
+# ~~~~~
+# Define the Router object to use for this application.
+# This router will be looked up first when the application is starting up,
+# so make sure this is the entry point.
+# Furthermore, it's assumed your route file is named properly.
+# So for an application router like `conf/my.application.Router`,
+# you may need to define a router file `my.application.routes`.
+# Default to Routes in the root package (and `conf/routes`)
+# application.router=my.application.Routes
+
+# Database configuration
+# ~~~~~
+# You can declare as many datasources as you want.
+# By convention, the default datasource is named `default`
+#
+
+#neo4j.path="http://cktest.cloudapp.net:7474/db/data"
+
+#neo4j.path="http://192.168.64.17:7474/db/data"
+neo4j.path="http://192.168.65.229:7474/db/data"
+neo4j.user="neo4j"
+neo4j.password="neo4j123"
+#neo4j.path="http://localhost:7474/db/data"
+
+#gupshup
+gupshup.userId="2000145129"
+gupshup.password="abc123"
+
+gupshup.promotion.userId="2000149073"
+gupshup.promotion.password="Click@1234"
+
+
+zendesk.url="https://clicktable.zendesk.com"
+zendesk.username="info@clicktable.com"
+zendesk.password="p@ssw0rd@1"
+zendesk.token="hzwNvihtP6cDXjM3tm9EUw3ETFaJSWe5yNae6OjV"
+
+smtp.user="no-reply@clicktable.com"
+
+mandrill.key=sKg33bL4JJhrCN2SB6Sm8w
+
+# Evolutions
+# ~~~~~
+# You can disable evolutions if needed
+# evolutionplugin=disabled
+
+# Logger
+# ~~~~~
+# You can also configure logback (http://logback.qos.ch/),
+# by providing an application-logger.xml file in the conf directory.
+
+
+# Root logger:
+
+# logger.root=INFO
+# Logger used by the framework:
+
+#db.default.logStatements=true
+#logger.org.hibernate=DEBUG
+
+# Logger provided to your application:
+# logger.application=INFO
+# logger.application=DEBUG
+# logger.application=ERROR
+# logger.play=INFO
+# logger.play=DEBUG
+# logger.play=ERROR
+# log4j.org.springframework.data.neo4j=DEBUG
+# log4j.org.springframework.data.neo4j.support.query=DEBUG
+# log4j.org.springframework.data.neo4j.rest.SpringRestCypherQueryEngine=DEBUG
+# log4j.org.springframework.data.neo4j.repository.query.DerivedCypherRepositoryQuery=DEBUG
+
+# Stormpath Properties
+apiKey.id = JQPC25SHFS2QP3H2ZB4A7HYKX
+apiKey.secret = LqNZwgNl05YSVGCGMQZO7XK3uZ0EhTmgtizg1T/dpGA
+apiKey.application_id= 6mGR2ZzfXQi4HzMgju4354
+
+akka.jvm-exit-on-fatal-error = off
+
+smtp.mock=true
+
+#Internal SysAdmin Credentials
+sysadmin.user = "sys-admin@clicktable.com"
+sysadmin.secret = "Ct@pass777"
+
+#Openweather Properties
+openweather.appid=0c00e12e2a6c3e13595faa5aebf4428e
+
+#Twilio Properties
+twilio.account_sid=ACb26aa7237a9695249d52071e740e0af4
+twilio.auth_token=9487c509f08763b2c5f25f62071bd89c
+
+#Mailgun Properties
+mailgun.api_key=pubkey-8c674287e872efdaa63f64b34f90c97c

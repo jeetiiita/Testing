@@ -1,0 +1,18 @@
+/**
+ * 
+ */
+
+/**
+ * @author j.yadav
+ *
+ */
+class Groovy {
+
+	static main()
+	{
+		int a = 4;
+		a = 5;
+		println(a);
+		
+	}
+}

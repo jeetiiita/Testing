@@ -1,0 +1,22 @@
+1468834070951	Rename method 'processDelayQueue'
+1468935028158	Rename local variable 'tagsList'
+1468937959400	Delete element
+1468937966736	Delete element
+1468937973702	Delete element
+1468937979611	Delete element
+1468938054890	Delete element
+1468938062339	Delete element
+1468938597203	Delete elements
+1469013831116	Rename local variable 'coversDistributionMapForCT'
+1469013844184	Rename local variable 'coversDistributionMap'
+1469013856892	Rename local variable 'coversDistributionMapForHybrid'
+1469020129930	Rename local variable 'reservationConfirmCount'
+1469020245116	Rename local variable 'reservationCancelCount'
+1469091437210	Rename local variable 'coversDistributionMapForWalkin'
+1469092140327	Rename local variable 'coversDistributionMapForWalkinQueued'
+1469092167161	Rename local variable 'coversDistributionMapByCT'
+1469092186595	Rename local variable 'coversDistributionMapByDirect'
+1469092207406	Rename local variable 'walkinMapForQueue'
+1469093586075	Delete elements
+1469112073746	Rename local variable 'barEntry'
+1469112353428	Rename local variable 'barEntry'

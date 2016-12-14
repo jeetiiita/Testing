@@ -1,0 +1,94 @@
+package com.clicktable.support.model;
+
+import java.util.Date;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.Constants;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "rest_plan")
+@AttributeOverrides({
+		@AttributeOverride(name = "guid", column = @Column(name = "guid")),
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class RestaurantPlan extends BaseEntity{
+
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3540679197489897589L;
+	
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	@Required(message = ErrorCodes.PLAN_GUID_REQUIRED)
+	@Column(name = "paln_guid")
+	private String palnGuid;
+	
+	@Required(message = ErrorCodes.REST_GUID_REQUIRED)
+	@Column(name = "rest_guid")
+	private String restGuid;
+	
+	@Required(message = ErrorCodes.REST_PLAN_START_DATE_REQUIRED)
+	@JsonFormat(pattern = Constants.TIMESTAMP_FORMAT, timezone = Constants.TIMEZONE)
+	@Column(name = "start_date")
+	private Date startDate;
+	
+	@Required(message = ErrorCodes.REST_PLAN_END_DATE_REQUIRED)
+	@JsonFormat(pattern = Constants.TIMESTAMP_FORMAT, timezone = Constants.TIMEZONE)
+	@Column(name = "end_date")
+	private Date endDate;
+
+	public String getPalnGuid() {
+		return palnGuid;
+	}
+
+	public void setPalnGuid(String palnGuid) {
+		this.palnGuid = palnGuid;
+	}
+
+	public String getRestGuid() {
+		return restGuid;
+	}
+
+	public void setRestGuid(String restGuid) {
+		this.restGuid = restGuid;
+	}
+
+	public Date getStartDate() {
+		return startDate;
+	}
+
+	public void setStartDate(Date startDate) {
+		this.startDate = startDate;
+	}
+
+	public Date getEndDate() {
+		return endDate;
+	}
+
+	public void setEndDate(Date endDate) {
+		this.endDate = endDate;
+	}
+	
+}

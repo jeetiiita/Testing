@@ -1,0 +1,408 @@
+11=Guid Required!
+
+200001=Invalid Origin
+200002=Invalid Guest GUID
+200003=Template can have maximum 320 Characters!
+200004=Template GUID is Invalid!
+200005=Template max size is 20
+200006=Invalid sentBy
+200201=Restaurant GUID is Missing!
+200202=Guest Conversation Message is Missing!
+200203=Guest Conversation Message can have maximum 300 characters!
+200204=Guest GUID is Missing!
+200205=Guest Conversation "SentBy" detail is Missing!
+200206=Guest Conversation "Origin" detail is Missing!
+200207=Guest Conversation "Origin GUID"  is Missing!
+200208=Guest Conversation "CreatedBy" is Missing!
+200209=Guest Conversation "UpdatedBy" is Missing!
+200210=Guest Conversation "CreatedBy" name can have can have maximum 50 characters!
+200211=Guest Conversation "UpdatedBy" name can have can have maximum 50 characters!
+200212=Guest Conversation "SMS ID"  is Missing!
+200213=Guest Conversation "SMS Status" is Missing!
+200214=Guest Conversation "SMS Cause" is Missing!
+200215=Guest Conversation "Guest GUID" can have can have maximum 50 characters!
+200216=Guest Conversation "SentBy" name can have can have maximum 50 characters!
+200217=Guest Conversation "Origin" can have can have maximum 50 characters!
+200218=Guest Conversation "SMS ID" can have can have maximum 255 characters!
+200219=Guest Conversation "Origin ID" can have can have maximum 50 characters!
+200220=Guest Conversation "SMS Status" can have can have maximum 50 characters!
+200221=Guest Conversation "SMS Cause" can have can have maximum 255 characters!
+200222=Guest Conversation GUID is Missing!
+200223=Guest Conversation "GUID" can have can have maximum 50 characters!
+200224=Guest Conversation "Restaurant GUID" can have can have maximum 50 characters!
+200225=Guest Mobile  must have Minimum Length 10!
+200226=Guest Mobile  must have Maximum Length 10!
+200227=Guest Mobile number is missing!
+200228=Guest Conversation message count is missing!
+200229=Conversation SMS_ID Does not exists!
+
+
+220001=Not a valid locality
+220201=Locality GUID is Missing !
+220202=Locality Status is Missing !
+220203=Locality Name is Missing !
+220204=Locality Name can have maximum 50 characters!
+220205=Locality Region Name is Missing !
+220206=Locality Region Name can have maximum 50 characters!
+220207=Locality City Name is Missing !
+220208=Locality City Name can have maximum 50 characters!
+220209=Can't Delete Locality as Locality has building(s)!
+
+230001=Not a valid building
+230201=Guid is Missing!
+230202=Status is Missing!
+230203=Name is Missing!
+230204=Locality name is missing!
+230205=Building name can have maximum 50 characters!
+230206=Locality name can have maximum 50 characters!
+230207=Building Region is missing!
+230208=Building Region can have maximum 50 characters!
+
+240001=There is some error in table assignment details
+240002=There is some error in server guid
+240003=There is some error in restaurant guid
+
+240201=Table guid is missing!
+240202=Start time is missing!
+240203=End time is missing!
+240204=Date is missing!
+240205=Server guid is missing!
+240206=Restaurant guid is missing!
+
+
+250001:Operation Hours is missing for Restaurant
+250002:Reservation is only possible during Operation Hours of Restaurant
+250003:Reservation can't be possible during Holidays
+250004:Can not modify past Reservation
+250005:Reservation ACT_START_TIME is missing!
+250006:Reservation ACT_END_TIME is missing!
+250007:Shift Operational Hours is Missing !
+250008:Invalid shift slots : Remainder of (Shift Slot Time / Dining Slot) should be 0!
+250009:Shift Name should be from [BREAKFAST,LUNCH,DINNER]
+250010:Shift Operation Hours Invalid [ EndTime should be greater than StartTime ]
+250011:Shift Operation Hours Invalid [ EndTime and StartTime should not be in negative ]
+250012:Shift Operation Hours should not OverLapping !
+250013:Dining Interval Slot is Required !
+250014:Dining Interval Slot Shouldn't be Negative
+250015:Restaurant can't operate as Operation Hours is Missing !
+250016:BlackOut Operation Hours is only possible in Restaurant Operation Hours !
+250017:BlackOut Shift Operation Hours should not OverLapping !
+
+260201=State guid is Missing!
+260202=State status is Missing!
+260203=State name is Missing!
+260204=State name can have maximum 50 characters!
+260205=Country code is Missing!
+260206=Country code can have maximum 10 characters!
+260207=State code is Missing!
+260208=State code can have maximum 10 characters!
+260209=Can't Delete State as State has cities!
+260210=Invalid State Guid!
+260211=Country Code not editable!
+260212=Country with given country code not exists!
+260213=State name already exists!
+
+
+270201=Phonecode is Missing!
+270202=Keywords is Missing!
+270203=Location is Missing!
+270204=Carrier is Missing!
+270205=Content is Missing!
+270206=MSISDN is Missing!
+270207=Timestamp is Missing!
+
+280201=Restaurant GUID is Missing!
+
+290201=Language Name field is Missing !
+290202=Language Name can have maximum 100 characters!
+290203=Language Code can have maximum 10 characters!
+
+300001=Covers is missing for Quick Search Reservation
+300002=Operation Hours is missing for Restaurant
+300003=No slot exists for this time and tat
+300004=All Tables Field missing !
+
+#EventPromotion
+310201=visitedInLast is Missing!
+310202=message is Missing!
+310203=message can have Maximum 300 Characters
+310204=toVip is Missing!
+310205=guestCount is Missing!
+310206=Event is draft!
+310207=guestCunt Minimum should be 1  
+
+#Template
+320201=templates is Missing!
+
+
+#Historical Tat
+340001=Shift is missing 
+340002=Invalid value of shift
+
+#Waitlist
+350001=Time is missing
+350002=Today is holiday!!!  Enjoy :).....
+350003=No table available
+350004=Master data is missing !
+
+
+#support
+360001=subject is Missing!
+360002= accountId is Missing!
+360003=	restaurantName is Missing!
+360004=username is Missing!
+360005=device is Missing!
+360006=os is Missing!
+360007=issueType is Missing!
+360008= description is Missing!
+360009= attacmentIds max can be 8.
+360010=attachment is Missing!
+360011= invalid attachment.
+360012=subject can have maximum 200 Characters
+360013=invalid username
+360014=device can have maximum 50 Characters
+360015=os can have maximum 50 Characters
+360016=description can have 1000 maximum Characters
+360017=invalid file name
+360018=file size must be less then 1 MB
+360019=invalid issueType
+
+
+#Log Out
+370001=ACCESS_TOKEN is missing!
+370002=Log Out Failure!
+
+#Restaurant Config
+380001=otpMobile is required!
+380002=tat_wd_12 is required!
+380003=tat_we_12 is required!
+380004=tat_wd_34 is required!
+380005=tat_we_34 is required!
+380006=tat_wd_56 is required!
+380007=tat_we_56 is required!
+380008=tat_wd_78 is required!
+380009=tat_we_78 is required!
+380010=tat_wd_8P is required!
+380011=tat_we_8P is required!
+380012=forcedShiftEndTime should contain value from 00:00 to 23:59
+
+#User Token
+390201=Token already exists!
+
+#weather
+400201=lattitude and longitude not configured for restaurant!
+
+#Corporation
+410008=Corporation with same website already exists!
+410009=Invalid Corporation Guid!
+410010=Invalid Corporate Offers Guid!
+410011=Corporate Offers with same name already exists!
+410012=name is missing!
+410013=name can have maximum 300 Characters!
+410014=name should not be less 2 Characters! 
+
+#BarEntry
+420001=numCovers is Missing!
+420002=numCovers must be greater than 0
+420003=note can have maximum 300 Characters
+420004=Bar Time should not be less than 10 minutes
+420005=Bar Time should not be more than 120 minutes
+420006=Restaurant not configured for Bar
+420007=invalid endTime [ endTime should be greater than StartTime ]
+420008=Provided waitlist reservation guid not valid  
+420009=Data is Missing!
+420010=BarEntry can't be updated after FINISHED
+#420003=numCovers must be greater than 0
+
+#invoice 
+
+5000011=Invoice Guid Required!
+5000013=Invoice Number Required!
+5000014=Invoice Message Length More Than Max Length! 
+5000015=Invoice RestGuid Required!
+5000016=Invoice Owner Name Required!
+5000017=Invoice Owner Address Required!
+5000018=Invoice Owner Email Required!
+5000019=Invoice Owner Phone Required!
+5000020=Invoice Date Required!
+5000021=Invoice Tax Amount Required!
+5000022=Invoice Basic Amount Required!
+5000023=Invoice Discount Required!
+5000024=Invoice Amount Required!
+5000025=Invoice Status Required!
+5000026=Invoice Currency Required!
+5000027=Invoice Tax Year Required!
+5000028=Invoice Round Amount Required!
+5000029=Invoice DueDate Required!
+5000030=Invoice Country Required!
+5000031=Invoice State Required!	
+
+
+#invoice
+5000034=Invoice Tax Amount Greater Than Max Value!
+5000035=Invoice Tax Amount Less Than Min Value!
+5000036=Invoice Discount Greater Than Max Value
+5000037=Invoice Discount Less Than Min Value!
+5000038=Invoice Amount Greater Than Max Value!
+5000039=Invoice Amount Less Than Min Value!
+
+5000040=Invoice Tax Year Greater Than Max Value!
+5000041=Invoice Tax Year Less Than Min Value!
+5000042=Invoice Rounded Amount Greater Than Max Value!
+5000043=Invoice Rounded Amount Less Than Min Value!
+
+
+5000044=Invoice Guid Length Greater Than Max Length!
+5000045=Invoice Number Length Greater Than Max Length!
+5000046=Invoice Rest Guid Length Greater Than Max Length!
+5000047=Invoice Owner Name Length Greater Than Max Length!
+5000048=Invoice Owner Address Length Greater Than Max Length!
+5000049=Invoice Owner Email Length Greater Than Max Length!
+5000050=Invoice Owner Phone Length Greater Than Max Length!
+5000051=Invoice Status Length Greater Than Max Length!
+5000052=Invoice Remarks Length Greater Than Max Length!
+
+
+5000053=Invoice Converation Count Required!
+5000054=Invoice Converation Count Greater Than Max Value!
+5000055=Invoice Conversation Count Less Than Min Value!
+5000056=Invoice Converation Month Required!
+5000057=Invoice Converation Month Greater Than Max Value!
+5000058=Invoice Converation Month Less Than Min Value!
+5000059=Invoice Converation Year Required!
+5000060=Invoice Year Greater Than Max Value!
+5000061=Invoice Year Less Than Min Value!
+
+5000062=Invoice Unbilled Amount Required!
+5000063=Invoice Unbilled Amount Greater Than Max Value!
+5000064=Invoice Unbilled Amount Less Than Min value! 
+
+5000065=Invoice Year Value Can not be More than 2050!
+5000066=Invoice Year Required!
+5000067=Invoice Year Value Can Not be Less than 2014!
+5000068=Invoice Month Required!
+5000069=Invoice Month Value Can Not Be More Than 12!
+5000070=Invoice Month Value Can Not Be Less Than 1!
+
+5000071=Guid Max Length Can Not Be More Than 50 Characters!
+5000072=Created Date Required!
+5000073=Updated Date Required!
+
+5000074=Created By Required!
+5000075=Updated By Required!
+
+#invoiceTxn 
+
+6000001=InvoiceTxn Conversation Quantity Required!
+6000002=InvoiceTxn Unit Price Required!
+6000003=InvoiceTxn Messages Sent Date Required!
+6000004=InvoiceTxn Conversation Tax Amount Required!
+6000005=InvoiceTxn Conversation Subtotal Required!
+	
+6000006=InvoiceTxn Conversation Quantity Greater Than Max Value!
+6000007=InvoiceTxn Conversation Quantity Less Than  Min Value!
+6000008=InvoiceTxn Unit Price Greater Than Max Value!
+6000009=InvoiceTxn Unit Price Less Than Min Value! 
+6000010=InvoiceTxn Tax Amount Greater Than Max Value!
+6000011=InvoiceTxn Tax Amount Less Than Min Value!
+	
+6000012=InvoiceTxn Subtotal Greater Than Max Value!
+6000013=InvoiceTxn Subtotal Less Than Min Value!
+#Tax 
+6000014=Tax Name Required!
+6000015=Tax Name Length Can not Be More than 20 Characters!
+6000016=Tax Country Required!
+6000017=Tax State Required!
+6000018=Tax Rate Required!
+6000019=Tax Rate Value Can not Be Greater Than 100!
+6000020=Tax Rate Value Can not Be Less Than 0!
+6000021=Tax state_tax boolean values required!
+
+6000024 = Invalid Tax Status only ACTIVE/INACTIVE Allowed!
+6000025 = Invalid Tax State!
+6000026 = Invalid Tax Country!
+6000027=Invalid Tax Type, only Aggregate and Single are Allowed!
+6000028=Tax Name Already Exist with Active Status!
+
+
+#Tax Category
+7000001=Tax Category Code Missing!
+7000002=Tax Category Name Missing!
+7000003=Tax Category ValidFrom Missing!
+7000004=Tax Category ValidTill Missing!
+7000005=Tax Category Status Missing!
+7000006=Tax CatCode Length Can Not Be More Than 20 Characters!
+7000007=Tax Category Name Can Not Be More Than 20 Characters!
+7000008=TaxCategory Guid Required as a Foreign Key! 
+
+#Delivery
+800001=Delivery Id is missing!
+800002=Delivery Id can have maximum 50 Characters
+800003=Delivery Time is missing!
+800004=Delivery Time can have maximum 50 Characters
+800005=Delivery SMS Status is missing!
+800006=Delivery SMS Status can have maximum 50 Characters
+800007=Delivery Phone Number is missing!
+800008=Delivery Phone Number can have maximum 12 Characters
+800009=Delivery SMS Status Cause is missing!
+800010=Delivery SMS Status Cause can have maximum 50 Characters
+800011=Delivery Phone Number can have minimum 10 Characters
+800012=SMS status is invalid
+800013 SMS status cause is invalid
+
+#enum Tax and Invoice
+9000001=Invalid Tax Status!
+9000002=Invalid Invoice Country!
+9000003=Invalid Invoice State!
+9000004=Invalid Invoice Status!
+9000005=Invalid Invoice Currency!
+9000006=Invalid Tax State!
+9000007=Invalid Tax Country!
+9000008=Invalid Tax Category Status!
+
+9000009=Tax Code Already Exist!
+9000010=Cat Code Already Exist!
+
+9000011=Invalid Tax Guid!
+9000012=Tax Guid Required!
+9000013=Tax Category Guid Required!
+9000014=Invalid Tax Category Guid!
+9000015=ValidFrom and ValidTill Overlapping With Existing Dates! 
+9000016=ValidFrom Date Can Not be After ValidTill Date!
+9000017=Tax Dates are not subset of TaxCategory Dates!
+9000018=Forign Key Constraint failed! CatCode not exist in TaxCategory Table!
+
+10000001=Payment Tracking Id Required!
+10000002=Payment Bank Reference Number Required for Invoice!
+10000003=Payment Status Required!
+10000004=Payment Failure Message Required!
+10000005=Payment Mode Required!
+10000006=Payment Card Name Required!
+10000007=Payment Status Code Required!
+10000008=Payment Status Message was not set as Yes!
+10000009=Payment Currency Required! 
+10000010=Payment Amount Required
+10000014=Invoice is not applicable for payment !
+
+#item
+1100001=Item name required!
+1100002=Item description required!
+1100003=Item default price required!
+1100004=Item status required!
+1100005=Item name already exists!
+
+#plan
+1100011=Plan name required!
+1100012=Plan status required!
+
+#plan_item
+1100021=Plan guid required!
+1100022=Item guid required!
+1100023=PlanItem status required!
+1100024=Item unit price required!
+1100025=Minimum item quantity required!
+
+#rest_plan
+1100031=Restaurant guid required!
+1100032=Rest plan start date required!
+1100033=Rest plan end date required!

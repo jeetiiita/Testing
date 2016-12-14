@@ -1,0 +1,108 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import com.clicktable.support.dao.intf.PushNotificationDao;
+import com.clicktable.support.model.Notification;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PushNotificationDaoImpl implements PushNotificationDao {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#create(java.lang.Object)
+	 */
+	@Override
+	public Notification create(Notification t) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#update(java.lang.Object)
+	 */
+	@Override
+	public Notification update(Notification t) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#delete(java.lang.Class, java.lang.Object)
+	 */
+	@Override
+	public void delete(Class type, Object id) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#findAll(java.lang.Class)
+	 */
+	@Override
+	public List<Notification> findAll(Class type) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#findByFields(java.lang.Class, java.util.Map)
+	 */
+	@Override
+	public List<Notification> findByFields(Class type, Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#find(java.lang.Object)
+	 */
+	@Override
+	public Notification find(Object id) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#createMultiple(java.util.List)
+	 */
+	@Override
+	public List<Notification> createMultiple(List<Notification> list) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#updateMultiple(java.util.List, java.util.Map)
+	 */
+	@Override
+	public List<Notification> updateMultiple(List<String> guidList, Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#delete(java.lang.String)
+	 */
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.dao.intf.GenericDao#getCountWithParams(java.util.Map)
+	 */
+	@Override
+	public int getCountWithParams(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+}

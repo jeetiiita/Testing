@@ -1,0 +1,41 @@
+/**
+ * 
+ */
+package com.clicktable.support.controllers;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.support.model.Notification;
+import com.clicktable.support.model.SingleTax;
+import com.clicktable.support.service.intf.PushNotificationService;
+import com.clicktable.support.util.SupportResponseCodes;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class PushNotificationController extends Controller {
+	
+	@Autowired
+	PushNotificationService pushNotificationService;
+	
+	public Result addPushNotification() {
+		BaseResponse response = null;
+		JsonNode json = request().body().asJson();
+		Notification notification = Json.fromJson(json, Notification.class);
+		notification = pushNotificationService.create(notification);
+		response = new PostResponse<Notification>(SupportResponseCodes.AGGREGATE_TAX_ADDED_SUCCESSFULLY,
+				notification.getId().toString());
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+	}
+
+}

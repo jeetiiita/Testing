@@ -1,0 +1,44 @@
+/**
+ * 
+ */
+package com.clicktable.support.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.AggregateTaxService;
+import com.clicktable.support.validate.AggregateTaxValidator;
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class AggregateTaxServiceImpl implements AggregateTaxService {
+	
+	@Autowired
+	AggregateTaxValidator aggregateTaxValidator;
+
+	@Override
+	public AggregateTax create(AggregateTax aggregateTax) {
+		List<ValidationError> errolist = aggregateTaxValidator.validateApplicableLayer(aggregateTax);
+		
+		
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.AggregateTaxService#getAggregatedTaxes(com.clicktable.support.model.Tax)
+	 */
+	@Override
+	public List<AggregateTax> getAggregatedTaxes(Tax tax) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

@@ -1,0 +1,82 @@
+package com.clicktable.support.controllers;
+
+import static com.clicktable.util.Constants.ACCESS_TOKEN;
+
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.TaxService;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+
+/**
+ */
+@org.springframework.stereotype.Controller
+public class TaxController extends Controller {
+
+	/**
+	 * Field taxService.
+	 */
+	@Autowired
+	TaxService taxService;
+
+	/**
+	 * Method addMasterData.
+	 * @return Result
+	 */
+	public Result addMasterData() {
+		BaseResponse response = null;
+		JsonNode json = request().body().asJson();
+
+		Tax tax = Json.fromJson(json, Tax.class);
+
+		if (json != null) {
+			tax.setGuid(UUID.randomUUID().toString());
+			tax.setCreatedBy("CT DEVS");
+			tax.setUpdatedBy("CT DEVS");
+			response = taxService.addTaxMasterData(tax);
+		}
+
+		JsonNode result = Json.toJson(response);
+		Logger.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	/**
+	 * Method getTax.
+	 * @return Result
+	 */
+	public Result getTax() {
+		Map<String, Object> params = UtilityMethods
+				.convertQueryStringToMap(request().queryString());
+		BaseResponse result = taxService.getTax(params);
+		return ok(Json.toJson(result));
+	}
+
+	/**
+	 * Method patchTax.
+	 * @return Result
+	 */
+	public Result patchTax() {
+		JsonNode json = request().body().asJson();
+		Tax tax = Json.fromJson(json, Tax.class);
+
+		// String userId =
+		// authService.getLoggedInUser(request().getHeader(ACCESS_TOKEN));
+
+		BaseResponse response = taxService.updateTax(tax,
+				request().getHeader(ACCESS_TOKEN));
+		JsonNode result = Json.toJson(response);
+		Logger.debug(Json.stringify(result));
+		return ok(result);
+	}
+}

@@ -1,0 +1,110 @@
+// $codepro.audit.disable fieldJavadoc
+
+package com.clicktable.support.util;
+
+public class ResponseCodes extends com.clicktable.util.ResponseCodes{
+
+	// Basic Responses
+	public static final String OK = "200";
+	public static final String NO_CONTENT = "204";
+	public static final String MOVED_PERMANENTLY = "301";
+	public static final String MOVED_TEMPORARILY = "302";
+	public static final String UNAUTHORIZED = "401";
+	public static final String PERMISSION_DENIED = "402";
+
+	public static final String FORBIDDEN = "403";
+	public static final String NOT_FOUND = "404";
+	public static final String INTERNAL_SERVER_ERROR = "500";
+	public static final String NOT_IMPLEMENTED = "501";
+	public static final String SERVICE_UNAVAILABLE = "503";
+	public static final String ROUTE_NOT_FOUND = "601";
+	public static final String BAD_REQUEST = "602";
+	public static final String ACCESS_TOKEN_MISSING = "700";
+	public static final String INVALID_ACCESS_TOKEN = "701";
+
+	public static Integer CUSTOMER_GET_SUCCESS = 101;
+	
+
+
+	// support
+	public static final String TICKET_SUCCESS = "3301";
+	public static final String TICKET_FAILURE = "3302";
+	public static final String ATTACHMENT_SUCCESS = "3303";
+	public static final String ATTACHMENT_FAILURE = "3304";
+	public static final String ATTACHMENT_DELETED_SUCCESFULLY = "3305";
+	public static final String TOKEN_SUCCESS = "3306";
+	
+	// Guest Conversation
+	public static final String GUEST_CONVERSATION_ADDED_SUCCESFULLY = "26001";
+	public static final String GUEST_CONVERSATION_ADDITION_FAILURE = "26002";
+	public static final String GUEST_CONVERSATION_RECORD_FETCH_SUCCESFULLY = "26003";
+	public static final String GUEST_CONVERSATION_SUCCESFULLY = "26004";
+	public static final String GUEST_CONVERSATION_FAILURE = "26005";
+	public static final String GUEST_CONVERSATION_UPDATED_SUCCESFULLY = "26006";
+	public static final String GUEST_CONVERSATION_UPDATION_FAILURE = "26007";
+	public static final String RESTAURANT_EVENT_PROMOTION_FECTCHED_FAILED ="26008" ;
+	
+	//Invoice
+	
+	public static final String INVOICE_TXN_ADDED_SUCCESSFULLY = "5100001";
+	public static final String INVOICE_TXN_ADDITION_FAILURE = "5100002";
+
+	public static final String INVOICE_TXN_UPDATED_SUCCESSFULLY = "5100011";
+	public static final String INVOICE_TXN_UPDATION_FAILURE = "5100012";
+	
+	public static final String INVOICE_ADDED_SUCCESSFULLY = "5100021";
+	public static final String INVOICE_ADDITION_FAILURE = "5100022";
+	
+	public static final String INVOICE_UPDATED_SUCCESSFULLY = "5100031";
+	public static final String INVOICE_UPDATION_FAILURE = "5100032";
+	
+	public static final String INVOICE_TXN_AMOUNT_FETCHED_SUCCESSFULLY = "5100033";
+	
+	//Tax and TaxCategory
+	
+	public static final String TAX_CATEGORY_ADDED_SUCCESSFULLY = "6100001";
+	public static final String TAX_CATEGORY_ADDITION_FAILURE = "6100002";
+	
+	public static final String TAX_ADDED_SUCCESSFULLY = "6100011";
+	public static final String TAX_ADDITION_FAILURE = "6100012";
+	
+	public static final String INVOICE_CREATED_SUCCESSFULLY = "6100013";
+	public static final String INVOICE_CREATION_FAILURE = "6100014";
+	
+	public static final String INVOICE_TXN_FETCHED_SUCCESSFULLY = "6100015";
+	public static final String INVOICE_FETCHED_SUCCESSFULLY = "6100016";
+	public static final String TAX_CATEGORY_FETCHED_SUCCESSFULLY = "6100017";
+	public static final String TAX_FETCHED_SUCCESSFULLY = "6100018";
+	public static final String TAX_UPDATION_FAILURE = "6100019";
+	public static final String TAX_UPDATED_SUCCESSFULLY = "6100020";
+	public static final String TAX_CATEGORY_UPDATION_FAILURE = "6100021";
+	public static final String TAX_CATEGORY_UPDATED_SUCCESSFULLY="6100022";
+	
+	public static final String INVOICE_TXN_GUID_UPDATION_FAILURE = "6100023";
+	public static final String INVOICE_GENERATED_SUCCESSFULLY = "6100024";
+	public static final String INVOICE_TAX_FETCHED_SUCCESSFULLY= "6100025";
+	
+	//Payment
+	public static final String USER_DETAILS_ENCRYPTED_SUCCESSFULLY = "7100001";
+	public static final String USER_DETAILS_ENCRYPTION_FAILURE = "7100002";
+	public static final String RESTAURANT_EVENT_PROMOTION_MESSAGES_FETCHED_SUCCESSFULLY = "7100003";
+	public static final String PAYMENT_INSERTED_SUCCESSFULLY = "7100004";
+	public static final String PAYMENT_INSERTION_FAILURE = "7100005";
+	
+	//item
+	public static final String ITEM_ADDED_SUCCESSFULLY = "1200001";
+	public static final String ITEM_ADDITION_FAILURE = "1200002";
+	public static final String ITEM_FETCHED_SUCCESSFULLY = "1200003";
+
+	
+	//plan
+	public static final String PLAN_ADDED_SUCCESSFULLY = "1200011";
+	public static final String PLAN_ADDITION_FAILURE = "1200012";
+	public static final String PLAN_FETCHED_SUCCESSFULLY = "1200013";
+	
+	
+	
+	
+	
+	
+}

@@ -1,0 +1,48 @@
+/**
+ * 
+ */
+package com.clicktable.support.controllers;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.service.intf.AggregateTaxService;
+import com.clicktable.support.validate.AggregateTaxValidator;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class AggregateController extends Controller {
+
+	@Autowired
+	AggregateTaxValidator aggregateTaxValidator;
+	
+	@Autowired
+	AggregateTaxService aggregateTaxService;
+	
+
+	public Result addAggregateTax() {
+		BaseResponse response = null;
+		JsonNode json = request().body().asJson();
+		AggregateTax aggregateTax = Json.fromJson(json, AggregateTax.class);
+		List<ValidationError> errorList = aggregateTaxValidator.validateOnAdd(aggregateTax);
+		if(errorList.isEmpty())
+			aggregateTaxService.create(aggregateTax);
+
+		return null;
+
+	}
+
+}

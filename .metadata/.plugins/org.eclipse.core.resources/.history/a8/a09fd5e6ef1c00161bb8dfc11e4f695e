@@ -1,0 +1,26 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.Item;
+import com.clicktable.support.model.Tax;
+
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface ItemTaxService {
+
+	List<Tax> getTaxesForItem(Item item, Restaurant restaurant);
+
+	Tax getApplicableTaxForItem(Item item, Restaurant restaurant);
+
+}

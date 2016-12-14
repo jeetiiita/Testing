@@ -1,0 +1,47 @@
+package com.clicktable.support.validate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.validate.EntityValidator;
+import com.clicktable.validate.ValidationError;
+
+@org.springframework.stereotype.Service
+public class TaxValidator extends EntityValidator<Tax> {
+
+	@Autowired
+	TaxDao taxDao;
+
+	public List<ValidationError> validateTaxOnAdd(Tax tax) {
+
+		List<ValidationError> errorList = validateOnAdd(tax);
+		
+		return errorList;
+	}
+
+	public List<ValidationError> validateOnUpdate(Tax tax) {
+
+		List<ValidationError> errorList = validateTax(tax);
+
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		
+		return errorList;
+	}
+
+	@Override
+	public String getMissingGuidErrorCode() {
+		return ErrorCodes.TAX_GUID_REQUIRED;
+	}
+
+	@Override
+	public String getInvalidGuidErrorCode() {
+		return ErrorCodes.INVALID_TAX_GUID;
+	}
+}

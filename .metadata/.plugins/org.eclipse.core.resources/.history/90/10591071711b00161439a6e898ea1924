@@ -1,0 +1,65 @@
+package com.clicktable.support.controllers;
+
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Http.MultipartFormData;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.Payment;
+import com.clicktable.support.service.intf.PaymentService;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+
+@org.springframework.stereotype.Controller
+public class PaymentController extends Controller {
+
+	@Autowired
+	PaymentService paymentService;
+
+	public Result addPaymentDetail() {
+		Map<String, String[]> params;
+		 MultipartFormData data = request().body().asMultipartFormData();
+		 if(data!=null )
+			 params= data.asFormUrlEncoded();
+		 else{
+			 params = request().body().asFormUrlEncoded();
+		 }
+		
+		JsonNode json = paymentService.decryptResponse(params.get("encResp")[0]);
+
+		BaseResponse response = null;
+
+		Payment payment = Json.fromJson(json, Payment.class);
+		if (json != null) {
+
+			payment.setId(UtilityMethods.generateCtId());
+			response = paymentService.insertIntoPayment(payment);
+
+			if (payment.getStatusMessage().equals("Y")
+					&& response.getResponseStatus() == true) {
+				response = paymentService.updateInvoice(payment);
+			}
+		}
+
+		JsonNode result = Json.toJson(response);
+		Logger.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	public Result encryptPaymentDetail() {
+		BaseResponse response = null;
+		Map<String, Object> params = UtilityMethods
+				.convertQueryStringToMap(request().queryString());
+		response = paymentService.encryptPaymentData(params);
+		JsonNode result = Json.toJson(response);
+		Logger.debug(Json.stringify(result));
+		System.out.println(Json.stringify(result));
+		return ok(result);
+	}
+}

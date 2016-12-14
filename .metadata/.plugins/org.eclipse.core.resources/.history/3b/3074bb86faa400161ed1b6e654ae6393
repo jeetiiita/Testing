@@ -1,0 +1,48 @@
+/**
+ * 
+ */
+package com.clicktable.controllers;
+
+import static com.clicktable.util.EmpowerConstants.ACCESS_TOKEN;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.RestaurantFeedBackConfigService;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class FeedBackController extends Controller {
+	
+	private static final Logger.ALogger log = Logger.of(FeedBackController.class);
+	
+	@Autowired
+	AuthorizationService authService;
+	
+	@Autowired
+	RestaurantFeedBackConfigService restFeedBackConfigService;
+	
+	
+	
+	public Result addRestaurantFeedBackConfig() {
+		String token = request().getHeader(ACCESS_TOKEN);
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		
+		BaseResponse response = restFeedBackConfigService.addRestaurantFeedBackConfig(restfeedBackConfig);
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+}

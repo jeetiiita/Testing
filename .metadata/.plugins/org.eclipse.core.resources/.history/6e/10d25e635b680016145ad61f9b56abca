@@ -1,0 +1,14 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.intf;
+
+import com.clicktable.support.model.Notification;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface PushNotificationDao extends GenericDao<Notification> {
+
+}

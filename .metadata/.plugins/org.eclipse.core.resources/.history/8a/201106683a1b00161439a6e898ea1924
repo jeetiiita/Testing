@@ -1,0 +1,25 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.support.model.Plan;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface PlanService {
+
+	Plan create(Plan plan);
+	
+	/**
+	 * 
+	 */
+	void activate();
+	
+	/**
+	 * 
+	 */
+	void deactivate();
+}

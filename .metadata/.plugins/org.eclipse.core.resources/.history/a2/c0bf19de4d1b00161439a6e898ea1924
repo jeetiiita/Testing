@@ -1,0 +1,77 @@
+package com.clicktable.support.service.impl;
+
+import java.text.ParseException;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.stereotype.Component;
+
+import play.Logger;
+import play.libs.Akka;
+import play.libs.Time.CronExpression;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
+
+import com.clicktable.support.scheduler.InvoiceTxnScheduler;
+import com.clicktable.support.service.intf.ThreadSchedulerService;
+import com.clicktable.util.Constants;
+import com.clicktable.util.UtilityMethods;
+
+/**
+ * @author s.gupta
+ *
+ */
+@Component
+public class ThreadSchedulerServiceImpl implements ThreadSchedulerService {
+
+	
+
+	
+	@Override
+	public void startThreads() {
+		startThreadEarlyMorning(new InvoiceTxnScheduler(invoiceTxnService, invoiceService));
+	}
+
+	private void startThread(Runnable thread) {
+		boolean enable = Boolean.parseBoolean(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.ENABLE));
+		if (enable) {
+			int start = Integer.parseInt(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.START).trim());
+			int duration = Integer.parseInt(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.DURATION).trim());
+			Logger.info("starting scheduler: "+ thread.getClass().getSimpleName());
+			Logger.debug("starting scheduler: "+ thread.getClass().getSimpleName());
+			System.out.println("starting scheduler: "+ thread.getClass().getSimpleName());
+			Akka.system().scheduler().schedule(Duration.create(start, TimeUnit.SECONDS), Duration.create(duration, TimeUnit.SECONDS), thread, Akka.system().dispatcher());	
+		}
+
+	}
+	
+	private void startThreadEarlyMorning(Runnable thread) {
+		// TODO Auto-generated method stub
+
+		try {
+			boolean enable = Boolean.parseBoolean(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.ENABLE));
+			if (enable) {
+			System.out.println(" startThreadEarlyMorning SCHEDULAR STARTS  =========== " + new Date(Calendar.getInstance().getTimeInMillis()));
+			CronExpression cronExpression = new CronExpression(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.CRON_EXPRESSION_TO_LAUNCH_THREAD)
+					.trim());
+
+			Date nextValidTimeAfter = cronExpression.getNextValidTimeAfter(new Date());
+			System.out.println(" NEXT startThreadEarlyMorning SCHEDULAR STARTS ============" + nextValidTimeAfter);
+			Logger.debug("NEXT startThreadEarlyMorning SCHEDULAR STARTS ============" + nextValidTimeAfter);
+
+			FiniteDuration finiteDuration = Duration.create(nextValidTimeAfter.getTime() - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+
+			int restart = Integer.parseInt(UtilityMethods.getProperty(Constants.SESSION_CONFIG, thread.getClass().getSimpleName(), Constants.RESTART).trim());
+			Akka.system().scheduler().schedule(finiteDuration, Duration.create(restart, TimeUnit.SECONDS), thread, Akka.system().dispatcher());
+			}
+
+			
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+	
+}

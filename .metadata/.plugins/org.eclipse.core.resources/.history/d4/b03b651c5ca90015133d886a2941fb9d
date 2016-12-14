@@ -1,0 +1,61 @@
+import static com.clicktable.util.Constants.ACCESS_TOKEN;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import play.Logger;
+import play.libs.Json;
+
+import com.clicktable.model.Tag;
+import com.clicktable.response.BaseResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ning.billing.recurly.RecurlyClient;
+
+
+
+
+public class ClientTesting {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		final String apiKey = "3daa12db9a5e4bfd8afe6d73deb0ebdb";
+        String subDomainTemp = "clicktable";
+        
+        final String subDomain = subDomainTemp;
+
+        RecurlyClient recurlyClient = new RecurlyClient(apiKey, subDomain);
+        recurlyClient.open();
+        
+        System.out.println("******  recurlyClient.getAccounts().size()  ******   "+recurlyClient.getAccounts().size());
+        System.out.println("******  recurlyClient.getAccounts().  ******   "+recurlyClient.getAccount("p.bhakt@clicktable.com").getFirstName());
+        
+        
+
+	}
+
+
+	public Result AddCustomerRecurly()
+	{
+		String Customer_guid = null;
+		
+		JsonNode json = request().body().asJson();
+		
+		Customer_guid = json.findValue("Email").textValue();
+		
+		JsonNode tags = json.findValue("tag");
+		if (tags.isArray()) {
+			for (JsonNode tagjson : tags) {
+				tag = Json.fromJson(tagjson, Tag.class);
+				listTag.add(tag);
+			}
+
+		}
+		BaseResponse response = guestHasTagsService.addGuestProfileTag(guest_guid,
+				 listTag, request().getHeader(ACCESS_TOKEN));
+
+		JsonNode result = Json.toJson(response);
+		Logger.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+}

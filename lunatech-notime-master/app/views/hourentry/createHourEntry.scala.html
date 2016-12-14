@@ -1,0 +1,65 @@
+@(entryForm: Form[beans.HourEntryForm], entries: List[HourEntry])
+
+@import helper._
+@import helper.twitterBootstrap._
+@import utils.CalculationUtil
+
+@main("Enter hours", sidemenu = menus.userMenu()) {
+	
+	@if(entryForm.hasGlobalErrors()) {
+    	<div class="alert-message error">
+            <strong>Oops!</strong> @entryForm.globalError().message
+        </div>
+    }
+        
+    @form(routes.HourEntries.create(), 'id -> "entryForm") {
+		<div class="entry">
+	    	@select(entryForm("assignment.id"), options(ProjectAssignments.optionsForCurrentUser()), '_label -> "Project", '_default -> "Choose a Project")
+	
+			@inputDate(entryForm("date"), '_label -> "Date")
+			
+			@inputText(entryForm("hours"), '_label -> "Hours")
+			
+			@inputText(entryForm("minutes"), '_label -> "Minutes")
+			
+			<div class="clearfix" id="tags_string_field">
+				<label for="tags_string">Tags</label>
+				<div class="input">
+					<input type="text" class="autocomplete" name="tagsString" value="@entryForm.data.get("tagsString")" data-url="@routes.Tags.find">
+					<span class="help-block">Seperate tags with a semicolon</span>
+				</div>
+			</div>
+			
+			<input class="btn btn-primary" type="submit" value="Submit">
+			<a class="btn" href="@routes.Users.home()">Cancel</a>
+		</div>
+	}
+	
+	@if(entries.isEmpty) {
+		<div class="alert-message warning">
+            No hours entered for this day!
+        </div>
+	} else {
+		<p>Entered hours:</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Project</th>
+					<th>Time</th>
+					<th>Tags</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for(entry <- entries) {
+					<tr>
+						<td>@entry.assignment.project.code</td>
+						<td>@CalculationUtil.formatTotalHoursMinutes(entry.hours, entry.minutes)</td>
+						<td>@entry.enteredTagsString()</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+	
+
+}

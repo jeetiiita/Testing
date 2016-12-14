@@ -1,0 +1,5 @@
+1472454637200	Rename method 'populateDistributionMapForStatusAndCovers'
+1472640725072	Rename method 'populateDistributionMapByStatus'
+1472640751472	Rename method 'populateDistributionMapByStatusAndSource'
+1472641302335	Rename local variable 'bookingModeMap'
+1472641792726	Rename local variable 'getQuery'

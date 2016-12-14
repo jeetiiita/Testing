@@ -1,0 +1,12 @@
+/**
+ * 
+ */
+package com.clicktable.support.Exception;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ValidationException extends RuntimeException {
+
+}

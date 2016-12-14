@@ -1,0 +1,241 @@
+package com.clicktable.support.model;
+
+import java.util.List;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinTable;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Max;
+import play.data.validation.Constraints.Min;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+/**
+ * @author j.yadav
+ *
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Table(name = "aggregate_tax")
+@Entity
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class AggregateTax extends BaseEntity {
+
+	private static final long serialVersionUID = -6843409529472873032L;
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	@Required(message = ErrorCodes.AGGREGATE_TAX_CODE_ID_REQUIRED)
+	@Column(name = "aggregate_tax__code_id")
+	private Integer aggregateTaxCodeId;
+
+	@Required(message = ErrorCodes.AGGREGATE_SINGLE_TAX_CODE_ID_REQUIRED)
+	@Column(name = "single_tax_code_id")
+	private Integer singleTaxCodeId;
+
+	@Max(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_MAX_VALUE, value = 9)
+	@Min(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_MIN_VALUE, value = 1)
+	@Required(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_REQUIRED_)
+	@Column(name = "layer_number")
+	private Integer layerNumber;
+
+	@JsonIgnore
+	@Required(message = ErrorCodes.AGGREGATE_TAX_RATE_REQUIRED)
+	@Column(name = "tax_rate")
+	private double taxRate;
+
+	 @JoinTable(
+			   name = "aggregate_tax_layers", 
+			   joinColumns = @JoinColumn(name = "aggregate_id"), 
+			   inverseJoinColumns = @JoinColumn(name = "applied_layers")
+			 )
+	@ElementCollection
+	private List<Boolean> appliedLayers; 
+	
+	/*@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_0_REQUIRED)
+	@Column(name = "apply_layer_0")
+	private Boolean applyLayer0;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_1_REQUIRED)
+	@Column(name = "apply_layer_1")
+	private Boolean applyLayer1;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_2_REQUIRED)
+	@Column(name = "apply_layer_2")
+	private Boolean applyLayer2;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_3_REQUIRED)
+	@Column(name = "apply_layer_3")
+	private Boolean applyLayer3;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_4_REQUIRED)
+	@Column(name = "apply_layer_4")
+	private Boolean applyLayer4;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_5_REQUIRED)
+	@Column(name = "apply_layer_5")
+	private Boolean applyLayer5;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_6_REQUIRED)
+	@Column(name = "apply_layer_6")
+	private Boolean applyLayer6;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_7_REQUIRED)
+	@Column(name = "apply_layer_7")
+	private Boolean applyLayer7;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_8_REQUIRED)
+	@Column(name = "apply_layer_8")
+	private Boolean applyLayer8;
+
+	@Required(message = ErrorCodes.AGGREGATE_APPLY_LAYER_9_REQUIRED)
+	@Column(name = "apply_layer_9")
+	private Boolean applyLayer9;
+*/
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public Integer getAggregateTaxCodeId() {
+		return aggregateTaxCodeId;
+	}
+
+	public void setAggregateTaxCodeId(Integer aggregateTaxCodeId) {
+		this.aggregateTaxCodeId = aggregateTaxCodeId;
+	}
+
+	public Integer getSingleTaxCodeId() {
+		return singleTaxCodeId;
+	}
+
+	public void setSingleTaxCodeId(Integer singleTaxCodeId) {
+		this.singleTaxCodeId = singleTaxCodeId;
+	}
+
+	public Integer getLayerNumber() {
+		return layerNumber;
+	}
+
+	public void setLayerNumber(Integer layerNumber) {
+		this.layerNumber = layerNumber;
+	}
+
+	public double getTaxRate() {
+		return taxRate;
+	}
+
+	public void setTaxRate(double taxRate) {
+		this.taxRate = taxRate;
+	}
+
+	public List<Boolean> getAppliedLayers() {
+		return appliedLayers;
+	}
+
+	public void setAppliedLayers(List<Boolean> appliedLayers) {
+		this.appliedLayers = appliedLayers;
+	}
+
+	/*public Boolean getApplyLayer0() {
+		return applyLayer0;
+	}
+
+	public void setApplyLayer0(Boolean applyLayer0) {
+		this.applyLayer0 = applyLayer0;
+	}
+
+	public Boolean getApplyLayer1() {
+		return applyLayer1;
+	}
+
+	public void setApplyLayer1(Boolean applyLayer1) {
+		this.applyLayer1 = applyLayer1;
+	}
+
+	public Boolean getApplyLayer2() {
+		return applyLayer2;
+	}
+
+	public void setApplyLayer2(Boolean applyLayer2) {
+		this.applyLayer2 = applyLayer2;
+	}
+
+	public Boolean getApplyLayer3() {
+		return applyLayer3;
+	}
+
+	public void setApplyLayer3(Boolean applyLayer3) {
+		this.applyLayer3 = applyLayer3;
+	}
+
+	public Boolean getApplyLayer4() {
+		return applyLayer4;
+	}
+
+	public void setApplyLayer4(Boolean applyLayer4) {
+		this.applyLayer4 = applyLayer4;
+	}
+
+	public Boolean getApplyLayer5() {
+		return applyLayer5;
+	}
+
+	public void setApplyLayer5(Boolean applyLayer5) {
+		this.applyLayer5 = applyLayer5;
+	}
+
+	public Boolean getApplyLayer6() {
+		return applyLayer6;
+	}
+
+	public void setApplyLayer6(Boolean applyLayer6) {
+		this.applyLayer6 = applyLayer6;
+	}
+
+	public Boolean getApplyLayer7() {
+		return applyLayer7;
+	}
+
+	public void setApplyLayer7(Boolean applyLayer7) {
+		this.applyLayer7 = applyLayer7;
+	}
+
+	public Boolean getApplyLayer8() {
+		return applyLayer8;
+	}
+
+	public void setApplyLayer8(Boolean applyLayer8) {
+		this.applyLayer8 = applyLayer8;
+	}
+
+	public Boolean getApplyLayer9() {
+		return applyLayer9;
+	}
+
+	public void setApplyLayer9(Boolean applyLayer9) {
+		this.applyLayer9 = applyLayer9;
+	}*/
+
+}

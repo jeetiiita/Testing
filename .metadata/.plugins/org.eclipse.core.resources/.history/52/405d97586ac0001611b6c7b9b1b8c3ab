@@ -1,0 +1,19 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	List<String> itr = new ArrayList<>();
+	
+	itrList
+}

@@ -1,0 +1,2301 @@
+{
+  "ApiPermissions": {
+    "/restaurant": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "PATCH": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/restaurant/attribute": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+      "/restaurant/reservation": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 6
+          },
+          {
+            "roleId": 7
+          }
+        ]
+      }
+      ],
+    "/restaurant/config": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/restaurant/device": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/restaurant/section": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/guest": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          },
+          {
+            "roleId": 6
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+     "/guestGuid": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+     "/deleteGuest": [
+      {
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/staff": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+          ,
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ]
+    ,
+    "/staff/logout": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/cuisine": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/table": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/currentTableStatus": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/onboarding": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/reservationCSV": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/mergeTag": [
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/reservation": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/reservation/invite": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 6
+          }
+        ]
+      }
+      ],
+    "/reservationGuid": [
+ 	{
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/event": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/event/calendar": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ],
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ],
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/event/calendarGuid": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 6
+          }
+        ]
+      }
+    ],
+    "/section": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/attribute": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/attribute/country": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/tat": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/server": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/assignTable": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/guestTag": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    
+    "/quickSearchReservation": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/quickSearchNew": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/tag": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/unassignTable": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/conversation": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/conversation/promotion": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+    ],
+    "/eventPromotion/guestCount": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/conversation/template": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/support/token": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/dashboard": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/waitlist": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+     "/waitlistLite": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/waitlistMobile": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/shuffleTables": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/reservationQueue": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/reservationForTables": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/reservationSeatWaitlist": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/restaurant/cleanData": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/guest/csv": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/country": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/state": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/city": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/region": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/locality": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/building": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "DELETE": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/blockedTables": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/restaurant/weather": [
+      {
+        "GET": [
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/quickSearchReservationNew": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/restaurant/historicaltat": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/quickSearchTableNew": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/restaurant/contactInfo": [
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/restaurant/contactInfoAdmin": [
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/restaurant/generalInfo": [
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/restaurant/operationHour": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/waitlist/allTables": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/restaurant/blackOutHour": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/barentry": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/barentry/toRestaurant": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/barentry/fromWaitlist": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+     "/corporateOffers": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/report/guest": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+      "/report/reservation": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+      ],
+      "/report/event/calendar": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+      ],
+      "/report/event/calendar/attendance": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+      ],
+      "/report/promotion": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+      ],
+     "/support/invoice": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+    ],
+     "/support/item": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+        ]
+      }
+    ],
+     "/support/plan": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+        {
+        "POST": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+        ]
+      }
+    ],
+     "/support/plan/disable/:id": [
+       {
+        "PUT": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+    ],
+    "/support/aggregateTax": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+        {
+        "POST": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+        ]
+      }
+    ],
+     "/support/aggregateTax/disable/:id": [
+       {
+        "PUT": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+    ],
+    "/support/singleTax": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+        {
+        "POST": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+        ]
+      }
+    ],
+     "/support/singleTax/disable/:id": [
+ 	 {
+        "PUT": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+    ],
+    "/support/restaurantPlan": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+        {
+        "POST": [
+          {
+            "roleId": 1
+         }
+        ]
+      }
+        ]
+      }
+    ],
+    "/support/restaurantPlan/plan": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+     "/support/restaurantPlan/disable/:id": [
+      {
+        "PUT": [
+         {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+     "/support/payment": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+    ],
+     "/support/invoiceGenScheduler": [
+      {
+        "GET": [
+         {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+     "/runJob": [
+      {
+        "POST": [
+         {
+            "roleId": 1
+          }
+        ]
+      }
+    ]
+  }
+}

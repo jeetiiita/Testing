@@ -1,0 +1,86 @@
+/**
+ * 
+ */
+package com.clicktable.support.controllers;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.support.Exception.ValidationServiceException;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.AggregateTaxService;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.AggregateTaxValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Controller
+public class AggregateTaxController extends Controller {
+
+	@Autowired
+	AggregateTaxValidator aggregateTaxValidator;
+	
+	@Autowired
+	AggregateTaxService aggregateTaxService;
+	
+	@Autowired
+	TaxDao taxDao;
+	
+
+	public Result addAggregateTax() {
+		BaseResponse response = null;
+		JsonNode json = request().body().asJson();
+		AggregateTax aggregateTax = Json.fromJson(json, AggregateTax.class);
+
+		List<ValidationError> errorList = aggregateTaxValidator.validateOnAdd(aggregateTax);
+		
+		try {
+			if (errorList.isEmpty()) {
+				Tax taxEntity = taxDao.find(aggregateTax.getSingleTaxCodeId());
+				aggregateTax.setTaxRate(taxEntity.getRate());
+				AggregateTax aggregateEntity = aggregateTaxService.create(aggregateTax);
+				response = new PostResponse<AggregateTax>(ResponseCodes.AGGREGATE_TAX_ADDED_SUCCESSFULLY,aggregateEntity.getId().toString());
+			}
+			else
+				response = new ErrorResponse(ResponseCodes.AGGREGATE_TAX_ADDITION_FAILURE, errorList);
+		} catch (ValidationServiceException e) {
+			Logger.debug("Exception in Aggregate Tax Addition " + e);
+			response = new ErrorResponse(ResponseCodes.AGGREGATE_TAX_ADDITION_FAILURE, e.getErrorList());
+		}
+
+		return ok(Json.toJson(response));
+
+	}
+	
+	public Result getAllAggregateTax() {
+		Map<String, Object> params = UtilityMethods.convertQueryStringToMap(request().queryString());
+		
+		List<AggregateTax> taxEntityList = aggregateTaxService.getAggregatedTaxes(params);
+		BaseResponse response = new GetResponse<AggregateTax>(ResponseCodes.AGGREGATE_TAX_FETCHED_SUCCESSFULLY, taxEntityList);
+		
+		JsonNode result = Json.toJson(response);
+		return ok(Json.toJson(result));
+
+	}
+
+}

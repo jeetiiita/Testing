@@ -1,0 +1,107 @@
+/**
+ * 
+ */
+package com.clicktable.dao.impl;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.neo4j.conversion.Result;
+
+import com.clicktable.dao.intf.ServerDao;
+import com.clicktable.model.Server;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.UtilityMethods;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Service
+public class ServerDaoImpl extends GraphDBDao<Server> implements ServerDao{
+
+	public ServerDaoImpl() {
+		super();
+		this.setType(Server.class);
+	}
+	
+	
+	@Override
+	public String addServer(Server server,String restaurantGuid) {
+		StringBuilder query = new StringBuilder();
+		
+		Map<String, Object> params = new HashMap<String, Object>();
+		Map<String, Object> dbValues = getGraphProperty(UtilityMethods.introspect(server));
+		params.putAll(dbValues);
+		params.put(EmpowerConstants.PROP_MAP, dbValues);
+		params.put(EmpowerConstants.REST_GUID,restaurantGuid );
+		query.append("MATCH (rest:Restaurant{guid:{"+ EmpowerConstants.REST_GUID +"}}) ");
+		query.append("MERGE (rest)-[rhs:REST_HAS_SERVER]->(t: Server:_Server{guid:{"+ EmpowerConstants.GUID+"}}) ON CREATE SET t={" + EmpowerConstants.PROP_MAP + "} RETURN t");
+
+		Result<Map<String, Object>> result = executeWriteQuery(query.toString(), params);
+		return getSingleResultGuid(result);
+	}
+
+	@Override
+	public List<Server> getServers(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (rest:Restaurant{guid:{"+ EmpowerConstants.REST_GUID +"}})-[rhs:REST_HAS_SERVER]->(t: Server) ");
+		if (params.containsKey(EmpowerConstants.STATUS) && params.get(EmpowerConstants.STATUS) != null) {
+			query.append(" where t.status={" + EmpowerConstants.STATUS + "} ");
+		}
+		query.append("RETURN t");
+
+		List<Server> result = executeQuery(query.toString(), params);
+
+		return result;
+	}
+
+	//params : serverGuid as guid
+	@Override
+	public void removeServer(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (rest:Restaurant{guid:{"+ EmpowerConstants.REST_GUID +"}})-[rhs:REST_HAS_SERVER]->(t: Server {guid:{"+ EmpowerConstants.GUID +"}}) SET t.status='INACTIVE'");
+		executeWriteQuery(query.toString(), params);
+	}
+	
+	@Override
+	public String validateServerForRest(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (rest:Restaurant{guid:{" + EmpowerConstants.REST_GUID
+				+ "}})-[rhs:REST_HAS_SERVER]->(t: Server{guid:{" + EmpowerConstants.GUID + "}}) RETURN t.guid as guid");
+
+		Result<Map<String, Object>> results = template.query(query.toString(), params);
+
+		String result = null;
+		Iterator<Map<String, Object>> itr = results.iterator();
+
+		if (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			result = (String) map.get("guid");
+		}
+
+		return result;
+	}
+	
+	@Override
+	public String validateServerByName(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (rest:Restaurant{guid:{" + EmpowerConstants.REST_GUID
+				+ "}})-[rhs:REST_HAS_SERVER]->(t: Server{status:'ACTIVE'}) where LOWER(t.name)=LOWER({"+EmpowerConstants.NAME+"})RETURN t.guid as guid");
+
+		Result<Map<String, Object>> results = template.query(query.toString(), params);
+
+		String result = null;
+		Iterator<Map<String, Object>> itr = results.iterator();
+
+		if (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			result = (String) map.get("guid");
+		}
+
+		return result;
+	}
+
+}

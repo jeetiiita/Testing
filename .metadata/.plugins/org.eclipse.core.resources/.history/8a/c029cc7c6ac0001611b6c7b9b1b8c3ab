@@ -1,0 +1,24 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+	List<String> itrList = new ArrayList<>();
+	
+	itrList.add("abc");
+	itrList.add("bcd");
+	itrList.add("cde");
+	}
+	
+}

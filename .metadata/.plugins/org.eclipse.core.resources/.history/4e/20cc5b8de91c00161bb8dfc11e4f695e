@@ -1,0 +1,25 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface AggregateTaxService {
+	
+	AggregateTax create(AggregateTax aggregateTax);
+
+	List<AggregateTax> getAggregatedTaxes(Map<String, Object> params);
+
+}

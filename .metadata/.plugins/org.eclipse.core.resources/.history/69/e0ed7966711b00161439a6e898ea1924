@@ -1,0 +1,100 @@
+package com.clicktable.support.model;
+
+import java.io.Serializable;
+import java.sql.Timestamp;
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Inheritance;
+import javax.persistence.InheritanceType;
+import javax.persistence.MappedSuperclass;
+
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.util.Constants;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+@MappedSuperclass
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+public class BaseEntity implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1721178040607875302L;
+
+	
+	protected String createdBy;
+
+	protected String updatedBy;
+
+	@JsonFormat(pattern = Constants.TIMESTAMP_FORMAT, timezone = Constants.TIMEZONE)
+	protected Date createdDate = new Timestamp(new Date().getTime());
+
+	@JsonFormat(pattern = Constants.TIMESTAMP_FORMAT, timezone = Constants.TIMEZONE)
+	protected Date updatedDate = new Timestamp(new Date().getTime());
+
+	
+	
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String guid) {
+		this.id = guid;
+	}
+
+	public String getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	public String getUpdatedBy() {
+		return updatedBy;
+	}
+
+	public void setUpdatedBy(String updatedBy) {
+		this.updatedBy = updatedBy;
+	}
+
+	public Date getCreatedDate() {
+		return createdDate == null ? null : (Date) createdDate.clone();
+	}
+
+	public void setCreatedDate(Date createdDate) {
+		this.createdDate = createdDate == null ? null : (Date) createdDate
+				.clone();
+	}
+
+	public Date getUpdatedDate() {
+		return updatedDate == null ? null : (Date) updatedDate.clone();
+	}
+
+	public void setUpdatedDate(Date updatedDate) {
+		this.updatedDate = updatedDate == null ? null : (Date) updatedDate
+				.clone();
+	}
+
+	public void copyExistingValues(BaseEntity existing) {
+		this.setCreatedBy(existing.getCreatedBy());
+		this.setCreatedDate(existing.getCreatedDate());
+	}
+
+	public void setInfoOnCreate(UserInfoModel userInfo) {
+		if (userInfo != null) {
+			this.setCreatedBy(userInfo.getGuid());
+			this.setUpdatedBy(userInfo.getGuid());
+		}
+	}
+
+	public void setInfoOnUpdate(UserInfoModel userInfo) {
+		if (userInfo != null) 
+			this.setUpdatedBy(userInfo.getGuid());
+		this.setUpdatedDate(new Timestamp(new Date().getTime()));
+	}
+
+}

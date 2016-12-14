@@ -1,0 +1,21 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ReverseWordsInString {
+
+
+	public static String reverseWords(String input) {
+		
+		String[] result = input.split(" ");
+		
+		
+	}
+
+
+}

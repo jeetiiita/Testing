@@ -1,0 +1,3072 @@
+package com.clicktable.service.impl;
+
+import com.clicktable.config.QuartzConfig;
+import com.clicktable.dao.intf.*;
+import com.clicktable.model.*;
+import com.clicktable.model.Queue;
+import com.clicktable.repository.ReservationHistoryRepo;
+import com.clicktable.response.*;
+import com.clicktable.service.intf.*;
+import com.clicktable.util.*;
+import com.clicktable.validate.*;
+import com.csvreader.CsvWriter;
+import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
+import org.quartz.JobDetail;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.neo4j.conversion.Result;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import play.Logger;
+import play.cache.Cache;
+import play.libs.F.Promise;
+import play.mvc.Http.Request;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.text.DateFormatSymbols;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.clicktable.util.EmpowerConstants.REQUEST_SOURCE;
+
+
+@Component
+public class ReservationServiceImpl implements ReservationService{
+
+	/**
+	 * 
+	 */
+	private static final String REJECTED = "REJECTED";
+
+	@Autowired
+	ReservationDao reservationDao;
+
+	@Autowired
+	RestaurantDao restaurantDao;
+
+	@Autowired
+	CustomerDao guestDao;
+
+	@Autowired
+	SectionDao sectionDao;
+
+	@Autowired
+	ReservationValidator reservationValidator;
+
+	@Autowired
+	CustomerValidator guestValidator;
+
+	@Autowired
+	TableValidator tableValidator;
+
+	@Autowired
+	RestaurantValidator restValidator;
+	@Autowired
+	ConversationValidator conversationValidator;
+
+	@Autowired
+	GuestReservationRelationDao guestRelationDao;
+
+	@Autowired
+	TableReservationRelationDao tableRelationDao;
+
+	@Autowired
+	AuthorizationService authService;
+
+	@Autowired
+	CalenderEventDao calEventDao;
+
+	@Autowired
+	BarEntryService barEntryService;
+
+	@Autowired
+	BarEntryDao barEntryDao;
+
+	@Autowired
+	GuestTagDao assignTagDao;
+
+	
+	@Autowired
+	TableShuffleService shuffleService;
+
+	@Autowired
+	QueueDao queueDao;
+
+	@Autowired
+	CurrentValuesDao currentValuesDao;
+
+	@Autowired
+	QuartzService quartzService;
+
+
+	@Autowired
+	GuestTagsService assignTagService;
+
+	@Autowired
+	TableDao tableDao;
+
+	@Autowired
+	WaitlistService waitlistService;
+
+	@Autowired
+	OzoneTelService ozoneTelService;
+
+	@Autowired
+	TableShuffleDao shuffleDao;
+
+	@Autowired
+	BarEntryValidator barEntryValidator;
+	
+	@Autowired
+	WaitlistDao waitlistDao;
+
+	@Autowired
+	QuickSearchDao quickSearchDao;
+
+	@Autowired
+	RestaurantDetailService restDetailService;
+
+	@Autowired
+	CustomerLoginService guestService;
+	
+	
+	@Autowired
+	CommunicationService commService;
+	
+	@Autowired 
+	ReviewRatingService reviewService;
+
+	@Autowired
+	ReservationHistoryRepo reservation_history;
+	
+	@Autowired
+	RestaurantExtensionDao extensionDao;
+	
+	@Autowired
+	SourceDao sourceDao;
+
+	@Autowired
+	ReviewRatingDao reviewRatingDao;
+	
+	@Autowired
+	CustomerDao customerDao;
+	
+	
+	@Autowired
+	QuickSearchService quickSearchService;
+	
+	// private Map<String,Lock> patchLockMap = new ConcurrentHashMap<>();
+	private static Logger.ALogger log = Logger.of(ReservationServiceImpl.class);
+
+	@Override
+	@Transactional
+	public BaseResponse createReservation(Reservation reservation, String token, Boolean sendSms) {
+
+		BaseResponse response;
+		List<ValidationError> listOfError = new ArrayList<>();
+
+		List<Table> tableList = new ArrayList<Table>();
+
+		GuestProfile guest = null;
+		String restName = null;
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		reservation.setShortId(getReservationShortId(userInfo));
+
+		
+
+		/* Add Dummy Guest In case of Unknown Guest */
+
+		if (reservation.getIsUnknown() && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+	
+			guest = guestValidator.getDummyGuest();
+			if (null == guest) {
+				listOfError.add(new ValidationError(EmpowerConstants.DUMMY_GUEST_ID, UtilityMethods.getErrorMsg(ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND),
+						ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND));
+			} else {
+				reservation.setGuestGuid(guest.getGuid());
+			}
+		}
+		
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+		
+
+		if (reservation.getEstStartTime().getTime() == new Date(0).getTime()) {
+
+			if (reservation.getOfferId() != null) {
+				listOfError = reservationValidator.validateOfferId(reservation, null, listOfError, false);
+			}
+
+			if (!listOfError.isEmpty()) {
+				return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			}
+			
+			reservationValidator.validateTat(listOfError, reservation);
+			
+			if (!listOfError.isEmpty()) {
+				return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			}
+
+			if (reservation.getTableGuid() == null || reservation.getTableGuid().size() == 1) {
+				reservation.setTableGuid(new ArrayList<>());
+			}
+			
+			reservation.setQueued(true);
+			Reservation resv = reservationDao.addReservation(reservation, guest, tableList);
+			addToQueue(reservation);
+			Reservation[] resvArr = new Reservation[1];
+			resvArr[0] = resv;
+			response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+			if (sendSms == null || sendSms) {
+				if (response.getResponseCode().equalsIgnoreCase("9002") && !reservation.getIsUnknown() && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+					notifyCustomerOrRestaurant(reservation,EmpowerConstants.WAITLIST,userInfo);
+				}
+			}
+			
+			return response;
+		}
+
+		reservationValidator.validateTat(listOfError, reservation);
+		
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		listOfError = reservationValidator.validateReservationOnCreate(reservation, EmpowerConstants.ADD);
+
+		/* Validating Guest | Table | Restaurant | Covers */
+		Map<String, Object> map = reservationValidator.validateRestGuestTable(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		
+
+		Boolean isValidTable = shuffleService.shuffleTablesMethod(reservation, null);
+
+		if (!isValidTable)
+			reservationValidator.validateReservationTimeSlot(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		Reservation resv = reservationDao.addReservation(reservation, guest, tableList);
+
+		Reservation[] resvArr = new Reservation[1];
+		resvArr[0] = resv;
+
+		if (reservation.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+				addToQueue(reservation);
+		}
+		
+		
+		response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+		
+		if (null != map) {
+			restName = map.get(EmpowerConstants.RESTAURANT_NAME) != null ? map
+					.get(EmpowerConstants.RESTAURANT_NAME).toString() : null;
+		}
+
+		if (sendSms == null || sendSms) {
+			if (response.getResponseCode().equalsIgnoreCase("9002") && !reservation.getIsUnknown()  && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.ONLINE_STATUS)) {
+				notifyCustomerOrRestaurant(reservation,reservation.getReservationStatus(),userInfo);
+				
+			} else if (response.getResponseCode().equalsIgnoreCase("9002") && !reservation.getIsUnknown() && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+				notifyCustomerOrRestaurant(reservation,EmpowerConstants.WAITLIST,userInfo);
+			}
+		}
+		log.debug("response------------->{}",response);
+		return response;
+	}
+	
+
+
+	@Override
+	@Transactional(readOnly = true)
+	public BaseResponse getReservation(Map<String, Object> params, String token) {
+		BaseResponse getResponse = null;
+		List<Reservation> reservations = null;
+		boolean showAllDay = false;
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		if (!userInfo.getRoleId().equals(EmpowerConstants.CT_ADMIN_ROLE_ID)) {
+			if (userInfo.getRoleId().equals(EmpowerConstants.CUSTOMER_ROLE_ID)) {
+				params.put(EmpowerConstants.GUEST_GUID, userInfo.getGuid());
+			} else {
+				params.put(EmpowerConstants.REST_GUID, userInfo.getRestGuid());
+			}
+		}
+
+		/*
+		 * Validating Restaurant GUID in case of CT_ADMIN_ROLE_ID Or
+		 * CUSTOMER_ROLE_ID
+		 */
+
+		if (!params.containsKey(EmpowerConstants.REST_GUID)) {
+
+			listOfError.add(reservationValidator.createError(EmpowerConstants.REST_GUID, ErrorCodes.REST_ID_REQUIRED));
+			return new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+		}
+		if (params.containsKey(EmpowerConstants.SHOW_ALL_DAY)) {
+			reservationValidator.showAlldayReservation(params);
+			showAllDay = true;
+		}
+		Map<String, Object> qryParamMap = reservationValidator.validateFinderParams(params, Reservation.class);
+
+		log.debug("query param map is ---------------------------------------" + qryParamMap);
+
+		/* fetch applicable current shift */
+		Map<String, Object> shiftTime = waitlistService
+				.getApplicableShifts(params.get(EmpowerConstants.REST_GUID).toString(), listOfError, new Date(), false);
+
+		if (!listOfError.isEmpty()) {
+			getResponse = new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+			return getResponse;
+		}
+
+		Long currentShiftStart = (Long) shiftTime.get("currentDayShiftStartTime");
+		Long currentShiftEnd = (Long) shiftTime.get("currentDayShiftEndTime");
+
+		if (showAllDay) {
+
+			qryParamMap.put("currentShiftEnd", currentShiftEnd);
+			qryParamMap.put("currentShiftStart", currentShiftStart);
+			reservations = reservationDao.findByCustomeFields(Reservation.class, qryParamMap);
+			
+			/* log.info(params); */
+
+		} else {
+			reservations = reservationDao.findByFields(Reservation.class, qryParamMap);
+			/* log.info(params+"<<<<<<<<<<"); */
+			
+		}
+		
+		Map<String, Object> sourceMap = null;
+		if(!reservations.isEmpty()){
+			sourceMap = sourceDao.getSourceName(reservations.get(0).getRestaurantGuid());
+		}
+		
+		if (sourceMap != null) {
+			for (Reservation resv : reservations) {
+				if(resv.getSourceGuid()!=null)
+					resv.setSourceName((String) sourceMap.get(resv.getSourceGuid()));
+			}
+		}
+		
+		getResponse = new GetResponse<Reservation>(ResponseCodes.RESERVATION_RECORD_FETCH_SUCCESFULLY,
+					reservations);
+		return getResponse;
+	}
+
+
+	@Override
+	// @Transactional
+	public BaseResponse patchReservation(Reservation reservation, String token) {
+
+		/*
+		 * Lock lock = getLock(reservation.getGuid()); lock.lock();
+		 * 
+		 * try {
+		 */
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		BaseResponse response;
+		String updatereservation_guid = null;
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+
+		Long newDateTime = new Date().getTime();
+		try {
+			newDateTime = sdf.parse(sdf.format(new Date())).getTime();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			log.warn("Exception in service", e);
+		}
+
+		/* Validating Reservation GUID */
+		List<String> historyMap = new ArrayList<>();
+		Reservation existing = reservationDao.validateGuidAndGetReservationHistory(reservation.getGuid(), historyMap, listOfError);
+		
+		/* reservation with these satuses can't be patchedd */
+		if (!listOfError.isEmpty()) {
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			return response;
+		}
+
+
+		if (existing.getReservationStatus().equalsIgnoreCase(EmpowerConstants.FINISHED) || existing.getReservationStatus().equalsIgnoreCase(EmpowerConstants.CANCELLED)
+				|| existing.getReservationStatus().equalsIgnoreCase(EmpowerConstants.NO_SHOW_STATUS)) {
+			listOfError.add(new ValidationError(EmpowerConstants.GUID,UtilityMethods.getErrorMsg(ErrorCodes.NO_ALLOW_TO_UPDATE_THIS_RESERVATION),ErrorCodes.NO_ALLOW_TO_UPDATE_THIS_RESERVATION));
+		}
+
+		if (!listOfError.isEmpty()) {
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			return response;
+		}
+
+		/* code to manage reservation status changes */
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.REST_ID, reservation.getRestaurantGuid());
+
+		boolean validateTimeSlot = false;
+		boolean editReservation = false;
+		boolean sendNotification = false;
+		if (reservation.getTat() != null) {
+			existing.setTat(reservation.getTat());
+			validateTimeSlot = true;
+			editReservation = true;
+		}
+
+		if (reservation.getEstStartTime() != null) {
+			existing.setEstStartTime(reservation.getEstStartTime());
+			existing.setEstEndTime(
+					new Date(reservation.getEstStartTime().getTime() + Long.valueOf(existing.getTat()) * 60 * 1000));
+			validateTimeSlot = true;
+			editReservation = true;
+			sendNotification = true;
+		}
+
+		if (reservation.getEstEndTime() != null) {
+			existing.setEstEndTime(reservation.getEstEndTime());
+			validateTimeSlot = true;
+			editReservation = true;
+		}
+
+		if (reservation.getNumCovers() != null) {
+			existing.setNumCovers(reservation.getNumCovers());
+			validateTimeSlot = true;
+			editReservation = true;
+		}
+		// boolean onlyTableUpdate = false;
+		if (reservation.getTableGuid() != null && reservation.getTableGuid().size() > 0) {
+			existing.setTableGuid(reservation.getTableGuid());
+			validateTimeSlot = true;
+			// onlyTableUpdate = true;
+			if (!existing.getReservationStatus().equals(EmpowerConstants.SEATED)
+					&& reservation.getReservationStatus() != null
+					&& reservation.getReservationStatus().equals(EmpowerConstants.SEATED)) {
+				validateTimeSlot = false;
+				// onlyTableUpdate = false;
+			}
+			/*
+			 * else if(!existing.getReservationStatus().equals(EmpowerConstants.
+			 * SEATED ) && reservation.getReservationStatus() == null &&
+			 * editReservation) { onlyTableUpdate = false; }
+			 */
+		}
+
+		if (reservation.getSourceGuid() != null) {
+			existing.setSourceGuid(reservation.getSourceGuid());
+		}
+
+		if (reservation.getRequestSource() != null && reservation.getRequestSource().size() > 0) {
+			List<String> rqstSourceList = new ArrayList<>();
+			if (existing.getRequestSource() != null && existing.getRequestSource().size() > 0) {
+				rqstSourceList = existing.getRequestSource();
+			}
+			rqstSourceList.add(reservation.getRequestSource().get(0));
+			existing.setRequestSource(rqstSourceList);
+		}
+
+		Boolean isValidTable = false;
+		if (validateTimeSlot) {
+			// isValidTable = reservationValidator.validateReservationTimeSlot(
+			// existing, listOfError);
+
+			validateOfferIdInEditReservation(existing, reservation, listOfError);
+
+			if (!listOfError.isEmpty()) {
+				response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+				return response;
+			}
+
+			Reservation existResv = new Reservation();
+			try {
+				existResv = (Reservation) existing.clone();
+			} catch (CloneNotSupportedException e) {
+				log.warn("Exception in service", e);
+			}
+
+
+			String reservationStatus = (existing.getReservationStatus()
+					.equals(EmpowerConstants.SEATED)) ? existing
+					.getReservationStatus() : null;
+			isValidTable = shuffleService.shuffleTablesMethod(existResv,
+					reservationStatus);
+
+			BaseResponse resvTableResponse = new BaseResponse();
+			if (!isValidTable) {
+				resvTableResponse = getReservationsForTables(existing);
+			}
+
+			if (resvTableResponse instanceof GetResponse) {
+				List resultList = ((GetResponse) resvTableResponse).getList();
+				if (resultList.size() > 0) {
+
+					response = new ErrorResponse(
+							ResponseCodes.RESERVATION_UPDATION_FAILURE_DUE_TO_SEATED,
+							resultList);
+					return response;
+
+				}
+			}
+
+		}
+
+		if (!listOfError.isEmpty() || (!isValidTable && validateTimeSlot)) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+		}
+
+		String existingReservationStatus = existing.getReservationStatus();
+		if (null != reservation.getReservationStatus()
+				&& !existingReservationStatus.equalsIgnoreCase(reservation.getReservationStatus())) {
+			String reservationStatus = reservation.getReservationStatus();
+			if (reservationStatus.equalsIgnoreCase(EmpowerConstants.FINISHED)) {
+				existing.setActEndTime(new Date(newDateTime));
+				existing.setReservationStatus(reservationStatus);
+
+				// TODO : check the error response from template.saveOnly
+				updatereservation_guid = reservationDao.update(existing).getGuid();
+
+				String reservation_guid_1 = reservationDao.updateReservation(existing);
+
+				// this code is to update guest rating
+
+				if (reservation.getRating() != null
+						&& reservation.getRating() != 0) {
+					Map<String, Object> ratingParams = new HashMap<>();
+					ratingParams.put(EmpowerConstants.REST_GUID,
+							existing.getRestaurantGuid());
+					ratingParams.put(EmpowerConstants.GUEST_GUID,
+							existing.getGuestGuid());
+					ratingParams.put(EmpowerConstants.RATING,
+							reservation.getRating());
+
+					guestService.updateAggregateRating(ratingParams);
+				}
+
+				// reservationDao.updatePopularity(existing);
+
+				// add review node with reservation if reservation was created from consumer app(i.e by guest or agent) 
+				//and guest is registered with clicktable(fb id or gmail id exists) and reservation booking mode is ONLINE
+				if(!existing.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS) && 
+						(existing.getBookedBy().equalsIgnoreCase(EmpowerConstants.CUSTOMER_ENUM) ||
+								existing.getBookedBy().equalsIgnoreCase(EmpowerConstants.AGENT)) 
+								&& sendReviewRequest(existing)){
+					reviewService.addReviewRateOnReservationCompletion(existing);
+				}
+
+
+				Map<String, Object> restParams = new HashMap<>();
+				restParams.put(EmpowerConstants.GUID, existing.getRestaurantGuid());
+				Restaurant rest = restaurantDao.getRestaurantGeneralInfo(restParams);
+
+				RecentlySearchedRest searchRest = new RecentlySearchedRest(rest);
+				searchRest.setGuid(rest.getMaskedGuid());
+				restDetailService.addToUserSearchHistory(
+						existing.getGuestGuid(), searchRest, 1);
+
+
+				if ((reservation.getToBypass() == null) || (!reservation.getToBypass())) {
+					Runnable runnableTask = () -> {
+						shuffleService.shuffleTables(params, token);
+					};
+					new Thread(runnableTask).start();
+				}
+				if (!existing.getIsUnknown()) {
+					notifyCustomerOrRestaurant(existing,existing.getReservationStatus(),userInfo);
+				}
+				response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+						updatereservation_guid);
+
+				return response;
+
+			} else if (reservationStatus.equalsIgnoreCase(EmpowerConstants.CANCELLED)) {
+
+				if(existing.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)){
+
+					reservation.setCancelledBy(EmpowerConstants.RESTAURANT);
+					reservation.setReasonToCancel(EmpowerConstants.OTHER_REASON_TO_CANCEL);
+				}else{
+
+					if(reservation.getBookedBy() != null && reservation.getBookedBy().equalsIgnoreCase(EmpowerConstants.CUSTOMER_ENUM)){
+						if(StringUtils.isEmpty(reservation.getReasonToCancel())){
+							listOfError.add(new ValidationError(EmpowerConstants.REASON_TO_CANCEL,UtilityMethods.getErrorMsg(ErrorCodes.REASON_TO_CANCEL_REQUIRED),ErrorCodes.REASON_TO_CANCEL_REQUIRED));
+
+						}else if(!UtilityMethods.getEnumValues(EmpowerConstants.RESERVATION_MODULE, "cancellationReasonByGuest").contains(reservation.getReasonToCancel())){
+							listOfError.add(new ValidationError(EmpowerConstants.REASON_TO_CANCEL,UtilityMethods.getErrorMsg(ErrorCodes.INVALID_CANCELLATION_REASON),ErrorCodes.INVALID_CANCELLATION_REASON));
+						}
+					}else{
+						if(StringUtils.isEmpty(reservation.getReasonToCancel())){
+							listOfError.add(new ValidationError(EmpowerConstants.REASON_TO_CANCEL,UtilityMethods.getErrorMsg(ErrorCodes.REASON_TO_CANCEL_REQUIRED),ErrorCodes.REASON_TO_CANCEL_REQUIRED));
+
+						}else if(!UtilityMethods.getEnumValues(EmpowerConstants.RESERVATION_MODULE, "cancellationReasonByRest").contains(reservation.getReasonToCancel())){
+							listOfError.add(new ValidationError(EmpowerConstants.REASON_TO_CANCEL,UtilityMethods.getErrorMsg(ErrorCodes.INVALID_CANCELLATION_REASON),ErrorCodes.INVALID_CANCELLATION_REASON));
+						}
+					}
+				}
+
+				if(!listOfError.isEmpty()){
+					response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+					return response;
+				}
+
+				existing.setCancelledById(userInfo.getGuid());
+				existing.setCancelTime(new Date(newDateTime));
+				
+				String existingStatus = existing.getReservationStatus();
+				existing.setReservationStatus(reservationStatus);
+				
+				existing.setReasonToCancel(reservation.getReasonToCancel());
+
+				if(userInfo.getRoleId().equals(EmpowerConstants.CUSTOMER_ROLE_ID)){
+					existing.setCancelledBy(EmpowerConstants.CUSTOMER_ENUM);
+				}else if(userInfo.getRoleId().equals(EmpowerConstants.AGENT_ROLE_ID)){
+					existing.setCancelledBy(EmpowerConstants.AGENT);
+				}else if(userInfo.getRoleId().equals(EmpowerConstants.CT_ADMIN_ROLE_ID)){
+					existing.setCancelledBy(reservation.getCancelledBy());
+				}else{
+					existing.setCancelledBy(EmpowerConstants.RESTAURANT);
+				}
+				
+				updatereservation_guid = reservationDao.update(existing).getGuid();
+				if (existing.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+					removeResvFromQueue(existing);
+				}
+
+				String reservation_guid_1 = reservationDao.updateReservation(existing);
+
+				if ((reservation.getToBypass() == null) || (!reservation.getToBypass())) {
+					Runnable runnableTask = () -> {
+						shuffleService.shuffleTables(params, token);
+					};
+					new Thread(runnableTask).start();
+				}
+				
+				
+				if(Cache.get("NOTIFY:" + existing.getGuid()) != null){
+					
+					Cache.remove("NOTIFY:" + existing.getGuid());
+					
+				}
+				
+				if (!existing.getIsUnknown()) {
+					if(existingStatus.equalsIgnoreCase(EmpowerConstants.UNCONFIRMED))
+						notifyCustomerOrRestaurant(existing,EmpowerConstants.REJECTED,userInfo);
+					else
+						notifyCustomerOrRestaurant(existing,existing.getReservationStatus(),userInfo);
+				}
+				response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+						updatereservation_guid);
+				return response;
+
+			} else if (reservationStatus.equalsIgnoreCase(EmpowerConstants.NO_SHOW_STATUS)) {
+				
+				if(existing.getBookingMode().equalsIgnoreCase(EmpowerConstants.ONLINE_STATUS) && (existing.getEstStartTime().getTime() + 15*60*1000 > new Date().getTime())	){
+					listOfError.add(new ValidationError(EmpowerConstants.GUID,UtilityMethods.getErrorMsg(ErrorCodes.NOT_ALLOWED_TO_MAKE_THIS_RESERVATION_NOSHOW),
+							ErrorCodes.NOT_ALLOWED_TO_MAKE_THIS_RESERVATION_NOSHOW));
+					response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+					return response;
+				}
+				existing.setReservationStatus(reservationStatus);
+				Reservation resv = reservationDao.update(existing);
+				updatereservation_guid = resv.getGuid();
+
+				if (existing.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+					removeResvFromQueue(existing);
+				}
+
+				String reservation_guid_1 = reservationDao.updateReservation(existing);
+
+				if ((reservation.getToBypass() == null) || (!reservation.getToBypass())) {
+					Runnable runnableTask = () -> {
+						shuffleService.shuffleTables(params, token);
+					};
+					new Thread(runnableTask).start();
+				}
+				
+				if(Cache.get("NOTIFY:" + existing.getGuid()) != null){
+					
+					Cache.remove("NOTIFY:" + existing.getGuid());
+					
+				}
+	
+				if (!existing.getIsUnknown()) {
+					notifyCustomerOrRestaurant(existing,existing.getReservationStatus(),userInfo);
+				}
+				response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+						updatereservation_guid);
+				return response;
+
+			} else if (reservation.getReservationStatus().equalsIgnoreCase(EmpowerConstants.SEATED) && 
+					!existing.getReservationStatus().equalsIgnoreCase(EmpowerConstants.SEATED)) {
+				
+				if ((existing.getBookingMode()
+						.equals(EmpowerConstants.ONLINE_STATUS))
+						&& (((Long) (existing.getEstStartTime().getTime() - new Date()
+								.getTime())) > 30 * 60 * 1000L)) {
+					ValidationError error = new ValidationError(
+							EmpowerConstants.EST_START_TIME,
+							UtilityMethods
+									.getErrorMsg(ErrorCodes.RESERVATION_CANNOT_BE_SEATED_BEFORE_30_MIN),
+							ErrorCodes.RESERVATION_CANNOT_BE_SEATED_BEFORE_30_MIN,
+							"");
+					listOfError.add(error);
+					response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+					return response;
+
+				}
+
+				if (reservation.getTableGuid().size() > 0) {
+					existing.setTableGuid(reservation.getTableGuid());
+				}
+
+				// Next 6 lines are added as during patch est start time of
+				// reservation get changed in shuffleTablesMethod
+				Reservation existResv = new Reservation();
+				try {
+					existResv = (Reservation) existing.clone();
+				} catch (CloneNotSupportedException e) {
+					log.warn("Exception in service", e);
+				}
+
+				/**/
+				Boolean isShufflePossible = shuffleService.shuffleTablesMethod(existResv, reservationStatus);
+				BaseResponse resvTableResponse = new BaseResponse();
+				
+				if (!isShufflePossible) {
+					resvTableResponse = getReservationsForTables(existing);
+				}
+
+				if (resvTableResponse instanceof GetResponse) {
+					List resultList = ((GetResponse) resvTableResponse).getList();
+					if (resultList.size() > 0) {
+						response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATION_FAILURE_DUE_TO_SEATED,
+								resultList);
+						return response;
+
+					}
+				}
+
+				// TODO : Method needs optimization
+				if (!existing.getIsUnknown()) {
+					tagGuestWithOngoingEvent(existing, token);
+				}
+				if (existing.getBookingMode().equalsIgnoreCase(EmpowerConstants.ONLINE_STATUS)) {
+					existing.setActStartTime(new Date(newDateTime));
+
+				} else if (existing.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+					if (reservation.getEstStartTime() == null) {
+						existing.setEstStartTime(new Date(newDateTime));
+					} else {
+						existing.setEstStartTime(reservation.getEstStartTime());
+					}
+					if (reservation.getEstEndTime() == null) {
+						existing.setEstEndTime(new Date(newDateTime + Long.parseLong(existing.getTat()) * 60 * 1000));
+					} else {
+						existing.setEstEndTime(reservation.getEstEndTime());
+					}
+
+					existing.setActStartTime(existing.getEstStartTime());
+				}
+
+				existing.setReservationStatus(reservationStatus);
+				updatereservation_guid = reservationDao.update(existing).getGuid();
+
+				if (existing.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+					removeResvFromQueue(existing);
+				}
+
+				String reservation_guid_1 = reservationDao.updateReservation(existing);
+
+				Long seatedTime = guestDao.addFirstSeatedTime(existing.getRestaurantGuid(), existing.getGuestGuid(),
+						newDateTime);
+				log.debug("Guest first seated at =======================================================" + seatedTime);
+
+				if ((reservation.getToBypass() == null) || (!reservation.getToBypass())) {
+					Runnable runnableTask = () -> {
+						shuffleService.shuffleTables(params, token);
+					};
+					new Thread(runnableTask).start();
+				}
+
+				if(Cache.get("NOTIFY:" + existing.getGuid()) != null){
+					
+					Cache.remove("NOTIFY:" + existing.getGuid());
+					
+				}
+
+				response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+						updatereservation_guid);
+
+				return response;
+
+			}
+			existing.setReservationStatus(reservationStatus);
+		}
+
+		if (reservation.getPreferredTable() != null) {
+			if (reservation.getPreferredTable().equalsIgnoreCase("YES"))
+				existing.setPreferredTable(reservation.getPreferredTable());
+			else
+				existing.setPreferredTable(null);
+		}
+
+		if (reservation.getReservationNote() != null) {
+			if(reservation.getReservationNote().length() > 250){
+				listOfError.add(new ValidationError(EmpowerConstants.RESERVATION_NOTE,ErrorCodes.RESERVATION_NOTE_MAX_LENGTH));
+				response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+				return response;
+			}
+			existing.setReservationNote(reservation.getReservationNote());
+		}
+
+
+		if (reservation.getBookingMode() != null
+				&& reservation.getBookingMode().equals(
+						EmpowerConstants.WALKIN_STATUS)
+				&& existing.getBookingMode().equals(
+						EmpowerConstants.ONLINE_STATUS)) {
+
+			if (existing.getReservationStatus().equals(EmpowerConstants.SEATED)) {
+				List resvList = new ArrayList<>();
+				resvList.add(existing);
+				response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATION_FAILURE_DUE_TO_SEATED, resvList);
+				return response;
+			}
+
+			existing.setBookingMode(EmpowerConstants.WALKIN_STATUS);
+			existing.setCreatedDate(new Date());
+			existing.setQueued(true);
+			addToQueue(existing);
+		}
+
+		Boolean isUnconfirmed = checkForUnconfirmedReservation(historyMap);
+		
+		if(isUnconfirmed && reservation.getReservationStatus() == null){
+			existing.setReservationStatus(EmpowerConstants.CREATED);
+			sendNotification = true;
+			editReservation = true;
+		}
+		
+		updatereservation_guid = reservationDao.update(existing).getGuid();
+
+		String reservation_guid_1 = reservationDao.updateReservation(existing);
+
+		/* Send SMS on dit reservation */
+		if (editReservation && sendNotification && existing.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS)) {
+			notifyCustomerOrRestaurant(existing,existing.getReservationStatus(),userInfo);
+		}
+
+		if ((reservation.getToBypass() == null) || (!reservation.getToBypass())) {
+			Runnable runnableTask = () -> {
+				shuffleService.shuffleTables(params, token);
+			};
+			new Thread(runnableTask).start();
+		}
+		// sendSMStoCustomer(reservation);
+		response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+				updatereservation_guid);
+
+		return response;
+		/*
+		 * } finally { lock.unlock();
+		 * patchLockMap.remove(reservation.getGuid()); log.info("map size new :"
+		 * + patchLockMap.size()); }
+		 */
+	}
+
+
+
+
+
+
+	private void validateOfferIdInEditReservation(Reservation existing, Reservation reservation,
+			List<ValidationError> listOfError) {
+		// TODO Auto-generated method stub
+
+		if (reservation.getOfferId() != null
+				&& !reservation.getOfferId().equals("")) {
+			/* reservation.setOfferId(existing.getOfferId()); */
+			listOfError = reservationValidator.validateOfferId(reservation,
+					existing, listOfError, false);
+			existing.setOfferId(reservation.getOfferId());
+			existing.setOfferName(reservation.getOfferName());
+
+		}
+		else if (reservation.getOfferId() != null
+				&& reservation.getOfferId().equals("")) {
+			existing.setOfferId(null);
+			existing.setOfferName(null);
+		}
+
+	}
+
+	public void removeResvFromQueue(Reservation resv) {
+		Queue queue = queueDao.getQueueForReservation(resv);
+		if (queue != null) {
+			int count = queue.getCount();
+			if (count > 0) {
+				queue.setCount(count - 1);
+				queueDao.updateAllProperties(queue);
+			}
+			queueDao.deleteQueueReservation(resv);
+
+		}
+	}
+
+	@Override
+	public int notifyCustomer(ReservationDetail reservationDetail, Reservation reservation, String reservationStatus,
+			UserInfoModel userInfo) {
+		log.info("Start notifyCustomer");
+		SimpleDateFormat dateformat = new SimpleDateFormat("EEE, d MMM yyyy");
+		SimpleDateFormat timeformat = new SimpleDateFormat("h:mm a");
+		switch (reservationStatus) {
+		case EmpowerConstants.CANCELLED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			if (reservation.getCancelledBy().equals(EmpowerConstants.CUSTOMER_ENUM))
+				commService.notifyGuestOnResvCancelByGuest(reservationDetail);
+			break;
+		case REJECTED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setStatus(REJECTED);
+			commService.notifyGuestOnResvReject(reservationDetail);
+			break;
+		case EmpowerConstants.NO_SHOW_STATUS:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			commService.notifyGuestOnResvNoShow(reservationDetail);
+			break;
+		case EmpowerConstants.FINISHED:
+			reservationDetail.setDate(dateformat.format(reservation.getActStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getActStartTime().getTime()));
+			commService.notifyGuestOnResvFinished(reservationDetail);
+			break;
+		case EmpowerConstants.CREATED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			commService.notifyGuestOnResvConfirm(reservationDetail);
+			break;
+		case EmpowerConstants.UNCONFIRMED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			commService.notifyGuestOnResvConfirmationPending(reservationDetail);
+			break;
+		case EmpowerConstants.WAITLIST:
+			reservationDetail.setWaitingTimeInMins(getWaitingTIme(reservation));
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setQueuePosition(getQueuePositionOnWaitListCreate(reservation));
+			commService.notifyGuestOnWaitListCreation(reservationDetail);
+			break;
+		case EmpowerConstants.TABLE_READY:
+			commService.sendTableReadyNotification(reservationDetail);
+			break;
+		default:
+			break;
+		}
+		log.info("End notifyCustomer");
+		return 1;
+	}
+
+	private int notifyRestaurant(ReservationDetail reservationDetail, Reservation reservation, String reservationStatus,
+			UserInfoModel userInfo) {
+		log.info("Start notifyRestaurant");
+
+		SimpleDateFormat dateformat = new SimpleDateFormat("EEE, d MMM yyyy");
+		SimpleDateFormat timeformat = new SimpleDateFormat("h:mm a");
+		
+		switch (reservationStatus) {
+		case EmpowerConstants.CANCELLED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			if (!EmpowerConstants.CUSTOMER_ENUM.equals(reservation.getCancelledBy())) {
+				commService.notifyRestOnResvReject(reservationDetail);
+			} else {
+				commService.notifyRestOnResvCancelledByGuest(reservationDetail);
+			}
+
+			break;
+		case EmpowerConstants.CREATED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			commService.notifyRestOnResvApproved(reservationDetail);
+			break;
+		case EmpowerConstants.UNCONFIRMED:
+			reservationDetail.setDate(dateformat.format(reservation.getEstStartTime().getTime()));
+			reservationDetail.setTime(timeformat.format(reservation.getEstStartTime().getTime()));
+			commService.notifyRestOnResvReceived(reservationDetail);
+			break;
+		default:
+			break;
+		}
+		log.info("End notifyRestaurant");
+		return 1;
+	}
+	
+
+	private String getQueuePositionOnWaitListCreate(Reservation reservation) {
+		Queue queue = queueDao.getQueueForReservation(reservation);
+		if (queue != null) {
+			int count = queue.getCount();
+			return String.valueOf(count);
+		}
+		return null;
+	}
+	
+	private void notifyCustomerOrRestaurant(Reservation reservation, String reservationStatus, UserInfoModel userInfo) {
+		Promise.promise(() -> {
+			ReservationDetail reservationDetail = getReservationDetail(reservation, userInfo);
+			if (!EmpowerConstants.RESTAURANT_ENUM.equals(reservation.getBookedBy())) {
+				notifyRestaurant(reservationDetail, reservation, reservationStatus, userInfo);
+
+			}
+			if (!Boolean.TRUE.equals(reservation.getIsUnknown()) && isNotficationOnForSource(reservation)) {
+				notifyCustomer(reservationDetail, reservation, reservationStatus, userInfo);
+			}
+			return 0;
+		}).onFailure(er -> log.error("Error in sending notification", er));
+	}
+
+	@Override
+	public boolean isNotficationOnForSource(Reservation reservation) {
+		String sourceGuid = reservation.getSourceGuid();
+		if(EmpowerConstants.CLICKTABLE_SOURCE_GUID.equals(sourceGuid)
+				|| EmpowerConstants.DIRECT_SOURCE_GUID.equals(sourceGuid)) {
+			return true;
+		}
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.GUID, sourceGuid);
+		params.put(EmpowerConstants.REST_GUID, reservation.getRestaurantGuid());
+		List<Source> sources = sourceDao.getSource(params);
+		if(sources != null && !sources.isEmpty()) {
+			Source source = sources.get(0);
+			return source.getNotify();
+		}
+		//by default send messages for if no source found
+		return true;
+	}
+
+	private int getWaitingTIme(Reservation reservation) {
+		int waitTime = 0;
+		if (!StringUtils.isBlank(reservation.getQuotedTime())
+				&& !reservation.getQuotedTime().equals("0")) {
+			waitTime = Integer.valueOf(reservation.getQuotedTime().trim());
+		} else {
+			waitTime = (int) ((reservation.getEstStartTime().getTime()
+					- Calendar.getInstance().getTimeInMillis()) / (60 * 1000));
+			if (waitTime < 0) {
+				waitTime = 0;
+			}
+		}		
+		return waitTime;
+	}
+
+	@Override
+	public ReservationDetail getReservationDetail(Reservation reservation, UserInfoModel userInfo) {
+		Map<String, Object> paramMap = new HashMap<>();
+		paramMap.put(EmpowerConstants.REST_GUID, reservation.getRestaurantGuid());
+		paramMap.put(EmpowerConstants.GUID, reservation.getGuestGuid());
+		GuestProfile guest = guestDao.find(reservation.getGuestGuid());
+		ReservationDetail reservationDetail = new ReservationDetail();
+
+		if (reservation.getOfferId() != null) {
+			CalenderEvent calEvent = calEventDao.find(reservation.getOfferId());
+			reservationDetail.setOfferCategory(calEvent.getCategory());
+			reservationDetail.setOfferDesc(calEvent.getEventDescription());
+		}
+		else {
+			reservationDetail.setOfferCategory("-");
+		}
+		
+		
+		Map<String,Object> params = new HashMap<>();
+		params.put(EmpowerConstants.REST_GUID,reservation.getRestaurantGuid());
+		params.put(EmpowerConstants.GUEST_GUID, reservation.getGuestGuid());
+		reservationDao.addGuestRatingToReservation(reservation);
+		Result<Map<String, Object>> result = customerDao.getAggregateRating(params);
+		Iterator<Map<String, Object>> itr = result.iterator();
+		
+		Integer aggregateRating = null, revervationCount = null;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			aggregateRating = (Integer) map.get(EmpowerConstants.AGGREGATE_RATING);
+			revervationCount = (Integer)map.get(EmpowerConstants.RESERVATION_COUNT);
+		}
+	    
+		if (aggregateRating != null && revervationCount != null && revervationCount != 0) {
+			double spendRating = (double) aggregateRating / revervationCount;
+			reservationDetail.setSpendRating(String.format("%.1f", spendRating));
+		} else {
+			reservationDetail.setSpendRating("0");
+		}
+		if (reservation.getConversionRatio() >= 0) {
+			reservationDetail
+					.setReservationCompletion(String.format("%.1f", 100 * reservation.getConversionRatio()));
+		} else {
+			reservationDetail.setReservationCompletion("0");
+		}
+		if(reservation.getNoShowRatio() >= 0) {
+			reservationDetail.setNoShow(String.format("%.1f", 100 * reservation.getNoShowRatio()));
+		} else {
+			reservationDetail.setReservationCompletion("0");
+		}
+
+		if (reservation.getReservationNote() != null && !reservation.getReservationNote().equals("")) {
+			reservationDetail.setSpecialRequest(reservation.getReservationNote());
+		} else {
+			reservationDetail.setSpecialRequest("-");
+		}
+		reservationDetail.setCovers(reservation.getNumCovers());
+		reservationDetail.setReasonToCancel(reservation.getReasonToCancel());
+		reservationDetail.setReservationShortId(reservation.getShortId());
+		if (guest != null) {
+			reservationDetail.setGuestName(guest.getFirstName());
+			if (guest.getMobile() != null) {
+				List<String> mobiles = new ArrayList<String>();
+				mobiles.add(guest.getMobile());
+				reservationDetail.setMobiles(mobiles);
+			}
+			if (guest.getEmail() != null) {
+				reservationDetail.setEmailIds(Arrays.asList(guest.getEmail()));
+			}
+		}
+		Restaurant restaurant = restaurantDao.find(reservation.getRestaurantGuid());
+		reservationDetail.setReservationGuid(reservation.getGuid());
+		reservationDetail.setRestaurantLocality(restaurant.getLocality());
+		reservationDetail.setRestaurantName(restaurant.getName());
+		reservationDetail.setLocalityDisplayName(restaurant.getLocalityDisplayName());
+		reservationDetail.setRestaurantRegion(restaurant.getRegion());
+		reservationDetail.setRestaurantGuid(restaurant.getGuid());
+		reservationDetail.setStatus(reservation.getReservationStatus());
+		reservationDetail.setCreatedBy(userInfo.getGuid());
+		reservationDetail.setUpdatedBy(userInfo.getGuid());
+		reservationDetail.setGuestGuid(reservation.getGuestGuid());
+		reservationDetail.setSmsMask(restaurant.getSmsMask());
+		reservationDetail.setRestaurantPhoneNumber(restaurant.getPhoneNo2());
+		reservationDetail.setRestaurantMobile(restaurant.getPhoneNo1());
+		reservationDetail.setRestaurantEmail(restaurant.getEmail());
+		reservationDetail.setConfirmationTime(getConfirmationTimeForNotification(reservation.getRestaurantGuid()));			
+		return reservationDetail;
+	}
+
+
+	private String getConfirmationTimeForNotification(String restGuid){
+		String confirmationTime = restaurantDao.getConfirmationTime(restGuid);
+		int confirmTime = 0;
+		try {
+			//Using integer value because String was populated with garbage value
+			confirmTime = Integer.parseInt(confirmationTime);
+		} catch(NumberFormatException nfe) {
+			log.debug("Invalid confirmation time");
+			log.debug(nfe.getMessage());
+		}
+		if(confirmTime <= 0){
+			return "30";		//set default as 30
+		}else{
+			return confirmationTime;
+		}
+	}
+	
+	private void tagGuestWithOngoingEvent(Reservation reservation, String token) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.START_TIME_BEFORE, new DateTime().toDate());
+		params.put(EmpowerConstants.END_TIME_AFTER, new DateTime().toDate());
+		params.put(EmpowerConstants.REST_GUID, reservation.getRestaurantGuid());
+		params.put(EmpowerConstants.STATUS, EmpowerConstants.ACTIVE_STATUS);
+		List<String> eventType = new ArrayList<String>();
+		eventType.add(EmpowerConstants.EVENT);
+		eventType.add(EmpowerConstants.OFFER);
+		params.put(EmpowerConstants.TYPE, eventType);
+		List<CalenderEvent> eventList = calEventDao.findByFields(CalenderEvent.class, params);
+		List<String> tagNameList = new ArrayList<String>();
+		for (CalenderEvent event : eventList) {
+			tagNameList.add(event.getCategory());
+
+		}
+
+		Set<String> hs = new HashSet<>();
+		hs.addAll(tagNameList);
+		tagNameList.clear();
+		tagNameList.addAll(hs);
+		assignTagService.addGuestProfileEventTag(reservation.getGuestGuid(), tagNameList, token);
+
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public BaseResponse getQueueReservation(Map<String, Object> params, String token) {
+		BaseResponse getResponse;
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		if (!userInfo.getRoleId().equals(EmpowerConstants.CT_ADMIN_ROLE_ID)
+				&& !userInfo.getRoleId().equals(EmpowerConstants.CUSTOMER_ROLE_ID)) {
+			params.put(EmpowerConstants.REST_GUID, userInfo.getRestGuid());
+		}
+
+		/*
+		 * Validating Restaurant GUID in case of CT_ADMIN_ROLE_ID Or
+		 * CUSTOMER_ROLE_ID
+		 */
+
+		if (!params.containsKey(EmpowerConstants.REST_GUID)) {
+
+			listOfError.add(reservationValidator.createError(EmpowerConstants.REST_GUID, ErrorCodes.REST_ID_REQUIRED));
+			return new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+		}
+
+		if (!params.containsKey(EmpowerConstants.COVERS)) {
+
+			listOfError.add(reservationValidator.createError(EmpowerConstants.COVERS, ErrorCodes.COVERS_REQUIRED));
+			return new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+		}
+
+		List<Reservation> reservations = reservationDao.getQueueReservation(params);
+		getResponse = new GetResponse<Reservation>(ResponseCodes.RESERVATION_RECORD_FETCH_SUCCESFULLY, reservations);
+		return getResponse;
+	}
+
+	@Override
+	public BaseResponse getReservationsForTables(Reservation reservation) {
+
+		BaseResponse getResponse;
+
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+		Date current_date = new Date();
+		try {
+			current_date = sdf.parse(sdf.format(new Date()));
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			log.warn("Exception in service", e);
+		}
+
+		List<ValidationError> errorList = new ArrayList<>();
+		Map<String, Object> shiftTime = waitlistService.getApplicableShifts(reservation.getRestaurantGuid(), errorList,
+				current_date, false);
+
+		Long startTime = (Long) shiftTime.get("startTime");
+		Long currentShiftEnd = (Long) shiftTime.get("currentDayShiftEndTime");
+
+		/* get all the reservations with block event */
+		Map<String, Object> resvParam = new HashMap<>();
+		resvParam.put(EmpowerConstants.START_TIME, startTime);
+		resvParam.put("currentShiftEnd", (currentShiftEnd + 60 * 60 * 1000L));
+		resvParam.put("restaurantId", reservation.getRestaurantGuid());
+
+		List<Reservation> allReservationList = shuffleDao.getTablesHavingReservation(resvParam);
+
+		for (Reservation r : allReservationList) {
+			if (r.getGuid().equals(reservation.getGuid())) {
+				allReservationList.remove(r);
+				break;
+			}
+		}
+
+		Map<String, List<Reservation>> tableResvMap = new HashMap<>();
+		shuffleService.addAllResvToBlockMap(allReservationList, tableResvMap);
+
+		Long currentTime = current_date.getTime();
+		if (reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS)) {
+			if (currentTime < reservation.getEstStartTime().getTime()) {
+			} else {
+				currentTime = reservation.getEstStartTime().getTime();
+			}
+		}
+
+		List<ReservationForTables> resvForTblList = new ArrayList<>();
+		Map<String, ReservationForTables> resvMap = new HashMap<>();
+		Map<String, ReservationForTables> allocatedMap = new HashMap<>();
+		Map<String, ReservationForTables> seatedMap = new HashMap<>();
+		ReservationForTables resvTable = null;
+
+		for (String tableForResv : reservation.getTableGuid()) {
+			List<Reservation> resvList = tableResvMap.get(tableForResv);
+
+			if (resvList != null) {
+				for (Reservation resvFromList : resvList) {
+					resvTable = new ReservationForTables();
+					resvTable.setEstEndTime(resvFromList.getEstEndTime());
+					resvTable.setEstStartTime(resvFromList.getEstStartTime());
+					resvTable.setReservationGuid(resvFromList.getGuid());
+					resvTable.setTableGuid(resvFromList.getTableGuid());
+					resvTable.setRequestTime(current_date.getTime());
+					resvTable.setDummyReservationId(reservation.getGuid());
+
+					Long resvEstEndTime = 0L;
+					/*
+					 * to handle the case where the user is trying to seat an
+					 * OOH walkin where est_end_time is null
+					 */
+					if (reservation.getEstEndTime() == null) {
+						try {
+
+							resvEstEndTime = sdf.parse(
+									sdf.format(new Date(
+											currentTime
+													+ Long.valueOf(reservation
+															.getTat()) * 60
+													* 1000))).getTime();
+						} catch (NumberFormatException e) {
+							// TODO Auto-generated catch block
+							log.warn("Exception in service", e);
+						} catch (ParseException e) {
+							// TODO Auto-generated catch block
+							log.warn("Exception in service", e);
+						}
+					} else {
+						resvEstEndTime = reservation.getEstEndTime().getTime();
+					}
+
+					if (resvFromList.getReservationStatus().equals(EmpowerConstants.SEATED)) {
+						resvTable.setReservationStatus(EmpowerConstants.SEATED);
+						resvTable.setAvailableAfter(null);
+						seatedMap.put(resvFromList.getGuid(), resvTable);
+					} else if (resvFromList.getEstStartTime().getTime() >= currentTime
+
+							&& resvEstEndTime > resvFromList.getEstStartTime()
+									.getTime()) {
+						resvTable
+								.setReservationStatus(EmpowerConstants.RESERVED);
+						resvTable.setAvailableAfter(resvFromList
+								.getEstEndTime().getTime()
+								- (current_date.getTime()));
+						resvMap.put(resvFromList.getGuid(), resvTable);
+					} else if (resvFromList.getEstStartTime().getTime() <= currentTime
+							&& resvFromList.getEstEndTime().getTime() > currentTime) {
+
+						resvTable
+								.setReservationStatus(EmpowerConstants.ALLOCATED);
+						resvTable.setAvailableAfter(resvFromList
+								.getEstEndTime().getTime()
+								- (current_date.getTime()));
+						allocatedMap.put(resvFromList.getGuid(), resvTable);
+					} else {
+						continue;
+					}
+
+				}
+			}
+		}
+
+		List<ReservationForTables> resvForTblListSort = new ArrayList<>();
+
+		for (Map.Entry<String, ReservationForTables> entry : seatedMap.entrySet()) {
+			resvForTblListSort.add(entry.getValue());
+			Collections.sort(resvForTblListSort, (p1, p2) -> p1.getEstStartTime().compareTo(p2.getEstStartTime()));
+		}
+
+		resvForTblList.addAll(resvForTblListSort);
+		resvForTblListSort = new ArrayList<>();
+
+		for (Map.Entry<String, ReservationForTables> entry : allocatedMap.entrySet()) {
+			resvForTblListSort.add(entry.getValue());
+			Collections.sort(resvForTblListSort, (p1, p2) -> p1.getEstStartTime().compareTo(p2.getEstStartTime()));
+		}
+
+		resvForTblList.addAll(resvForTblListSort);
+		resvForTblListSort = new ArrayList<>();
+
+		for (Map.Entry<String, ReservationForTables> entry : resvMap.entrySet()) {
+			resvForTblListSort.add(entry.getValue());
+			Collections.sort(resvForTblListSort, (p1, p2) -> p1.getEstStartTime().compareTo(p2.getEstStartTime()));
+		}
+		resvForTblList.addAll(resvForTblListSort);
+
+		getResponse = new GetResponse<ReservationForTables>(ResponseCodes.RESERVATION_RECORD_FETCH_SUCCESFULLY,
+				resvForTblList);
+		return getResponse;
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	String getReservationShortId(UserInfoModel userInfo) {
+		List<CurrentValues> values = currentValuesDao.findAll(CurrentValues.class);
+		long id = 0;
+
+		if (values.isEmpty()) {
+			CurrentValues value = new CurrentValues();
+			value.setInfoOnCreate(userInfo);
+			value.setReservationId(id);
+			currentValuesDao.create(value);
+			id = value.getReservationId();
+			
+		} else if (values.size() == 1) {
+			CurrentValues value = values.get(0);
+			id = values.get(0).getReservationId();
+			value.setReservationId(id + 1);
+			currentValuesDao.update(value);
+		}
+		return UtilityMethods.convertToBase32(id);
+	}
+
+	@Override
+	@Transactional
+	public BaseResponse convertReservationToWaitlist(Map<String, Object> params, String token) {
+		BaseResponse response = new BaseResponse();
+		String addToWaitlistGuid = "", cancelledReservationGuid = "", finishedReservationGuid = "";
+
+		Map<String, Object> shuffleMap = new HashMap<>();
+
+		shuffleMap.put(EmpowerConstants.REST_ID, params.get(EmpowerConstants.REST_GUID));
+
+		List<String> requestSource = new ArrayList<>();
+		if (params.containsKey(EmpowerConstants.REQUEST_SOURCE)) {
+			requestSource = (List<String>) params.get(EmpowerConstants.REQUEST_SOURCE);
+		}
+
+		if (params.get("addToWaitlistGuid") != null && !params.get("addToWaitlistGuid").equals("null")) {
+			addToWaitlistGuid = (String) params.get("addToWaitlistGuid");
+			String[] guidArr = addToWaitlistGuid.split(",");
+			for (String guid : guidArr) {
+				response = addToWaitlist(guid, token, requestSource);
+
+				if (response instanceof ErrorResponse) {
+					return response;
+				}
+
+			}
+		}
+
+		if ((params.get("finishedReservationGuid") != null)
+				&& (!params.get("finishedReservationGuid").equals("null"))) {
+			finishedReservationGuid = (String) params.get("finishedReservationGuid");
+
+			String[] guidArr = finishedReservationGuid.split(",");
+			for (String guid : guidArr) {
+				response = finishReservation(guid, token, requestSource);
+			}
+		}
+
+		if ((params.get("cancelledReservationGuid") != null)
+				&& (!params.get("cancelledReservationGuid").equals("null"))) {
+
+			cancelledReservationGuid = (String) params.get("cancelledReservationGuid");
+			String[] guidArr = cancelledReservationGuid.split(",");
+			for (String guid : guidArr) {
+				response = cancelReservation(guid, token, requestSource);
+			}
+
+		}
+
+		if ((params.get("seatWithReduceTat") != null) && (params.get("reducedEndTime") != null)
+				&& (!params.get("reducedEndTime").equals("null"))
+				&& (!params.get("seatWithReduceTat").equals("null"))) {
+			response = seatWaitlistWithReducedTat((String) params.get("seatWithReduceTat"),
+					(String) params.get("reducedEndTime"), token, (List<String>) params.get("tableGuid"),
+					requestSource);
+		}
+
+		if ((params.get("seatWaitistGuid") != null) && (!params.get("seatWaitistGuid").equals("null"))) {
+			response = seatWaitlist((String) params.get("seatWaitistGuid"), token,
+					(List<String>) params.get("tableGuid"), requestSource);
+		}
+
+		if ((params.get("seatWithReduceTat") == null || params.get("seatWithReduceTat").equals("null"))
+				&& (params.get("reducedEndTime") != null && !params.get("reducedEndTime").equals("null"))) {
+			
+			if (params.get("guid") != null && !params.get("guid").equals("null")) {
+				
+				Long currentTime = Long.valueOf(params.get("requestTime").toString());
+				SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+				Date endTime = null;
+				
+				try {
+					endTime = sdf.parse((String) params.get("reducedEndTime"));
+				} catch (ParseException e) {
+					log.warn("Exception in service", e);
+				}
+				Integer tat = 0;
+				if (endTime != null) {
+					tat = (int) ((endTime.getTime() - currentTime) / (1000 * 60));
+				}
+
+				Map<String, Object> dataMap = new HashMap<>();
+				dataMap.put("guid", params.get("guid"));
+				dataMap.put("isUnknown", params.get("isUnknown"));
+				dataMap.put("numCovers", params.get("numCovers"));
+				dataMap.put("tableGuid", params.get("tableGuid"));
+				dataMap.put("tat", tat);
+				dataMap.put("requestTime", currentTime);
+				List<ValidationError> listOfError = new ArrayList<>();
+				Reservation reservation = barEntryValidator.validateMoveToRestaurantData(dataMap, listOfError);
+
+				if (!listOfError.isEmpty()) {
+					response = new ErrorResponse(ResponseCodes.BARENTRY_UPDATION_FAILURE, listOfError);
+					return response;
+				}
+
+				Map<String, Object> barEntryMap = new HashMap<String, Object>();
+
+				UserInfoModel userInfo = authService.getUserInfoByToken(token);
+				Calendar cal = Calendar.getInstance();
+				cal.setTimeZone(TimeZone.getTimeZone("IST"));
+
+				barEntryMap.put(EmpowerConstants.GUID,
+						dataMap.get(EmpowerConstants.GUID));
+				barEntryMap.put(EmpowerConstants.STATUS,
+						EmpowerConstants.FINISHED);
+				barEntryMap.put(EmpowerConstants.UPDATED_DATE,
+						cal.getTimeInMillis());
+				barEntryMap.put(EmpowerConstants.END_TIME,
+						cal.getTimeInMillis());
+				barEntryMap
+						.put(EmpowerConstants.UPDATED_BY, userInfo.getGuid());
+
+				BarEntry updatedBarEntry = barEntryDao.update(barEntryMap);
+
+				reservation.setBookingMode(EmpowerConstants.WALKIN_STATUS);
+				reservation.setReservationStatus(EmpowerConstants.CREATED);
+				reservation.setRestaurantGuid(userInfo.getRestGuid());
+				reservation.setIsUnknown(false);
+				reservation.setGuestGuid(updatedBarEntry.getGuestGuid());
+				reservation.setInfoOnCreate(userInfo);
+				reservation.setRequestSource(requestSource);
+				// offer can be added while converting bar to reservation
+				if (params.containsKey("offerId") && params.get("offerId") != null
+						&& !params.get("offerId").toString().equals("")) {
+					reservation.setOfferId(params.get("offerId").toString());
+				}
+
+				response = createReservation(reservation, token, true);
+				if (response instanceof ErrorResponse) {
+
+					TransactionAspectSupport.currentTransactionStatus()
+							.setRollbackOnly();
+					return response;
+				} else if (response.getResponseCode().equals(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY)) {
+					response = seatWaitlistWithReducedTat(reservation.getGuid(), (String) params.get("reducedEndTime"),
+							token, reservation.getTableGuid(), requestSource);
+					if (response instanceof ErrorResponse) {
+
+						TransactionAspectSupport.currentTransactionStatus()
+								.setRollbackOnly();
+						return response;
+					}
+				}
+			}
+		}
+
+		else if ((params.get("seatWaitistGuid") == null || params.get("seatWaitistGuid").equals("null"))) {
+
+			if (params.get("guid") != null && !params.get("guid").equals("null")) {
+				Map<String, Object> dataMap = new HashMap<>();
+				dataMap.put("guid", params.get("guid"));
+				dataMap.put("isUnknown", params.get("isUnknown"));
+				dataMap.put("numCovers", params.get("numCovers"));
+				dataMap.put("tableGuid", params.get("tableGuid"));
+				dataMap.put("tat", params.get("tat"));
+				dataMap.put("requestTime", params.get("requestTime"));
+				List<ValidationError> listOfError = new ArrayList<>();
+				Reservation reservation = barEntryValidator.validateMoveToRestaurantData(dataMap, listOfError);
+
+				if (!listOfError.isEmpty()) {
+					response = new ErrorResponse(ResponseCodes.BARENTRY_UPDATION_FAILURE, listOfError);
+					return response;
+				}
+
+				Map<String, Object> barEntryMap = new HashMap<String, Object>();
+
+				UserInfoModel userInfo = authService.getUserInfoByToken(token);
+				Calendar cal = Calendar.getInstance();
+				cal.setTimeZone(TimeZone.getTimeZone("IST"));
+
+				barEntryMap.put(EmpowerConstants.GUID,
+						dataMap.get(EmpowerConstants.GUID));
+				barEntryMap.put(EmpowerConstants.STATUS,
+						EmpowerConstants.FINISHED);
+				barEntryMap.put(EmpowerConstants.UPDATED_DATE,
+						cal.getTimeInMillis());
+				barEntryMap.put(EmpowerConstants.END_TIME,
+						cal.getTimeInMillis());
+				barEntryMap
+						.put(EmpowerConstants.UPDATED_BY, userInfo.getGuid());
+
+				BarEntry updatedBarEntry = barEntryDao.update(barEntryMap);
+
+				reservation.setBookingMode(EmpowerConstants.WALKIN_STATUS);
+				reservation.setReservationStatus(EmpowerConstants.CREATED);
+				reservation.setRestaurantGuid(userInfo.getRestGuid());
+				reservation.setIsUnknown(false);
+				reservation.setGuestGuid(updatedBarEntry.getGuestGuid());
+				reservation.setInfoOnCreate(userInfo);
+				reservation.setRequestSource(requestSource);
+
+				// offer can be added while converting bar to reservation
+				if (params.containsKey("offerId") && params.get("offerId") != null
+						&& !params.get("offerId").toString().equals("")) {
+					reservation.setOfferId(params.get("offerId").toString());
+				}
+
+				response = createReservation(reservation, token, true);
+
+				if (response instanceof ErrorResponse) {
+
+					TransactionAspectSupport.currentTransactionStatus()
+							.setRollbackOnly();
+					return response;
+				} else if (response.getResponseCode().equals(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY)) {
+					response = seatWaitlist(reservation.getGuid(), token, reservation.getTableGuid(), requestSource);
+					if (response instanceof ErrorResponse) {
+
+						TransactionAspectSupport.currentTransactionStatus()
+								.setRollbackOnly();
+						return response;
+					}
+				}
+
+			}
+		}
+
+		Runnable runnableTask = () -> {
+			shuffleService.shuffleTables(shuffleMap, token);
+		};
+		new Thread(runnableTask).start();
+
+		return response;
+	}
+
+	private BaseResponse finishReservation(String finishedReservationGuid, String token, List<String> requestSource) {
+		Reservation resv = new Reservation();
+		resv.setGuid(finishedReservationGuid);
+		resv.setReservationStatus(EmpowerConstants.FINISHED);
+		resv.setToBypass(true);
+		resv.setRequestSource(requestSource);
+		BaseResponse response = patchReservation(resv, token);
+		return response;
+
+	}
+
+	private BaseResponse seatWaitlist(String seatWaitistGuid, String token, List<String> tableGuid,
+			List<String> requestSource) {
+		Reservation resv = new Reservation();
+		resv.setReservationStatus(EmpowerConstants.SEATED);
+		resv.setGuid(seatWaitistGuid);
+		resv.setToBypass(true);
+		if ((tableGuid != null) && (tableGuid.size() > 0)) {
+			resv.setTableGuid(tableGuid);
+		}
+		resv.setRequestSource(requestSource);
+		BaseResponse response = patchReservation(resv, token);
+		return response;
+	}
+	
+	private BaseResponse createAndseatWaitlistAfterConflict(String seatWaitistGuid, String token) {
+		
+		Reservation resv = (Reservation)Cache.get("DUMMY-RESV:" + seatWaitistGuid);
+		
+		BaseResponse response = null;
+		
+		if(resv != null){
+			response = createAndSeatWaitlist(resv, token, false);
+		}else{
+			//TODO : Error message to send
+			
+			List<ValidationError> errorList = new ArrayList<>();
+			errorList.add(new ValidationError(EmpowerConstants.RESERVATION, "OOPS........  Something went wrong"));
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, errorList);
+		}
+		
+		
+		return response;
+	}
+	
+
+	private BaseResponse addToWaitlist(String addToWaitlistGuid, String token, List<String> requestSource) {
+		Reservation resv = new Reservation();
+		resv.setBookingMode(EmpowerConstants.WALKIN_STATUS);
+		resv.setGuid(addToWaitlistGuid);
+		resv.setTableGuid(new ArrayList<>());
+		resv.setRequestSource(requestSource);
+		BaseResponse response = patchReservation(resv, token);
+		return response;
+	}
+
+	private BaseResponse cancelReservation(String cancelledReservationGuid, String token, List<String> requestSource) {
+		Reservation resv = new Reservation();
+		resv.setReservationStatus(EmpowerConstants.CANCELLED);
+		resv.setGuid(cancelledReservationGuid);
+		resv.setToBypass(true);
+		resv.setRequestSource(requestSource);
+		resv.setCancelledBy(EmpowerConstants.RESTAURANT);
+		resv.setReasonToCancel(EmpowerConstants.OTHER_REASON_TO_CANCEL);
+		BaseResponse response = patchReservation(resv, token);
+		return response;
+	}
+
+	private BaseResponse seatWaitlistWithReducedTat(String seatWithReduceTat, String reducedEndTime, String token,
+			List<String> tableGuid, List<String> requestSource) {
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+		Date endTime = null;
+		try {
+			endTime = sdf.parse(reducedEndTime);
+		} catch (ParseException e) {
+			log.warn("Exception in service", e);
+		}
+		Date startTime = new Date();
+		int tat = (int) ((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+
+		Reservation resv = new Reservation();
+		resv.setGuid(seatWithReduceTat);
+		resv.setTat(Integer.toString(tat));
+		resv.setEstStartTime(startTime);
+		resv.setEstEndTime(endTime);
+		resv.setToBypass(true);
+		if ((tableGuid != null) && (tableGuid.size() > 0)) {
+			resv.setTableGuid(tableGuid);
+		}
+		resv.setReservationStatus(EmpowerConstants.SEATED);
+		resv.setRequestSource(requestSource);
+		BaseResponse response = patchReservation(resv, token);
+		return response;
+	}
+	
+	private BaseResponse seatAndCreateWaitlistWithReducedTatAfterConflict(String seatWithReduceTat, String reducedEndTime, String token) {
+		
+		
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+		Date endTime = null;
+		try {
+			endTime = sdf.parse(reducedEndTime);
+		} catch (ParseException e) {
+			log.warn("Exception in service", e);
+		}
+		
+		Date startTime = new Date();
+		int tat = (int) ((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+
+		Reservation resv = (Reservation)Cache.get("DUMMY-RESV:" + seatWithReduceTat);
+		
+		BaseResponse response = null;
+		if(resv != null){
+			resv.setEstStartTime(startTime);
+			resv.setTat(Integer.toString(tat));
+			resv.setEstEndTime(endTime);
+			
+			response  = createAndSeatWaitlist(resv, token, false);
+		}
+		else{
+			//TODO : error to handle
+			List<ValidationError> errorList = new ArrayList<>();
+			errorList.add(new ValidationError(EmpowerConstants.RESERVATION, ErrorCodes.SOMETHING_WENT_WRONG));
+			//System.out.println("Reservation not found in cache");
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, errorList);
+		}
+		
+		return response;
+	}
+
+
+	@Override
+	public BaseResponse getReservationWithRespectToGuid(Map<String, Object> params, String token) {
+		BaseResponse getResponse;
+		List<ValidationError> listOfError = new ArrayList<>();
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		log.debug("User info is------------------------------" + userInfo);
+		if (!userInfo.getRoleId().equals(EmpowerConstants.CT_ADMIN_ROLE_ID)) {
+			if (userInfo.getRoleId().equals(EmpowerConstants.CUSTOMER_ROLE_ID)) {
+				params.put(EmpowerConstants.GUEST_GUID, userInfo.getGuid());
+			} else {
+				params.put(EmpowerConstants.REST_GUID, userInfo.getRestGuid());
+			}
+		}
+
+		if (!params.containsKey(EmpowerConstants.REST_GUID)) {
+
+			listOfError.add(reservationValidator.createError(EmpowerConstants.REST_GUID, ErrorCodes.REST_ID_REQUIRED));
+			return new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+		}
+
+		Reservation reservation = reservationDao.getReservationWithRespectToGuid(params);
+		List<Reservation> resvList = new ArrayList<>();
+		if (reservation != null) {
+			resvList.add(reservation);
+		}
+		
+		Map<String, Object> sourceMap = null;
+		if(!resvList.isEmpty()){
+			sourceMap = sourceDao.getSourceName(resvList.get(0).getRestaurantGuid());
+		}
+		
+		if (sourceMap != null) {
+			for (Reservation resv : resvList) {
+				if(resv.getSourceGuid()!=null)
+					resv.setSourceName((String) sourceMap.get(resv.getSourceGuid()));
+			}
+		}
+		
+		getResponse = new GetResponse<Reservation>(ResponseCodes.RESERVATION_RECORD_FETCH_SUCCESFULLY, resvList);
+		return getResponse;
+	}
+
+	@Override
+	public BaseResponse getReservationsCSV(String token, Map<String, Object> stringParamMap) {
+
+		BaseResponse response;
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		Map<String, Object> params = reservationValidator.validateParamsForReport(stringParamMap, errorList, userInfo);
+		if (errorList.isEmpty()) {
+			restValidator.validateGuid(params.get(EmpowerConstants.REST_GUID).toString(), errorList);
+		}
+
+		if (errorList.isEmpty()) {
+			File dir = new File("exportCSV");
+			dir.mkdir();
+			String outputFile = "exportCSV/" + params.get(EmpowerConstants.REST_GUID).toString()
+					+ "(reservation details)-" + UtilityMethods.timestamp() + ".csv";
+			try {
+				CsvWriter writer = new CsvWriter(new FileWriter(outputFile, true), ',');
+				Map<String, Object> tableParams = new HashMap<String, Object>();
+				tableParams.put(EmpowerConstants.REST_ID, params.get(EmpowerConstants.REST_GUID).toString());
+				List<Table> tables = tableDao.findAllTables(Table.class, tableParams);
+				Map<String, Table> tableGuidMap = new HashMap<String, Table>();
+				tables.forEach(x -> tableGuidMap.put(x.getGuid(), x));
+				Map<Reservation, GuestProfile> reservationData = reservationDao.getReservationDetailsOnDate(params);
+				if (reservationData.isEmpty()) {
+					errorList.add(reservationValidator.createError(EmpowerConstants.RESERVATION_LABEL,
+							ErrorCodes.RESERVATION_NOT_FOUND));
+					return new ErrorResponse(ResponseCodes.RESERVATION_CSV_FETCH_FAILURE, errorList);
+				}
+				writer.write("Name");
+				writer.write("Contact Number");
+				writer.write("VIP");
+				writer.write("No. of Covers");
+				writer.write("Start Time");
+				writer.write("End Time");
+				writer.write("Table");
+				writer.write("TAT");
+				writer.write("Status");
+				writer.write("Note");
+				writer.endRecord();
+
+				
+				reservationData
+						.keySet()
+						.forEach(
+								resv -> {
+									try {
+										String name = reservationData.get(resv)
+												.getFirstName();
+										/*
+										 * if
+										 * (reservationData.get(resv).getLastName
+										 * () != null) { name = name + " " +
+										 * reservationData
+										 * .get(resv).getLastName(); }
+										 */
+										writer.write(name);
+										writer.write(reservationData.get(resv)
+												.getMobile());
+										if (reservationData.get(resv)
+												.getIsVip())
+											writer.write(reservationData.get(
+													resv).getReason());
+										else
+											writer.write("");
+										writer.write(resv.getNumCovers()
+												.toString());
+										writer.write(resv.getEstStartTime()
+												+ "");
+										writer.write(resv.getEstEndTime() + "");
+										String tableNames = resv
+												.getTableGuid()
+												.stream()
+												.map(x -> tableGuidMap.get(x)
+														.getName())
+												.collect(
+														Collectors.joining(","));
+										writer.write(tableNames);
+										writer.write(resv.getTat());
+										writer.write(resv
+												.getReservationStatus());
+										writer.write(resv.getReservationNote());
+										writer.endRecord();
+									} catch (Exception e) {
+										// TODO Auto-generated catch block
+										log.warn("Exception in service", e);
+									}
+
+
+								});
+				writer.close();
+			} catch (Exception v) {
+				log.warn(v.getMessage());
+				return new ErrorResponse(ResponseCodes.RESERVATION_CSV_FETCH_FAILURE, errorList);
+			}
+			response = new SupportResponse<File>(ResponseCodes.RESERVATION_CSV_FETCH_SUCCESFULLY, new File(outputFile));
+			return response;
+		} else {
+			/* log.info("listerror"); */
+			return new ErrorResponse(ResponseCodes.RESERVATION_CSV_FETCH_FAILURE, errorList);
+		}
+		// return new File(outputFile);
+
+	}
+
+	public Boolean addToQueue(Reservation reservation) {
+		Boolean created = false;
+
+		Map<Integer, Queue> queueMap = queueDao.getQueue(reservation.getRestaurantGuid());
+		Integer resvCovers = reservation.getNumCovers();
+		if (resvCovers > 8) {
+			resvCovers = 9;
+		}
+		// /update queue
+		Queue queue = queueMap.get(resvCovers);
+		if (queue != null) {
+			int count = queue.getCount();
+			queue.setCount(count + 1);
+			Queue newQueue = queueDao.updateAllProperties(queue);
+			created = queueDao.updateQueueData(newQueue, reservation);
+		}
+
+		return created;
+
+	}
+
+	@Override
+	public Boolean deleteWaitlist(String guid, String token) {
+		Boolean deleted = false;
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+
+		Reservation resv = new Reservation();
+		resv.setGuid(guid);
+		resv.setRestaurantGuid(userInfo.getRestGuid());
+		// queueDao.deleteQueueReservation(resv);
+		removeResvFromQueue(resv);
+		reservationDao.deleteWaitlistData(guid);
+		deleted = true;
+
+		return deleted;
+
+	}
+
+	@Override
+	@Transactional
+	public BaseResponse directlyAddToQueue(Reservation reservation, String token) {
+		BaseResponse response;
+		List<Table> tableList = new ArrayList<Table>();
+		reservation.setReservationStatus("CREATED");
+		GuestProfile guest = null;
+		String restName = null;
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		reservation.setShortId(getReservationShortId(userInfo));
+
+		List<ValidationError> listOfError = new ArrayList<>();
+
+		if (!(reservation.getRestaurantGuid().equals(userInfo.getRestGuid()))) {
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID,
+
+					UtilityMethods
+							.getErrorMsg(ErrorCodes.REST_FOR_STAFF_NOT_VALID),
+					ErrorCodes.REST_FOR_STAFF_NOT_VALID));
+		}
+
+		/* Add Dummy Guest In case of Unknow Guest */
+
+		if (reservation.getIsUnknown()
+				&& reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+			guest = guestValidator.getDummyGuest();
+			if (null == guest) {
+
+				listOfError
+						.add(new ValidationError(
+								EmpowerConstants.DUMMY_GUEST_ID,
+								UtilityMethods
+										.getErrorMsg(ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND),
+								ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND));
+			} else {
+				reservation.setGuestGuid(guest.getGuid());
+
+			}
+		}
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		if (reservation.getEstStartTime().getTime() == new Date(0).getTime()) {
+			if (reservation.getTableGuid() == null || reservation.getTableGuid().size() == 1) {
+				reservation.setTableGuid(new ArrayList<>());
+			}
+			reservation.setQueued(true);
+			Reservation resv = reservationDao.addReservation(reservation, guest, tableList);
+			Boolean addedToQueue = addToQueue(reservation);
+			Reservation[] resvArr = new Reservation[1];
+			resvArr[0] = resv;
+			response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+			return response;
+		}
+
+		listOfError = reservationValidator.validateReservationOnCreate(reservation, EmpowerConstants.ADD);
+
+		/* Validating Guest | Table | Restaurant | Covers */
+		Map<String, Object> map = reservationValidator.validateRestGuestTable(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		if (null != map) {
+			restName = map.get(EmpowerConstants.RESTAURANT_NAME) != null ? map
+					.get(EmpowerConstants.RESTAURANT_NAME).toString() : null;
+		}
+
+		reservationValidator.validateTat(listOfError, reservation);
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		Boolean isValidTable = shuffleService.shuffleTablesMethod(reservation, null);
+
+		if (!isValidTable)
+			reservationValidator.validateReservationTimeSlot(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		Reservation resv = reservationDao.addReservation(reservation, guest, tableList);
+		Reservation[] resvArr = new Reservation[1];
+		resvArr[0] = resv;
+
+		if (reservation.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+			Boolean addedToQueue = addToQueue(reservation);
+		}
+
+		response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+
+		if (response.getResponseCode().equalsIgnoreCase("9002") && !reservation.getIsUnknown() && null != restName
+				&& reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.ONLINE_STATUS)) {
+			notifyCustomerOrRestaurant(reservation, EmpowerConstants.CREATED, userInfo);
+		} else if (response.getResponseCode().equalsIgnoreCase("9002") && !reservation.getIsUnknown()
+				&& null != restName && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+			final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+			for (StackTraceElement element : stackTrace) {
+				if (element.getMethodName().equalsIgnoreCase(EmpowerConstants.WAITLIST_METHOD)
+						&& element.getClassName().equalsIgnoreCase(EmpowerConstants.WAITLIST_PCKG)) {
+					notifyCustomerOrRestaurant(reservation, EmpowerConstants.WAITLIST, userInfo);
+				}
+			}
+		}
+
+		return response;
+
+	}
+
+	@Override
+	@Transactional
+	public BaseResponse deleteReservation(Map<String, Object> params, String token) {
+
+		BaseResponse response = null;
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		Reservation reservation = new Reservation();
+		if (params.containsKey(EmpowerConstants.GUID))
+			reservation.setGuid((String) params.get(EmpowerConstants.GUID));
+
+		reservation = reservationValidator.validateGuid(reservation.getGuid(), listOfError);
+
+		if (!listOfError.isEmpty()) {
+			response = new ErrorResponse(ResponseCodes.WAITLIST_REMOVE_FAILURE, listOfError);
+			return response;
+		}
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		if (!(reservation.getRestaurantGuid().equals(userInfo.getRestGuid()))) {
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID,
+
+					UtilityMethods
+							.getErrorMsg(ErrorCodes.REST_FOR_STAFF_NOT_VALID),
+					ErrorCodes.REST_FOR_STAFF_NOT_VALID));
+			response = new ErrorResponse(ResponseCodes.WAITLIST_REMOVE_FAILURE, listOfError);
+			return response;
+		}
+
+		Boolean deleted = deleteWaitlist(reservation.getGuid(), token);
+		if (deleted) {
+
+			response = new PostResponse<Reservation>(ResponseCodes.WAITLIST_REMOVED_SUCCESFULLY, reservation.getGuid());
+
+		} else {
+			response = new ErrorResponse(ResponseCodes.WAITLIST_REMOVE_FAILURE, listOfError);
+		}
+
+		return response;
+
+	}
+
+	@Override
+	public BaseResponse updateReservationViaSchedular() {
+
+		BaseResponse getResponse;
+		queueDao.deleteAllQueueReservationBySchedular();
+		String token = authService.loginAsInternal();
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		reservationDao.updateReservationWithShifEndCypherViaSchedular(userInfo);
+		List<Reservation> resvList = new ArrayList<>();
+
+		getResponse = new GetResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY, resvList);
+		return getResponse;
+
+	}
+
+	
+
+
+	
+	
+	@Override
+	public BaseResponse createUnconfirmedReservation(Reservation reservation, UserInfoModel userInfo) {
+
+		// TODO
+		// check for blackouthours/operations hrs taking into account the
+		// tat/closed day
+		// No shuffle
+		// No tabel assignment
+		// Offer Id check taking into account the tat
+		// Status as unconfirmed
+		// Add guest if he doesn't exist for the restaurant
+
+		List<ValidationError> listOfError = new ArrayList<>();
+		BaseResponse response;
+		GuestProfile customerProfile = null;
+		
+		reservation.setShortId(getReservationShortId(userInfo));
+		
+		customerProfile = unconfirmedReservationValidations(reservation, listOfError);
+		
+		if (!listOfError.isEmpty()) {
+			return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+		}
+
+		
+		Reservation resv = reservationDao.addReservation(reservation, null, null);
+		
+		Restaurant restaurant = new Restaurant();
+		restaurant.setGuid(resv.getRestaurantGuid());
+		
+		Boolean addGuestToRest = reservationDao.addGuestToRestaurant(resv, restaurant);
+		
+		scheduleConfirmationCall(reservation, customerProfile);
+		
+		Reservation[] resvArr = new Reservation[1];
+		resvArr[0] = resv;
+		response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+		notifyCustomerOrRestaurant(reservation, reservation.getReservationStatus(), userInfo);
+		return response;
+
+	}
+	
+	private GuestProfile unconfirmedReservationValidations(Reservation reservation, List<ValidationError> listOfError){
+		
+		GuestProfile customerProfile = guestDao.find(reservation.getGuestGuid());
+
+		if (customerProfile == null) {
+			ValidationError noGuest = new ValidationError(EmpowerConstants.GUEST_GUID, ErrorCodes.INVALID_GUEST_GUID);
+			listOfError.add(noGuest);
+			return null;
+		}
+			
+		reservation.setTableGuid(new ArrayList<String>());
+		reservationValidator.validateForOperationHours(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return null;
+		}
+		
+		
+		if (reservation.getOfferId() != null && !reservation.getOfferId().equals("")) {
+			reservationValidator.validateOfferId(reservation, null, listOfError, false);
+			if (!listOfError.isEmpty()) {
+				return null;
+			}
+		}
+		reservation.setReservationStatus(EmpowerConstants.UNCONFIRMED);
+		return customerProfile;
+		
+	}
+
+
+
+		
+		
+	private void validateReservationParams(Reservation reservation, List<ValidationError> listOfError) {
+
+
+		if (reservation.getBookingMode() == null) {
+			// Add
+			listOfError.add(new ValidationError(EmpowerConstants.MODE, ErrorCodes.RESERVATION_BOOKING_MODE));
+		}
+
+		if (reservation.getEstStartTime() == null) {
+			listOfError
+					.add(new ValidationError(EmpowerConstants.EST_START_TIME, ErrorCodes.RESERVATION_EST_START_TIME));
+		}
+
+		if (reservation.getGuestGuid() == null) {
+			listOfError.add(new ValidationError(EmpowerConstants.GUEST_GUID, ErrorCodes.RESERVATION_GUEST_GUID));
+		}
+
+		if (reservation.getNumCovers() == null || reservation.getNumCovers() == 0) {
+			listOfError.add(new ValidationError(EmpowerConstants.NUM_COVERS, ErrorCodes.RESERVATION_COVERS));
+		}
+
+		if (reservation.getRestaurantGuid() == null) {
+			listOfError.add(new ValidationError(EmpowerConstants.REST_GUID, ErrorCodes.RESERVATION_REST_GUID));
+		}
+
+	}
+
+	private String getDayFromDate(Long dateTime) {
+
+		Calendar calc = Calendar.getInstance();
+		calc.setTimeInMillis(dateTime);
+		String dayNames[] = new DateFormatSymbols().getWeekdays();
+		String currentDay = dayNames[calc.get(Calendar.DAY_OF_WEEK)];
+
+		return currentDay;
+	}
+
+	@Override
+	public boolean isReservationConfirmed(Reservation reservation) {
+		Restaurant rest = restaurantDao.find(reservation.getRestaurantGuid());
+		Integer maxCovers = rest.getMaxCovers();
+		Integer minCovers = rest.getMinCovers();
+		Integer maxResvWeekday = rest.getMaxReservationsOnWeekday();
+		Integer maxResvWeekend = rest.getMaxReservationsOnWeekend();
+
+		List<ValidationError> errorList = new ArrayList<>();
+
+		if (maxCovers == -1 && minCovers == -1 && maxResvWeekday == -1 && maxResvWeekend == -1) {
+			return true;
+		}
+
+		boolean flag = false;
+		Integer resvCovers = reservation.getNumCovers();
+
+		minCovers = minCovers == -1 ? 0 : minCovers;
+		maxCovers = maxCovers == -1 ? 100 : maxCovers;
+
+		if (minCovers <= resvCovers && maxCovers >= resvCovers) {
+			flag = true;
+		}
+
+		if (flag) {
+
+			if(maxResvWeekday == -1 && maxResvWeekend == -1){
+				return flag;
+			}
+
+			Map<String, Object> shiftTime = waitlistService.getApplicableShifts(reservation.getRestaurantGuid(),
+					errorList, reservation.getEstStartTime(), false);
+
+
+			String dayType = (String) shiftTime.get("dayType");
+			shiftTime.put(Constants.REST_GUID, reservation.getRestaurantGuid());
+
+			int countLimit = dayType.equalsIgnoreCase(EmpowerConstants.WEEKEND) ? maxResvWeekend : maxResvWeekday;
+
+			if(countLimit == -1){
+				return true;
+			}
+
+			Map<String, Object> params = new HashMap<>();
+			params.put(Constants.REST_GUID, reservation.getRestaurantGuid());
+			params.put("currentDayShiftEndTime", shiftTime.get("currentDayShiftEndTime"));
+			params.put("currentDayShiftStartTime", shiftTime.get("currentDayShiftStartTime"));
+			params.put("reservationGuid", reservation.getGuid());
+
+			Integer resvCount = reservationDao.getUnconfirmedReservationCount(params);
+
+			if (resvCount >= countLimit) {
+				flag = false;
+			}
+
+		}
+
+		return flag;
+	}
+
+	@Override
+	public String updateReservationViaSMS(SMS sms, String token) {
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		// TODO validate SMS content and mobile number and restaurant must be
+		// HYBRID
+		String[] contentArray = sms.getContent().split(" ");
+		String[] data = contentArray[1].split(":");
+		String restaurantGuid = data[0];
+		String reservationGuid = data[1];
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.GUID, reservationGuid);
+		params.put(EmpowerConstants.REST_GUID, restaurantGuid);
+		String mobile = reservationDao.getMobileNumberOfReservation(params);
+		if (mobile != null) {
+			// TODO patch update reservation
+			// TODO send sms via notifier class
+		} else {
+			log.error("invalid incoming sms to update reservation=>{}", sms);
+		}
+		return null;
+	}
+
+
+	private void cancelReservationHybrid(Reservation reservation, UserInfoModel userInfo, List<ValidationError> listOfError) {
+
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+
+		Long newDateTime = new Date().getTime();
+		try {
+			newDateTime = sdf.parse(sdf.format(new Date())).getTime();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			log.warn("Exception in service", e);
+		}
+
+		reservation.setReservationStatus(EmpowerConstants.CANCELLED);
+		//reservation.setCancelledBy(EmpowerConstants.RESTAURANT);
+		if(userInfo.getRoleId().equals(EmpowerConstants.CUSTOMER_ROLE_ID))
+			reservation.setCancelledBy(EmpowerConstants.CUSTOMER_ENUM);
+		else if(userInfo.getRoleId().equals(EmpowerConstants.AGENT_ROLE_ID))
+			reservation.setCancelledBy(EmpowerConstants.AGENT);
+		else
+			reservation.setCancelledBy(EmpowerConstants.RESTAURANT);
+
+		reservation.setCancelledById(userInfo.getGuid());
+		reservation.setCancelTime(new Date(newDateTime));
+		
+
+		Reservation updatedResv = reservationDao.updateReservationPropertiesNotNull(reservation);
+		String reservation_guid_1 = reservationDao.updateReservation(updatedResv);		
+		deleteQuartzJob(reservation_guid_1);
+		notifyCustomerOrRestaurant(updatedResv, updatedResv.getReservationStatus(), userInfo);
+	}
+
+
+	@Override
+	public Reservation getReservationByGuid(String guid) {
+		// TODO Auto-generated method stub
+		return reservationDao.find(guid);
+	}
+
+	
+	
+
+
+	private Reservation confirmReservationForEmpower(Reservation reservation, List<ValidationError> listOfError) {
+
+		assignTableToReservation(reservation, listOfError);
+		
+		if (!listOfError.isEmpty()) {
+			return null;
+		}
+		
+		reservation.setReservationStatus(EmpowerConstants.CREATED);
+	
+		Reservation updatedReservation = reservationDao.updateReservationPropertiesNotNull(reservation);
+		
+		reservationDao.updateReservation(updatedReservation);
+		
+		calculateConfirmationTime(updatedReservation);
+		
+		deleteQuartzJob(updatedReservation.getGuid());
+		return updatedReservation;
+	}
+	
+	
+
+	private void confirmReservationForHybrid(Reservation reservation, UserInfoModel userInfo, List<ValidationError> listOfError) {
+		// TODO Auto-generated method stub
+
+		reservation.setReservationStatus(EmpowerConstants.CREATED);
+		reservationDao.validateOperationHoursAndClosedDay(reservation, listOfError);
+
+		if (!listOfError.isEmpty()) {
+			return;
+		}
+
+		Reservation updatedReservation = reservationDao.updateReservationPropertiesNotNull(reservation);
+		reservationDao.updateReservation(updatedReservation);
+		calculateConfirmationTime(updatedReservation);
+		deleteQuartzJob(updatedReservation.getGuid());
+
+	}
+
+
+
+	private void scheduleConfirmationCall(Reservation reservation, GuestProfile customerProfile) {
+		
+		Restaurant restaurant = restaurantDao.findRestaurantByGuid(reservation.getRestaurantGuid());
+		
+		if(StringUtils.isBlank(restaurant.getPhoneNo1()) && StringUtils.isBlank(restaurant.getPhoneNo1())){
+			//TODO throw error
+		}
+		
+		Calendar cal = Calendar.getInstance();
+		cal.setTimeZone(TimeZone.getTimeZone("IST"));
+		cal.setTimeInMillis(reservation.getEstStartTime().getTime());
+		String month = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault());
+		String dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.getDefault());
+		String day = new SimpleDateFormat("yyyy-MM-dd").format(new Date(cal.getTimeInMillis()));
+		String cover = String.valueOf(reservation.getNumCovers());
+		String time = new SimpleDateFormat("hh:mm a").format(new Date(cal.getTimeInMillis()));
+		
+		
+		Map<String, String> params = new HashMap<>();
+		params.put("Date", day);
+		params.put("Day", dayName);
+		params.put("Month", month);
+		params.put("Cover", cover);
+		params.put("Time", time);
+		
+		if(restaurant.getPhoneNo1() != null)
+			params.put("Phone1", restaurant.getPhoneNo1());
+		
+		if(restaurant.getPhoneNo2() != null){
+			if(restaurant.getPhoneNo1() == null){
+				params.put("Phone1", restaurant.getPhoneNo2());
+			}else{
+				params.put("Phone2", restaurant.getPhoneNo2());
+			}
+		}
+		
+		params.put(EmpowerConstants.GUEST_MOBILE, customerProfile.getMobile());
+		params.put(EmpowerConstants.RESERVATION_GUID, reservation.getGuid());
+		
+		Cache.set("TEL:" + reservation.getGuid(), params);
+		Cache.set("CALLSTATUS:" + reservation.getGuid(), EmpowerConstants.QUEUED_IN_QUARTZ,EmpowerConstants.TTL_FOR_IVR);
+		scheduleCall("TEL:" + reservation.getGuid());
+
+	}
+	@Override
+	public void scheduleCall(String cacheKey) {
+
+		JobDetail job = quartzService.getUnconfirmedReservationJob(cacheKey);
+		Trigger trigger = quartzService.getTrigger(EmpowerConstants.CALL_WAIT_TIME,cacheKey);
+		
+		try {
+			if (QuartzConfig.getQuartzScheduler().checkExists(job.getKey())) {
+				QuartzConfig.getQuartzScheduler().deleteJob(job.getKey());
+			}
+			QuartzConfig.getQuartzScheduler().scheduleJob(job, trigger);
+			
+		} catch (SchedulerException e) {
+
+			log.error("exception->",e);
+		}
+
+	}
+	
+	private void deleteQuartzJob(String reservationGuid){
+		JobDetail job = quartzService.getUnconfirmedReservationJob(reservationGuid);
+		
+		try {
+			if (QuartzConfig.getQuartzScheduler().checkExists(job.getKey())) {
+				QuartzConfig.getQuartzScheduler().deleteJob(job.getKey());		
+				
+			}
+			if(Cache.get("TEL:" + reservationGuid) != null)
+				Cache.remove("TEL:" + reservationGuid);
+			
+		} catch (SchedulerException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	@Override
+	public void setRequestSource(Reservation reservation, Reservation existing, Request request) {
+		
+		String requestSource = request.getHeader(REQUEST_SOURCE);
+		List<String> rqstSourceList = new ArrayList<>();
+		if(existing == null){
+			if(requestSource != null){
+				rqstSourceList.add(request.getHeader("X-REAL-IP") + "-" + requestSource);
+			}else{
+				rqstSourceList.add(request.getHeader("X-REAL-IP") + "-" + "WEB");
+			}
+		}
+		else{
+
+			if (existing.getRequestSource() != null && existing.getRequestSource().size() > 0) {
+				rqstSourceList = existing.getRequestSource();
+			}
+
+			if(requestSource != null){
+				rqstSourceList.add(request.getHeader("X-REAL-IP") + "-" + requestSource);
+			}else{
+				rqstSourceList.add(request.getHeader("X-REAL-IP") + "-" + "WEB");
+			}
+		}
+		reservation.setRequestSource(rqstSourceList);
+	
+		
+	}
+	
+	@Override
+	public void assignTableToReservation(Reservation reservation, List<ValidationError> listOfError) {
+
+		reservationValidator.validateTat(listOfError, reservation);
+		
+		if(!listOfError.isEmpty())
+			return;
+
+		if (!reservationDao.assignTableToReservation(reservation)) {
+			listOfError.add(new ValidationError(EmpowerConstants.TABLE_GUID, ErrorCodes.NO_APPLICABLE_TABLE_EXISTS));
+		}
+
+	}
+
+	@Override
+	public void confirmUnconfirmedReservations(Reservation reservation, Reservation existing, Restaurant restaurant, UserInfoModel userInfo, 
+			String token, List<ValidationError> listOfError) {
+
+		boolean isRestaurantHybrid = restaurant.getType() != null && restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID);
+		String reservationStatus = reservation.getReservationStatus();
+		String existingResvStatus = existing.getReservationStatus();
+		reservation.setCreatedDate(existing.getCreatedDate());
+		
+		if(reservationStatus.equalsIgnoreCase(existingResvStatus)){
+			//Error
+		}
+		
+		if(isRestaurantHybrid){
+			
+			if(reservationStatus.equals(EmpowerConstants.CONFIRMED)){
+				confirmReservationForHybrid(reservation, userInfo, listOfError);
+				
+			}else if(reservationStatus.equals(EmpowerConstants.CANCELLED)){
+				cancelReservationHybrid(reservation, userInfo, listOfError);
+				
+			}
+			
+		}else{
+			if(reservationStatus.equals(EmpowerConstants.CONFIRMED)){
+				confirmReservationForEmpower(reservation, listOfError);
+				
+			}else if(reservationStatus.equals(EmpowerConstants.CANCELLED)){
+				if(existingResvStatus.equals(EmpowerConstants.UNCONFIRMED)){
+					cancelReservationHybrid(reservation, userInfo, listOfError);
+					
+				}else{
+					BaseResponse response = patchReservation(reservation, token);
+					if(response instanceof ErrorResponse)
+					{
+						listOfError = ((ErrorResponse) response).getErrorList();
+						return;
+					}
+					deleteQuartzJob(reservation.getGuid());
+					
+				}
+				
+			}
+		}
+		
+		
+		
+		
+	}
+
+	
+
+	@Override
+	public BaseResponse confirmUnconfirmedReservationsForTelephonyService(Reservation reservation, String token) {
+
+
+		BaseResponse response = null;
+		
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<>();
+		
+		Reservation existing = null;
+		if(reservation.getGuid() != null)
+			existing = getReservationByGuid(reservation.getGuid());
+		
+		Reservation resvRequest = reservationValidator.validatePatchToUnconfirmedReservationRequest(reservation, existing, userInfo, listOfError);
+		
+		if(!listOfError.isEmpty()){
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			return response;
+		}
+		
+		reservation = resvRequest;
+		reservation.setInfoOnUpdate(userInfo);
+	
+		Restaurant restaurant = restaurantDao.find(reservation.getRestaurantGuid());
+		
+		boolean isUnconfimed = (restaurant.getType() == null || !restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID)) ? 
+				(reservation.getReservationStatus().equals(EmpowerConstants.CONFIRMED) || reservation.getReservationStatus().equals(EmpowerConstants.CANCELLED)) : false;
+		
+		if((restaurant.getType() != null && restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID)) || isUnconfimed){
+			confirmUnconfirmedReservations(reservation, existing, restaurant, userInfo, token, listOfError);
+		}
+		
+		
+		
+		if(!listOfError.isEmpty()){
+			
+			response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATED_FAILURE, listOfError);
+			return response;
+		}
+		
+		
+		response = new UpdateResponse<Reservation>(ResponseCodes.RESERVATION_UPDATED_SUCCESFULLY,
+				reservation.getGuid());
+		return response;
+	
+		
+	}
+
+	@Override
+	public void patchForGuestReservation(Reservation reservation, Reservation existing, UserInfoModel userInfo, 
+			Restaurant restaurant, String token, List<ValidationError> listOfError) {
+
+
+		boolean isRestaurantHybrid = restaurant.getType() != null && restaurant.getType().equalsIgnoreCase(EmpowerConstants.HYBRID);
+		
+		String reservationStatus = reservation.getReservationStatus();
+		String existingResvStatus = existing.getReservationStatus();
+		reservation.setCreatedDate(existing.getCreatedDate());
+		
+
+		
+		if(isRestaurantHybrid){
+			
+			if(reservationStatus != null && reservationStatus.equals(EmpowerConstants.CANCELLED)){
+
+				cancelReservationHybrid(reservation, userInfo, listOfError);
+				notifyCustomerOrRestaurant(reservation, REJECTED, userInfo);
+			}else{
+				
+				GuestProfile customerProfile = unconfirmedReservationValidations(reservation, listOfError);
+				if (!listOfError.isEmpty() || customerProfile == null) {
+					return;
+				}
+				Reservation resv = reservationDao.updateReservationPropertiesNotNull(reservation);
+				scheduleConfirmationCall(resv, customerProfile);
+			}
+			
+		}else{
+			 if(reservationStatus != null && reservationStatus.equals(EmpowerConstants.CANCELLED)){
+				 
+				if(existingResvStatus.equals(EmpowerConstants.UNCONFIRMED)){
+					cancelReservationHybrid(reservation, userInfo, listOfError);
+					
+				}else{
+					
+					List<String> requestSourceList = reservation.getRequestSource();
+					
+					if(requestSourceList != null && requestSourceList.size() > 0){
+						requestSourceList.remove(requestSourceList.size() - 1);
+						reservation.setRequestSource(requestSourceList);
+					}
+					
+					reservation.setBookedBy(EmpowerConstants.CUSTOMER_ENUM);
+					BaseResponse response = patchReservation(reservation, token);
+					if(response instanceof ErrorResponse)
+					{
+						List<ValidationError> errorList = ((ErrorResponse) response).getErrorList();
+
+						listOfError.addAll(errorList);
+						return;
+					}
+				}
+				
+			}else{
+				
+				String tableStatus = quickSearchService.checkTableSlotAvailabilityForGuestReservation(reservation, true, listOfError);
+				boolean isConfirmed = false;
+					
+					if (!listOfError.isEmpty()) {
+					return;
+				}
+				
+				
+				if(tableStatus != null && tableStatus.equalsIgnoreCase(EmpowerConstants.TABLE_NOT_CONFIRMED)){
+					
+					}else{
+					
+					List<String> tableGuid = new ArrayList<>();
+					tableGuid.add(tableStatus);
+					reservation.setTableGuid(tableGuid);
+					isConfirmed = true;
+					
+						}
+
+				if(isConfirmed){
+					if(reservation.getOfferId() != null && !reservation.getOfferId().equals(""))
+					{
+						reservationValidator.validateOfferId(reservation, null, listOfError, false);
+					}
+					
+					if (!listOfError.isEmpty()) {
+						return;
+					}
+
+					Reservation updatedReservation = confirmReservationForEmpower(reservation, listOfError);
+					notifyCustomerOrRestaurant(updatedReservation, updatedReservation.getReservationStatus(), userInfo);
+					
+					
+				}else{
+					reservation.setGuestGuid(existing.getGuestGuid());
+					GuestProfile customerProfile = unconfirmedReservationValidations(reservation, listOfError);
+					if (!listOfError.isEmpty() || customerProfile == null) {
+						return;
+					}
+
+					Reservation resv = reservationDao.updateReservationPropertiesNotNull(reservation);
+					scheduleConfirmationCall(resv, customerProfile);
+					notifyCustomerOrRestaurant(resv, resv.getReservationStatus(), userInfo);
+				}
+			}
+		}
+		
+	}
+	
+	
+	
+	@Override
+	public void addGuestToRestaurant(Reservation reservation, Restaurant rest)
+	{
+		Boolean addGuestToRest = reservationDao.addGuestToRestaurant(reservation, rest);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public BaseResponse futureReservationSearch(Map<String, Object> params, String token) {
+		BaseResponse getResponse = null;
+		List<Reservation> reservations = null;
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		if (!userInfo.getRoleId().equals(EmpowerConstants.CT_ADMIN_ROLE_ID)&&!userInfo.getRoleId().equals(EmpowerConstants.AGENT_ROLE_ID)) {
+			params.put(EmpowerConstants.REST_GUID, userInfo.getRestGuid());
+		}
+
+		if (!params.containsKey(EmpowerConstants.FREE_SEARCH)) {
+			listOfError.add(reservationValidator.createError(EmpowerConstants.FREE_SEARCH,ErrorCodes.FREE_SEARCH_REQUIRED ));
+			return new ErrorResponse(ResponseCodes.RESERVATION_RECORD_FETCH_FAILURE, listOfError);
+		}
+		
+		reservations = reservationDao.futureSearchReservations(params);
+		getResponse = new GetResponse<Reservation>(ResponseCodes.RESERVATION_RECORD_FETCH_SUCCESFULLY,
+					reservations);
+		return getResponse;
+	}   
+	
+	private void calculateConfirmationTime(Reservation reservation){
+		
+		Map<String, Object> paramsMap = new HashMap<>();
+		paramsMap.put("restaurantGuid", reservation.getRestaurantGuid());
+		List<RestaurantExtension> restExtList = extensionDao.findByFields(RestaurantExtension.class, paramsMap);
+		RestaurantExtension restExt = restExtList.get(0);
+		
+		ReservationHistory history = reservation_history.getreservationHistory(reservation.getGuid(), EmpowerConstants.UNCONFIRMED);
+		
+		if(history != null && restExt != null){
+			Long timeToConfirmation = history.getCreatedDate().getTime() -  new Date().getTime();
+			
+			Double confirmTime = restExt.getConfirmationTime() == null ? 0 : restExt.getConfirmationTime();
+			Integer count = restExt.getConfirmationCount() == null ? 0 : restExt.getConfirmationCount();
+			
+			confirmTime = (confirmTime*count*60*1000 + timeToConfirmation)/(count + 1)*60*1000;
+			count += 1;
+
+			restExt.setConfirmationCount(count);
+			restExt.setConfirmationTime(confirmTime);
+			
+			extensionDao.update(restExt);
+
+		}
+				
+	}
+	
+	private boolean sendReviewRequest(Reservation reservation) {
+		
+		Map<String, Object> paramMap = new HashMap<>();
+		paramMap.put(EmpowerConstants.GUID, reservation.getGuestGuid());
+		GuestProfile gProfile = guestDao.findGuest(paramMap);
+		
+		return ((gProfile.getGoogleUserId() != null || gProfile.getFacebookUserId() != null)/* && 
+				reservation.getSource().equalsIgnoreCase(EmpowerConstants.CLICKTABLE)*/);
+		
+	}
+
+	@Override
+	public BaseResponse createAndSeatWaitlist(Reservation reservation,String token, boolean sendSms) {
+
+		BaseResponse response;
+		List<ValidationError> listOfError = new ArrayList<>();
+		List<Table> tableList = new ArrayList<Table>();
+		GuestProfile guest = null;
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+
+		if(StringUtils.isBlank(reservation.getShortId())){
+			reservation.setShortId(getReservationShortId(userInfo));
+
+			/* Add Dummy Guest In case of Unknown Guest */
+
+			if (reservation.getIsUnknown() && reservation.getBookingMode().equalsIgnoreCase(EmpowerConstants.WALKIN_STATUS)) {
+				guest = guestDao.getDummyGuestByCypher();
+				if (null == guest) {
+					listOfError.add(new ValidationError(EmpowerConstants.DUMMY_GUEST_ID, UtilityMethods.getErrorMsg(ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND),
+							ErrorCodes.DUMMY_GUEST_ID_NOT_FOUND));
+				} else {
+					reservation.setGuestGuid(guest.getGuid());
+				}
+			}
+
+			if (!listOfError.isEmpty()) {
+				return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			}
+
+			reservationValidator.validateTat(listOfError, reservation);
+			
+			if (!listOfError.isEmpty()) {
+				return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			}
+
+			listOfError = reservationValidator.validateReservationOnCreate(reservation, EmpowerConstants.ADD);
+
+			/* Validating Guest | Table | Restaurant | Covers */
+			Map<String, Object> map = reservationValidator.validateRestGuestTable(reservation, listOfError);
+
+			if (!listOfError.isEmpty()) {
+				return new ErrorResponse(ResponseCodes.RESERVATION_ADDED_FAILURE, listOfError);
+			}
+		}
+		
+		Boolean isShufflePossible = shuffleService.shuffleTablesMethod(reservation, EmpowerConstants.SEATED);
+		
+		BaseResponse resvTableResponse = new BaseResponse();
+		
+		if (!isShufflePossible) {
+			resvTableResponse = getReservationsForTables(reservation);
+			Cache.set("DUMMY-RESV:" + reservation.getGuid(), reservation, 60*60);
+		}
+
+		if (resvTableResponse instanceof GetResponse) {
+			List resultList = ((GetResponse) resvTableResponse).getList();
+			if (resultList.size() > 0) {
+				response = new ErrorResponse(ResponseCodes.RESERVATION_UPDATION_FAILURE_DUE_TO_SEATED,
+						resultList);
+				return response;
+
+			}
+		}
+		
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.TIMESTAMP_FORMAT);
+		
+		Long estStartTime = reservation.getEstStartTime().getTime();
+		Long estEndTime   = reservation.getEstEndTime().getTime();
+
+		try {
+			estStartTime = sdf.parse(sdf.format(new Date(estStartTime))).getTime();
+			estEndTime = sdf.parse(sdf.format(new Date(estEndTime))).getTime();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			log.warn("Exception in service", e);
+		}
+		
+		reservation.setEstStartTime(new Date(estStartTime));
+		reservation.setEstEndTime(new Date(estEndTime));
+		
+		Reservation resv = reservationDao.addReservation(reservation, guest, tableList);
+		
+		Map<String, Object> patchParams = new HashMap<>();
+		patchParams.put(EmpowerConstants.GUID, resv.getGuid());
+		patchParams.put(EmpowerConstants.RESERVATION_STATUS, EmpowerConstants.SEATED);
+		patchParams.put(EmpowerConstants.ACT_START_TIME, resv.getEstStartTime().getTime());
+	
+		String updatereservation_guid = reservationDao.updateWithPropMap(patchParams).getGuid();
+		String reservation_guid_1 = reservationDao.updateReservation(resv);
+		
+		if (!resv.getIsUnknown()) {
+			tagGuestWithOngoingEvent(resv, token);
+			guestDao.addFirstSeatedTime(resv.getRestaurantGuid(), resv.getGuestGuid(),
+					resv.getEstStartTime().getTime());
+		}
+		
+		Reservation[] resvArr = new Reservation[1];
+		resvArr[0] = resv;
+		
+		response = new PostResponse<Reservation>(ResponseCodes.RESERVATION_ADDED_SUCCESFULLY, resvArr);
+		return response;
+		
+	}
+	
+	
+	@Override
+	@Transactional
+	public BaseResponse resolveCreateAndSeatWalkin(Map<String, Object> params, String token) {
+		BaseResponse response = new BaseResponse();
+		String addToWaitlistGuid = "", cancelledReservationGuid = "", finishedReservationGuid = "";
+
+		Map<String, Object> shuffleMap = new HashMap<>();
+
+		shuffleMap.put(EmpowerConstants.REST_ID, params.get(EmpowerConstants.REST_GUID));
+
+		List<String> requestSource = new ArrayList<>();
+		if (params.containsKey(EmpowerConstants.REQUEST_SOURCE)) {
+			requestSource = (List<String>) params.get(EmpowerConstants.REQUEST_SOURCE);
+		}
+
+		if (params.get("addToWaitlistGuid") != null && !params.get("addToWaitlistGuid").equals("null")) {
+			addToWaitlistGuid = (String) params.get("addToWaitlistGuid");
+			String[] guidArr = addToWaitlistGuid.split(",");
+			for (String guid : guidArr) {
+				response = addToWaitlist(guid, token, requestSource);
+
+				if (response instanceof ErrorResponse) {
+					return response;
+				}
+
+			}
+		}
+
+		if ((params.get("finishedReservationGuid") != null)
+				&& (!params.get("finishedReservationGuid").equals("null"))) {
+			finishedReservationGuid = (String) params.get("finishedReservationGuid");
+
+			String[] guidArr = finishedReservationGuid.split(",");
+			for (String guid : guidArr) {
+				response = finishReservation(guid, token, requestSource);
+			}
+		}
+
+		if ((params.get("cancelledReservationGuid") != null)
+				&& (!params.get("cancelledReservationGuid").equals("null"))) {
+
+			cancelledReservationGuid = (String) params.get("cancelledReservationGuid");
+			String[] guidArr = cancelledReservationGuid.split(",");
+			for (String guid : guidArr) {
+				response = cancelReservation(guid, token, requestSource);
+			}
+
+		}
+
+		if ((params.get("seatWithReduceTat") != null) && (params.get("reducedEndTime") != null)
+				&& (!params.get("reducedEndTime").equals("null"))
+				&& (!params.get("seatWithReduceTat").equals("null"))) {
+			response = seatAndCreateWaitlistWithReducedTatAfterConflict((String) params.get("seatWithReduceTat"),
+					(String) params.get("reducedEndTime"), token);
+		}
+
+		if ((params.get("seatWaitistGuid") != null) && (!params.get("seatWaitistGuid").equals("null"))) {
+			response = createAndseatWaitlistAfterConflict((String) params.get("seatWaitistGuid"), token);
+		}
+
+
+		Runnable runnableTask = () -> {
+			shuffleService.shuffleTables(shuffleMap, token);
+		};
+		new Thread(runnableTask).start();
+
+		return response;
+	}
+
+	@Override
+	public void testSchedular() {
+		// TODO Auto-generated method stub
+		
+		
+		log.info("Calling delete queue");
+		queueDao.deleteAllQueueReservationBySchedular();
+		String token = authService.loginAsInternal();
+
+		UserInfoModel userInfo = authService.getUserInfoByToken(token);
+		reservationDao.updateReservationWithShifEndCypherViaSchedular(userInfo);
+
+		Map<String, Object> params = new HashMap<>();
+
+		Long startTime = new Date().getTime();
+		SimpleDateFormat sdf = new SimpleDateFormat(EmpowerConstants.DATE_FORMAT);
+		try {
+			startTime = sdf.parse(sdf.format(new Date(startTime))).getTime() + 13*60*60*1000;
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Long endTime = startTime - 24*60*60*1000;
+		params.put(EmpowerConstants.START_TIME, startTime);
+		params.put(EmpowerConstants.END_TIME, endTime);
+
+		Integer skip = 0;
+		Integer limit = 1000;
+
+		while(reservationDao.updateGuestRating(skip,limit,params)){
+			skip = skip + limit;
+		}
+
+		skip = 0;
+		while(reservationDao.updateGuestRatingForCancellation(skip,limit,params)){
+			skip = skip + limit;
+		}
+
+
+
+	}
+	
+	private Boolean checkForUnconfirmedReservation(List<String> historyMap) {
+				
+		int unconfirmcount = 0;
+		
+		for(String status : historyMap){
+			if(status.equals(EmpowerConstants.UNCONFIRMED)){
+				unconfirmcount = unconfirmcount + 1;
+			}
+			
+			if(status.equals(EmpowerConstants.CREATED)){
+				unconfirmcount = unconfirmcount - 1;
+			}
+		}
+
+		return (unconfirmcount > 0);
+	}
+
+	/*@Override
+	public BaseResponse scheduleReservationUpdate(String reservationStatus, String guid) {
+		Map<String, String> params = new HashMap<>();
+		params.put(EmpowerConstants.RESERVATION_GUID, guid);
+		params.put(EmpowerConstants.RESERVATION_STATUS, reservationStatus);
+		String cacheKey = "CNF_RESV:" + guid;
+		Cache.set(cacheKey, params);
+		scheduleAutoReservationStatusUpdateJob(cacheKey);
+		BaseResponse response = new PostResponse<>(ResponseCodes.RESERVATION_UPDATE_REQUEST_RECIVED, guid);
+		return response;
+	}
+
+	private void scheduleAutoReservationStatusUpdateJob(String cacheKey) {
+		
+		JobDataMap newJobData= new JobDataMap();
+		newJobData.put("authorizationService", authService);
+		newJobData.put("reservationService", this);
+		JobDetail job = quartzService.createNewJob(cacheKey, AutoReservationStatusUpdateJob.class,
+				EmpowerConstants.GROUP_ID, newJobData);
+		
+		Trigger trigger = quartzService.getTrigger(EmpowerConstants.AUTO_RESERVATION_UPDATE_WAIT_TIME, cacheKey);
+		
+		try {
+			quartzConfig.getQuartzScheduler().getScheduler().scheduleJob(job, trigger);
+			
+		} catch (SchedulerException e) {
+			log.error("scheduleReservationAutoConfirmationJob exception->", e);
+		}
+
+	}*/
+
+
+}

@@ -1,0 +1,74 @@
+package com.clicktable.support.validate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.EntityValidator;
+import com.clicktable.validate.ValidationError;
+
+@org.springframework.stereotype.Service
+public class TaxValidator extends EntityValidator<Tax> {
+
+	@Autowired
+	TaxDao taxDao;
+
+	public List<ValidationError> validateTaxOnAdd(Tax tax) {
+
+	List<ValidationError> errorList = validateOnAdd(tax);
+	
+
+	if ((tax.getType()!=null) && (!UtilityMethods.getEnumValues(Constants.TAX, Constants.TYPE).contains(tax.getType()))) {
+		errorList = CustomValidations.populateErrorList(errorList, Constants.TYPE, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_TAX_TYPE), ErrorCodes.INVALID_TAX_TYPE);
+	}
+	if (tax.getName()!=null && (!UtilityMethods.getEnumValues(Constants.TAX, Constants.NAME).contains(tax.getName()))) {
+		errorList = CustomValidations.populateErrorList(errorList, Constants.NAME, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_TAX_NAME), ErrorCodes.INVALID_TAX_NAME);
+	}
+	
+	if ((tax.getState()!=null) && (!UtilityMethods.getEnumValues(Constants.TAX, Constants.STATE).contains(tax.getState()))) {
+		errorList = CustomValidations.populateErrorList(errorList, Constants.STATE, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_TAX_STATE), ErrorCodes.INVALID_TAX_STATE);
+	}
+	if (tax.getCountry()!=null && (!UtilityMethods.getEnumValues(Constants.TAX, Constants.COUNTRY).contains(tax.getCountry()))) {
+		errorList = CustomValidations.populateErrorList(errorList, Constants.COUNTRY, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_TAX_COUNTRY), ErrorCodes.INVALID_TAX_COUNTRY);
+	}
+	
+	Map<String,Object> params = new HashMap<String, Object>();
+	
+	params.put(Constants.STATE, tax.getState());
+	params.put(Constants.COUNTRY, tax.getCountry());
+	params.put(Constants.NAME, tax.getName());
+	params.put(Constants.STATUS, Constants.ACTIVE);
+	
+	List<Tax> taxList = taxDao.findByFields(Tax.class, params);
+	
+	if(!taxList.isEmpty())
+		errorList = CustomValidations.populateErrorList(errorList, Constants.TAX_NAME, UtilityMethods.getErrorMsg(ErrorCodes.DUPLICATE_TAX_NAME), ErrorCodes.DUPLICATE_TAX_NAME);
+	
+	return errorList;
+	}
+
+	public List<ValidationError> validateOnUpdate(Tax tax) {
+
+		List<ValidationError> errorList = validateOnAdd(tax);
+		
+		return errorList;
+	}
+
+	@Override
+	public String getMissingGuidErrorCode() {
+		return null;//ErrorCodes.TAX_GUID_REQUIRED;
+	}
+
+	@Override
+	public String getInvalidGuidErrorCode() {
+		return null;//sErrorCodes.INVALID_TAX_GUID;
+	}
+}

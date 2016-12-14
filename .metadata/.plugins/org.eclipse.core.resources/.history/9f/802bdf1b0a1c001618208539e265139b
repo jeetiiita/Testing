@@ -1,0 +1,69 @@
+
+#conversation
+2701=Conversation fetched successfully!
+2702=Conversation added successfully!
+2703=Conversation addition failure!
+2706=Promotion Conversation fetched successfully!
+2707=Promotion Conversation added successfully!
+2708=Promotion Conversation addition failure!
+2709=Template fetched successfully!
+2710=Template added successfully!
+2711=Template addition failure!
+2712=Template updated successfully!
+2713=Template updation failure!
+2714=Guest Count fetched successfully!
+2715=Guest Count failure!
+
+	
+#Guest Conversation
+26001=Guest Conversation Added Successfully!
+26002=Guest Conversation Addition Failure!
+26003=Guest Conversation Records Fetched Successfully!
+26006=Guest Conversation Updated Successfully!
+26007=Guest Conversation Updation Failure!
+26008=Guest Conversation Fetched Failure!
+
+#invoice
+5100001=Invoice Txn Added Successfully!
+5100002=Invoice Txn Addition Failure!
+5100011=Invoice Txn Updated Successfully!
+5100012=Invoice Txn Updation Failure!
+	
+5100021=Invoice Added Successfully!
+5100022=Invoice Addition Failure!
+5100031=Invoice Updated Successfully!
+5100032=Invoice Updation Failure!
+	
+5100033=Invoice Txn Amount Fetched Successfully!
+
+
+#Tax and TaxCategory
+6100001=Tax Category Master Data Added Successfully!
+6100002=Tax Category Mastar Data addition Failed!
+
+6100011=Tax Master Data Added Successfully!
+6100012=Tax Master Data Addition Failed!
+
+6100013=Invoice Created Successfully!
+6100014=Invoice Creation Failure!
+
+6100015=Invoice Txn Fetched Successfully!
+6100016=Invoice Fetched Successfully!
+
+6100017=Tax Category Fetched Successfully! 
+6100018=Tax Fetched Successfully!
+6100019=Tax Updation Failure!
+6100020=Tax Updated Successfully!
+6100021=Tax Category Updation Failure!
+6100022=Tax Category Updated Successfully!
+6100025=Invoice Tax Fetched Successfully!
+
+7100001=Encrypted Invoice Data Fetched Successfully!
+7100002=Error In Fetching Encrypted Invoice, restaurantGuid or InvoiceGuid missmatch !
+7100003=Resataurant Event Promotion Data Fectched Successfully!
+7100004=Payment Successfully Inserted!
+7100005=Payment Insertion Failed!
+
+#item
+1200001=Item added successfully!
+1200002=Item addition failure!

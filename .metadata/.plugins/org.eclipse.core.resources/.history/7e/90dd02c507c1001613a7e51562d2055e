@@ -1,0 +1,192 @@
+/**
+ * 
+ */
+package com.clicktable.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.joda.time.DateTime;
+import org.neo4j.graphdb.Relationship;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.dao.intf.CustomerDao;
+import com.clicktable.dao.intf.GuestFeedbackConfigDao;
+import com.clicktable.dao.intf.GuestFeedbackDao;
+import com.clicktable.exception.ServiceValidationException;
+import com.clicktable.model.GuestFeedback;
+import com.clicktable.model.GuestFeedbackConfig;
+import com.clicktable.model.GuestFeedbackNotification;
+import com.clicktable.model.GuestProfile;
+import com.clicktable.service.intf.CommunicationService;
+import com.clicktable.service.intf.GuestFeedBackService;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.validate.ValidationError;
+
+import play.Logger;
+import play.libs.F;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class GuestFeedbackServiceImpl implements GuestFeedBackService {
+
+	private static final Logger.ALogger log = Logger.of(GuestFeedbackServiceImpl.class);
+	
+	@Autowired
+	public GuestFeedbackDao guestFeedbackDao;
+	
+	@Autowired
+	private GuestFeedbackConfigDao guestFeedbackConfigDao;
+	
+	
+	@Autowired
+	public CustomerDao customerDao;
+	
+	@Autowired
+	private CommunicationService commService;
+	
+	
+	@Override
+	public String addGuestFeedbackConfig(GuestFeedbackConfig feedbackConfig,String restaurantGuid) {
+		String guid = guestFeedbackConfigDao.addGuestFeedbackConfig(feedbackConfig,restaurantGuid);
+		return guid;
+	}
+	
+	@Override
+	public String addGuestFeedBack(GuestFeedback guestFeedback, String restaurantGuid, GuestProfile guest) {
+		String feedbackGuid = guestFeedbackDao.addGuestFeedback(guestFeedback, restaurantGuid);
+		updateGuestRelationShip(guest, restaurantGuid);
+		F.Promise.promise(() -> 
+				 sendNotificationToRestConfig(restaurantGuid, feedbackGuid,guestFeedback.getOverallRating()))
+				.onFailure(error -> log.error("Error in Feedback Notification", error));
+		return feedbackGuid;
+	}
+
+	private void updateGuestRelationShip(GuestProfile guest, String restaurantGuid) {
+		Map<Integer, Object> resultMap = customerDao.findGuestForRestWithRelationship(guest);
+		if (resultMap.containsKey(1)) {
+			Map<String, Object> params = new HashMap<>();
+			Relationship restHasGuest = (Relationship) resultMap.get(1);
+			if (!restHasGuest.hasProperty(EmpowerConstants.ANNIVERSARY)) {
+				DateTime date = new DateTime(guest.getAnniversary());
+				params.put("anniversary_day",date.getDayOfMonth() );
+				params.put("anniversary_month", date.getMonthOfYear());
+				params.put(EmpowerConstants.ANNIVERSARY, guest.getAnniversary());
+			}
+			if (!restHasGuest.hasProperty(EmpowerConstants.DOB)) {
+				DateTime date = new DateTime(guest.getDob());
+				params.put("dob_day",date.getDayOfMonth() );
+				params.put("dob_month", date.getMonthOfYear());
+				params.put(EmpowerConstants.DOB, guest.getDob());
+			}
+			params.put(EmpowerConstants.REST_GUID, restaurantGuid);
+			params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+			if (params.containsKey(EmpowerConstants.DOB) || params.containsKey(EmpowerConstants.ANNIVERSARY)) {
+				guestFeedbackDao.updateGuest(params);
+			}
+		}
+	
+	}
+
+	/**
+	 * @param restaurantGuid
+	 * @param feedbackGuid
+	 */
+	private int sendNotificationToRestConfig(String restaurantGuid, String feedbackGuid, Integer overAllRating) {
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.REST_GUID, restaurantGuid);
+		params.put(EmpowerConstants.GUID, feedbackGuid);
+		GuestFeedbackNotification feedbackNotification = guestFeedbackDao.getFeedbackForNotification(params);
+		GuestFeedbackConfig feedbackConfig = feedbackNotification.getFeedbackConfig();
+		if (feedbackConfig != null) {
+			Integer threshold = feedbackConfig.getThresholdValue();
+			if (overAllRating <= threshold) {
+				SimpleDateFormat dateformat = new SimpleDateFormat("MMM yyyy");
+				SimpleDateFormat timeformat = new SimpleDateFormat("h:mm a");
+				feedbackNotification.setDate(dateformat.format(feedbackNotification.getFeedbackDate()));
+				feedbackNotification.setTime(timeformat.format(feedbackNotification.getFeedbackDate()));
+				String ratingText = getTextForRating(feedbackNotification.getOverAllRating());
+				feedbackNotification.setRatingText(ratingText);
+				commService.notifyRestOnFeedbackRecieved(feedbackNotification);
+			}
+		}
+		return 0;
+	}
+	
+	private String getTextForRating(String rating) {
+		String text = "";
+		switch (rating) {
+			case "1":
+				text = "POOR";
+				break;
+			case "2":
+				text = "BAD";
+				break;
+			case "3":
+				text = "AVERAGE";
+				break;
+			case "4":
+				text = "GOOD";
+				break;
+			case "5":
+				text = "AWESOME";
+				break;
+			default :
+				text = "";
+			}
+		return text;
+	}
+
+	@Override
+	public List<Map<String, Object>> getGuestFeedBackList(Map<String, Object> params) {
+	List<Map<String, Object>> list = guestFeedbackDao.getFeedbackList(params);
+	return list;
+	}
+
+	@Override
+	public Map<String, Object> getGuestFeedBack(Map<String, Object> params) {
+		Map<String, Object> result = guestFeedbackDao.getGuestFeedBack(params);
+		return result;
+	}
+
+	@Override
+	public String updateReadStatus(Map<String, Object> params) {
+		String result = guestFeedbackDao.updateFeedbackReadStatus(params);
+		if(result == null) {
+			List<ValidationError> errorList = new ArrayList<>();
+			errorList.add(new ValidationError(EmpowerConstants.GUID, ErrorCodes.INVALID_GUID));
+			throw new ServiceValidationException("Exception in updateReadStatus",errorList);
+		}
+		return result;
+	}
+	
+	@Override
+	public String validateExitPin(Map<String, Object> params) {
+		String pin = guestFeedbackConfigDao.validateExitPin(params);
+		return pin;
+	}
+
+	@Override
+	public Map<String, Object> getFeedbackConfig(String restGuid) {
+		Map<String,Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		Map<String, Object> resultMap = guestFeedbackConfigDao.getFeedbackConfig(params);
+		return resultMap;
+	}
+
+
+	@Override
+	public String toggleFeedbackConfig(Map<String,Object> params) {
+		String guid = guestFeedbackConfigDao.toggleFeedbackConfig(params);
+		return guid;
+	}
+	
+}

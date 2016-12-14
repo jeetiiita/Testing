@@ -1,0 +1,54 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.support.Exception.ValidationServiceException;
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.AggregateTaxService;
+import com.clicktable.support.validate.AggregateTaxValidator;
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class AggregateTaxServiceImpl implements AggregateTaxService {
+	
+	@Autowired
+	AggregateTaxValidator aggregateTaxValidator;
+	
+	@Autowired
+	AggregateTaxDao aggregateTaxDao;
+
+	@Override
+	public AggregateTax create(AggregateTax aggregateTax) {
+		List<ValidationError> errorList = aggregateTaxValidator.validateApplicableLayer(aggregateTax);
+
+		AggregateTax aggregateEntity;
+		if (errorList.isEmpty())
+			aggregateEntity = aggregateTaxDao.create(aggregateTax);
+		else
+			throw new ValidationServiceException(errorList);
+
+		return aggregateEntity;
+	}
+
+	@Override
+	public List<AggregateTax> getAggregatedTaxes(Map<String,Object> params) {
+		
+		List<AggregateTax> taxList = aggregateTaxDao.findByFields(AggregateTax.class, params);
+		
+		return taxList;
+	}
+
+}

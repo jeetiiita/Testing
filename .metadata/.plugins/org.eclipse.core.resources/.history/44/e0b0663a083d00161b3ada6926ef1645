@@ -1,0 +1,270 @@
+package com.clicktable.consumer.service.impl;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeConstants;
+import org.joda.time.LocalDate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.consumer.dao.intf.CalendarEventDao;
+import com.clicktable.consumer.dao.intf.RestaurantDao;
+import com.clicktable.consumer.dao.intf.TableDao;
+import com.clicktable.consumer.dao.intf.TatDao;
+import com.clicktable.consumer.service.intf.AuthorizationService;
+import com.clicktable.consumer.service.intf.QuickSearchService;
+import com.clicktable.model.OperationalHours;
+import com.clicktable.model.QuickSearchReservationNew;
+import com.clicktable.model.Shift;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.util.Constants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+
+@Service
+public class QuickSearchServiceImpl  implements QuickSearchService
+{
+	@Autowired
+	AuthorizationService authService;
+
+	@Autowired
+	RestaurantDao restDao;
+
+	@Autowired
+	TatDao tatDao;
+
+	@Autowired
+	CalendarEventDao calEventDao;
+
+	@Autowired
+	TableDao tableDao;
+	
+	@Autowired
+	WaitListService waitListService;
+	
+	
+
+
+
+	//new methods for quick search
+
+	@Override
+	public BaseResponse getQuickSearchResult(Map<String, Object> params, String token) 
+	{
+
+		//TODO validation errors handling
+		
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+
+		BaseResponse getResponse = null;
+
+		// Date Format Constants
+		long tat = 0l;
+		Long bufferTime = 60*60*1000L;
+		Long overlapTime = 0*60*1000l;
+
+		String restaurantId = (String) params.get(Constants.REST_GUID);	
+		DateTime slot = (DateTime)params.get(Constants.SLOT);
+		int noOfSlots = ((Integer)params.get(Constants.NUM_SLOTS)).intValue();
+		int covers = ((Integer)params.get(Constants.COVERS)).intValue();
+
+		// Check if holiday
+		if(checkIfHoliday(restaurantId, slot)){		
+			errorList.add(new ValidationError(Constants.TIME, UtilityMethods.getErrorMsg(ErrorCodes.TODAY_IS_HOLIDAY),ErrorCodes.TODAY_IS_HOLIDAY));
+		}
+
+		// Get Tables applicable for given no of covers
+		List<String> tableGuids= tableDao.getApplicbleTables(restaurantId, covers);
+
+		// Calculate TAT
+		tat = getTatValue(restaurantId, slot.dayOfWeek().get(), covers);
+
+		
+		
+		// Get applicable shifts for given slot
+		List<Shift> shifts= getApplicableShifts(restaurantId, slot, tat, noOfSlots);
+		
+		
+
+	
+
+
+		List<QuickSearchReservationNew> quickSearchList = null;
+		getResponse = new GetResponse<QuickSearchReservationNew>(ResponseCodes.QUICK_SEARCH_RECORD_FETCH_SUCCESFULLY,quickSearchList);
+		return getResponse;
+	}
+
+
+
+
+
+
+
+
+
+	private List<Shift> getApplicableShifts(String restaurantId, DateTime slot, long tat, int noOfSlots) {
+		
+		if(slot.toLocalDate().equals(new LocalDate())){	// 
+			
+		}
+		
+		// get dining shifts for today, yesterday and tommorow.
+		return null;
+	}
+
+
+
+
+
+
+
+
+
+	private boolean checkIfHoliday(String restaurantId, DateTime slot) {
+		boolean holiday =false;
+
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(Constants.REST_GUID, restaurantId);
+		params.put(Constants.START_TIME_BEFORE, slot);
+		params.put(Constants.END_TIME_AFTER, slot);
+		params.put(Constants.TYPE, Constants.HOLIDAY);
+		params.put(Constants.STATUS, Constants.ACTIVE_STATUS);
+
+		int holidayCount = calEventDao.getCountWithParams(params);
+		if(holidayCount>0)
+			holiday =true;
+		return holiday;
+	}
+
+
+
+
+	//private method to find tat 
+	private long getTatValue(String rest_guid, int dayOfWeek, int num_covers) 
+	{
+		String day; 
+		if (dayOfWeek == DateTimeConstants.FRIDAY || dayOfWeek == DateTimeConstants.SATURDAY || dayOfWeek == DateTimeConstants.SUNDAY){
+			day = Constants.WEEKEND;
+		}else{
+			day = Constants.WEEKDAY;
+		}
+
+		long tat_value = tatDao.get_tat_value(rest_guid,num_covers, day);
+		return tat_value;
+	} 
+
+
+
+
+
+private List<Long> getDinigSlotForDay(OperationalHours op_hrs,String currentDay)
+{
+	List <Long> slotList = new ArrayList<>();
+	List<Shift> shiftList = new ArrayList<>();
+	if(currentDay.equalsIgnoreCase(Constants.SUNDAY))
+	{
+		//log.debug("Day is Sunday");
+		shiftList = op_hrs.getSunday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.MONDAY))
+	{
+		//log.debug("Day is Monday");
+		shiftList = op_hrs.getMonday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.TUESDAY))
+	{
+		//log.debug("Day is TUESDAY");
+		shiftList = op_hrs.getTuesday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.WEDNESDAY))
+	{
+		//log.debug("Day is WEDNESDAY");
+		shiftList = op_hrs.getWednesday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.THURSDAY))
+	{
+		//log.debug("Day is THURSDAY");
+		shiftList = op_hrs.getThursday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.FRIDAY))
+	{
+		//log.debug("Day is FRIDAY");
+		shiftList = op_hrs.getFriday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.SATURDAY))
+	{
+		//log.debug("Day is SATURDAY");
+		shiftList = op_hrs.getSaturday();
+	}
+
+	//log.debug("Shift list is " + shiftList);
+
+	for(Shift shift : shiftList)
+	{
+		slotList.addAll(shift.getDiningSlots());
+	}
+
+	//log.debug("Slot list before sorting is " + slotList);
+	Collections.sort(slotList);
+	//log.debug("Slot list after sorting is " + slotList);
+	return slotList;
+}
+
+
+
+
+
+private List<Shift> getShiftsForDay(OperationalHours op_hrs,String currentDay) 
+{
+	List<Shift> shiftList = new ArrayList<>();
+	if(currentDay.equalsIgnoreCase(Constants.SUNDAY))
+	{
+		//log.debug("Day is Sunday");
+		shiftList = op_hrs.getSunday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.MONDAY))
+	{
+		//log.debug("Day is Monday");
+		shiftList = op_hrs.getMonday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.TUESDAY))
+	{
+		//log.debug("Day is TUESDAY");
+		shiftList = op_hrs.getTuesday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.WEDNESDAY))
+	{
+		//log.debug("Day is WEDNESDAY");
+		shiftList = op_hrs.getWednesday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.THURSDAY))
+	{
+		//log.debug("Day is THURSDAY");
+		shiftList = op_hrs.getThursday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.FRIDAY))
+	{
+		//log.debug("Day is FRIDAY");
+		shiftList = op_hrs.getFriday();
+	}
+	if(currentDay.equalsIgnoreCase(Constants.SATURDAY))
+	{
+		//log.debug("Day is SATURDAY");
+		shiftList = op_hrs.getSaturday();
+	}
+
+	return shiftList;
+}
+
+
+
+}

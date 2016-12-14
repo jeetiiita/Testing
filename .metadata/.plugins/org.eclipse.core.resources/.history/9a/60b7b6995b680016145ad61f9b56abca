@@ -1,0 +1,16 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import com.clicktable.support.dao.intf.PushNotificationDao;
+import com.clicktable.support.model.Notification;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PushNotificationDaoImpl extends JPADao<Notification> implements PushNotificationDao {}

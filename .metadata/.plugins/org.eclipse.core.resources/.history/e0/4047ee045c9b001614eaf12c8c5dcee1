@@ -1,0 +1,866 @@
+
+/**
+ * 
+ */
+package com.clicktable.service.impl;
+
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.dao.intf.CustomerDao;
+import com.clicktable.dao.intf.DashBoardDao;
+import com.clicktable.dao.intf.ReservationDao;
+import com.clicktable.dao.intf.RestaurantDao;
+import com.clicktable.model.BarEntry;
+import com.clicktable.model.DashBoardEventAndOffer;
+import com.clicktable.model.Reservation;
+import com.clicktable.model.ReservationReview;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.service.intf.DashBoardService;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.validate.ReservationValidator;
+import com.clicktable.validate.RestaurantValidator;
+import com.clicktable.validate.ValidationError;
+
+import play.Logger;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class DashBoardServiceImpl implements DashBoardService {
+	
+	/**
+	 * 
+	 */
+	private static final String QUEUE_CONVERSION = "queueConversion";
+	private static final String TABLE_AND_COVER_MAP = "tableAndCoverMap";
+	private static final String RESV_AND_WALKIN_RATING = "resvAndWalkinRating";
+	private static final String GUEST_REVIEW_MAP = "guestReviewMap";
+	private static final String RATING_DIST = "ratingDist";
+	private static final String AVG_RATING_DISTRIBUTION = "avgRatingDistribution";
+	private static final String QUEUE_CREATED_BY_COVERS = "queueCreatedByCovers";
+	private static final String COVERS_BY_BOOKING_TYPE = "coversByBookingType";
+	private static final String BAR_COVERS = "barCovers";
+	private static final String WALKIN_COVERS = "walkinCovers";
+	private static final String ONLINE_COVERS = "onlineCovers";
+	private static final String RESV_RATING = "resvRating";
+	private static final String WALKIN_RATING = "walkinRating";
+	private static final String TOTAL_COVERS = "totalCovers";
+	private static final String TABLE_COUNT = "tableCount";
+	
+	public static final String RESV_COVER_DIST = "resvCoverDist";
+	public static final String WALKIN_COVER_DIST = "walkinCoverDist";
+	public static final String LAST_DATE_STATS = "lastDateStats";
+	public static final String RESV_COVER_MAP = "resvAndCoverBySource";
+	public static final String DROPOUT = "dropout";
+	public static final String CT_CONFIRM_RESV = "ctConfirm";
+	public static final String CT_REJECT_COUNT = "ctReject";
+	public static final String CT_CONFIRM_REJECT_MAP = "ctConfirmRejectMap";
+	public static final String WALKIN_COVER_QUEUE_DIST = "walkinQueueCoverDist";
+
+	public static final String BAR_ENTRY_COVER_DIST = "barEntryCoverDist";
+
+	private static final Logger.ALogger log = Logger.of(DashBoardServiceImpl.class);
+
+	@Autowired
+	RestaurantValidator restaurantValidator;
+
+	@Autowired
+	ReservationValidator reservationValidator;
+	
+	@Autowired
+	ReservationDao reservationDao;
+
+	@Autowired
+	RestaurantDao restaurantDao;
+
+	@Autowired
+	CustomerDao guestDao;
+	
+	@Autowired
+	DashBoardDao dashBoardDao;
+
+	private static final String RESV_COUNT = "resvCount"; 
+	private static final String RATING = "rating";
+
+	@Override
+	public BaseResponse getReservationStats(Map<String, Object> params) {
+		BaseResponse response;
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		params = reservationValidator.validateGetStatsParams(params, listOfError);
+
+		if (listOfError.isEmpty()) {
+			Map<String, Object> distributionMap = new HashMap<>();
+			Map<Object, Integer> walkinCoversMap = new HashMap<>();
+			Map<Object, Integer> onlineCoversMap = new HashMap<>();
+			Map<String, Object> paramsMap = new HashMap<>();
+
+			String calendarType = params.get(EmpowerConstants.CALENDER_TYPE).toString();
+			DateTime estEndDate = (DateTime) params.get(EmpowerConstants.EST_START_BEFORE);
+
+			Map<String,Integer> resvAndWalkinRating = new HashMap<>();
+			Map<String,Integer> coverByType = new HashMap<>();
+			Map<Integer,Float> avgRatingDist = new TreeMap<>();
+			
+			Map<Integer,Map<String,Integer>> ratingAndResvMap = getInitializedMap(calendarType,estEndDate);
+			Map<Integer,Map<String,Integer>> tableAndCoverMap = getInitializedTableMap(calendarType, estEndDate);
+			
+			Map<Integer,Integer> ratingDist  = initializeMapForRating();
+			
+			initializeMap(calendarType, onlineCoversMap, estEndDate);
+			initializeMap(calendarType, walkinCoversMap, estEndDate);
+			initializeRatingMap(calendarType, avgRatingDist, estEndDate);
+
+			Map<Integer, Integer> queueCreatedByCovers = getInitialCoversMap();
+			
+			Integer resvRating = 0;
+			Integer walkinRating = 0;
+			Integer walkinCovers = 0;
+			Integer onlineCovers = 0;
+			Integer barCovers = 0;
+			Integer barEntryFinishedCount = 0;
+
+			reservationValidator.getParamsForPreviousDate(params, paramsMap);
+
+			List<Map<String, Object>> lastReservations = dashBoardDao.lastDateResvList(paramsMap);
+			List<Map<String, Object>> resvAndCoversBySource = dashBoardDao.resvAndCoversBySource(params);
+			List<ReservationReview> resvReview = dashBoardDao.getReservationsForDashboard(params);
+			
+			populateMapByStatusAndSource(distributionMap, resvReview);
+
+			Map<String, Object> resvGuestCount = dashBoardDao.getReservationGuestCounts(params);
+			Map<String,Object> guestReviewMap = (Map<String,Object>)resvGuestCount.get("reviewMap"); 
+			resvGuestCount.remove("reviewMap");
+
+			for (ReservationReview reservation : resvReview) {
+
+				if (EmpowerConstants.FINISHED.equals(reservation.getReservationStatus()) || EmpowerConstants.SEATED.equals(reservation.getReservationStatus())) {
+
+					updateTableDist(calendarType, reservation, tableAndCoverMap);
+
+					if (reservation.getBookingMode().equals(EmpowerConstants.ONLINE_STATUS)) {
+						updateCoversDistribution(calendarType, onlineCoversMap, reservation);
+						onlineCovers = onlineCovers + reservation.getNumCovers();
+						if (EmpowerConstants.FINISHED.equals(reservation.getReservationStatus())) {
+							updateReviewRatingDist(ratingDist, reservation.getReviewRating());
+							resvRating = resvRating + reservation.getReviewRating();
+
+						}
+					} else if (reservation.getBookingMode().equals(EmpowerConstants.WALKIN_STATUS)) {
+						if (true == reservation.isQueued()) {
+							updateCoverDistForWaitList(queueCreatedByCovers, reservation.getNumCovers());
+						}
+						if (reservation.getReservationStatus().equals(EmpowerConstants.FINISHED)) {
+							updateReviewRatingDist(ratingDist, reservation.getReviewRating());
+							updateCoversDistribution(calendarType, walkinCoversMap, reservation);
+							walkinRating = walkinRating + reservation.getReviewRating();
+							walkinCovers = walkinCovers + reservation.getNumCovers();
+						}
+					}
+				}
+
+			}
+
+			resvAndWalkinRating.put(WALKIN_RATING, walkinRating);
+			resvAndWalkinRating.put(RESV_RATING, resvRating);
+			
+			//  updating average Rating according to calendarType
+			updateAvgRating(ratingAndResvMap,avgRatingDist);
+			
+			List<BarEntry> barList = dashBoardDao.getBarEntryForDashBoard(params,distributionMap);
+			for (BarEntry barEntry : barList) {
+				if (EmpowerConstants.FINISHED.equals(barEntry.getStatus())) {
+					barEntryFinishedCount = barEntryFinishedCount + 1;
+					barCovers = barCovers + barEntry.getNumCovers();
+				}
+			}
+			
+			Map<String, Object> bookingModeMap = (Map<String, Object>) distributionMap.get(EmpowerConstants.MODE_DISTRIBUTION);
+			bookingModeMap.put(EmpowerConstants.BAR_ENTRY, barEntryFinishedCount);
+
+			coverByType.put(ONLINE_COVERS, onlineCovers);
+			coverByType.put(WALKIN_COVERS, walkinCovers);
+			coverByType.put(BAR_COVERS, barCovers);
+			
+			distributionMap.put(EmpowerConstants.MODE_DISTRIBUTION, bookingModeMap);
+			distributionMap.put(EmpowerConstants.GUEST_DISTRIBUTION, resvGuestCount);
+			distributionMap.put(COVERS_BY_BOOKING_TYPE, coverByType);
+			distributionMap.put(WALKIN_COVER_DIST, walkinCoversMap);
+			distributionMap.put(RESV_COVER_DIST, onlineCoversMap);
+			distributionMap.put(QUEUE_CREATED_BY_COVERS, queueCreatedByCovers);
+			distributionMap.put(LAST_DATE_STATS, lastReservations);
+			distributionMap.put(TABLE_AND_COVER_MAP, tableAndCoverMap);
+			distributionMap.put(RESV_COVER_MAP, resvAndCoversBySource);
+			distributionMap.put(AVG_RATING_DISTRIBUTION, avgRatingDist);
+			distributionMap.put(RATING_DIST, ratingDist);
+			distributionMap.put(GUEST_REVIEW_MAP,guestReviewMap);
+			distributionMap.put(RESV_AND_WALKIN_RATING, resvAndWalkinRating);
+
+			response = new GetResponse<Object>(ResponseCodes.DASHBOARD_STATS_FETCHED_SUCCESSFULLY,
+					Arrays.asList(distributionMap));
+			return response;
+		}
+		return new ErrorResponse(ResponseCodes.DASHBOARD_STATS_FETCHED_FAILURE, listOfError);
+	}
+
+	private void updateCoverDistForWaitList(Map<Integer, Integer> coversDistributionMap, Integer cover) {
+		coversDistributionMap.put(cover, coversDistributionMap.get(cover) + 1);
+	}
+
+	private void updateReviewRatingDist(Map<Integer, Integer> reviewMap, Integer rating) {
+		if(rating != 0) {
+			reviewMap.put(rating, reviewMap.get(rating) + 1);
+		}
+	}
+		
+	private Map<Integer, Map<String, Integer>> initializeRatingMap(int count) {
+		Map<Integer, Map<String, Integer>> reviewRatingMap = new TreeMap<>();
+		
+		for (int i = 1; i <= count; i++) {
+			Map<String, Integer> resvAndRatingMap = new HashMap<>();
+			resvAndRatingMap.put(RESV_COUNT, 0);
+			resvAndRatingMap.put(RATING, 0);
+			reviewRatingMap.put(i, resvAndRatingMap);
+		}
+		return reviewRatingMap;
+	}
+	
+	private Map<Integer, Map<String, Integer>> updateReviewRatingDist(String calendarType,
+			ReservationReview resvReview, Map<Integer, Map<String, Integer>> ratingAndResvMap) {
+
+		DateTime reviewRatingDate;
+
+		if (resvReview.getReviewDate() != null) {
+			reviewRatingDate = new DateTime(resvReview.getReviewDate().getTime());
+
+			switch (calendarType) {
+			case EmpowerConstants.DAYS:
+				addToReviewRatingMap(ratingAndResvMap, reviewRatingDate.getHourOfDay(), resvReview.getReviewRating());
+				break;
+			case EmpowerConstants.WEEK:
+				addToReviewRatingMap(ratingAndResvMap, reviewRatingDate.getDayOfWeek(), resvReview.getReviewRating());
+				break;
+			case EmpowerConstants.MONTH:
+				addToReviewRatingMap(ratingAndResvMap, reviewRatingDate.getDayOfMonth(), resvReview.getReviewRating());
+				break;
+			}
+		}
+		return ratingAndResvMap;
+	}
+
+	private void addToReviewRatingMap(Map<Integer,Map<String,Integer>> reviewRatingMap,Integer startTime,Integer rating) {
+
+		Map<String,Integer> resvAndReviewMap = new HashMap<>();	
+		
+		//This condition is for handling 0 hour of the day in case of CaledarType DAY
+		if (!reviewRatingMap.containsKey(startTime)) {
+			Map<String, Integer> resvAndRating = new HashMap<>();
+			resvAndRating.put(RESV_COUNT, 0);
+			resvAndRating.put(RATING, 0);
+			reviewRatingMap.put(startTime, resvAndRating);
+		}
+					
+		resvAndReviewMap = reviewRatingMap.get(startTime);
+
+		Integer previousResvCount = resvAndReviewMap.get(RESV_COUNT);
+		Integer previousRating = resvAndReviewMap.get(RATING);
+
+		resvAndReviewMap.put(RESV_COUNT, previousResvCount + 1);
+		resvAndReviewMap.put(RATING,previousRating  + rating);
+		reviewRatingMap.put(startTime, resvAndReviewMap);
+	}
+	
+	
+	private void updateAvgRating(Map<Integer, Map<String, Integer>> ratingMap, Map<Integer, Float> avgRatingMap) {
+
+		Set<Integer> keySet = ratingMap.keySet();
+
+		Map<String, Integer> resvAndRatingMap = null;
+		float avgRating = 0.0f;
+
+		for (Integer key : keySet) {
+			resvAndRatingMap = ratingMap.get(key);
+			Integer resvCount = resvAndRatingMap.get(RESV_COUNT);
+			Integer ratingCount = resvAndRatingMap.get(RATING);
+
+			if (resvCount != 0 && ratingCount != 0) {
+				avgRating = ((float) ratingCount / resvCount);
+				avgRatingMap.put(key, avgRating);
+			}
+		}
+	}
+	
+	
+	private Map<Integer, Map<String, Integer>> getInitializedTableMap(String calendarType,DateTime endDate) {
+		Map<Integer, Map<String, Integer>> tableAndCoverMap = null;
+
+		switch (calendarType) {
+		case EmpowerConstants.DAYS:
+			tableAndCoverMap = initializeTableMap(endDate.getHourOfDay());
+			break;
+		case EmpowerConstants.WEEK:
+			tableAndCoverMap = initializeTableMap(endDate.getDayOfWeek());
+			break;
+		case EmpowerConstants.MONTH:
+			tableAndCoverMap = initializeTableMap(endDate.getDayOfMonth());
+			break;
+		}
+		return tableAndCoverMap;
+	}
+	
+	private Map<Integer, Map<String, Integer>> initializeTableMap(int count) {
+		Map<Integer, Map<String, Integer>> tableDistMap = new TreeMap<>();
+		
+		for (int i = 1; i <= count; i++) {
+			Map<String, Integer> tableAndCoverMap = new HashMap<>();
+			tableAndCoverMap.put(TABLE_COUNT, 0);
+			tableAndCoverMap.put(TOTAL_COVERS, 0);
+			tableDistMap.put(i, tableAndCoverMap);
+		}
+		return tableDistMap;
+	}
+	
+	private Map<Integer, Map<String, Integer>> updateTableDist(String calendarType,
+			ReservationReview reservation, Map<Integer, Map<String, Integer>> tableAndCoversMap) {
+		DateTime resvActStartDate;
+
+		if (reservation.getActStartTime() != null) {
+			resvActStartDate = new DateTime(reservation.getActStartTime().getTime());
+
+			switch (calendarType) {
+			case EmpowerConstants.DAYS:
+				addToTableMap(tableAndCoversMap, resvActStartDate.getHourOfDay(), reservation.getTableCount(),reservation.getNumCovers());
+				break;
+			case EmpowerConstants.WEEK:
+				addToTableMap(tableAndCoversMap, resvActStartDate.getDayOfWeek(), reservation.getTableCount(),reservation.getNumCovers());
+				break;
+			case EmpowerConstants.MONTH:
+				addToTableMap(tableAndCoversMap, resvActStartDate.getDayOfMonth(), reservation.getTableCount(),reservation.getNumCovers());
+				break;
+			}
+		}
+		return tableAndCoversMap;
+	}
+
+	private void addToTableMap(Map<Integer,Map<String,Integer>> tableAndCoversMap,Integer startTime,Integer tableCount,Integer covers) {
+
+		Map<String,Integer> tableMap = new HashMap<>();	
+		
+		//This condition is for handling 0 hour of the day in case of CaledarType DAY
+		if (!tableAndCoversMap.containsKey(startTime)) {
+			Map<String, Integer> resvAndRating = new HashMap<>();
+			resvAndRating.put(TABLE_COUNT, 0);
+			resvAndRating.put(TOTAL_COVERS,0);
+			tableAndCoversMap.put(startTime, resvAndRating);
+		}
+					
+		tableMap = tableAndCoversMap.get(startTime);
+
+		Integer prevTableCount = tableMap.get(TABLE_COUNT);
+		Integer prevCovers = tableMap.get(TOTAL_COVERS);
+
+		tableMap.put(TABLE_COUNT, prevTableCount + tableCount);
+		tableMap.put(TOTAL_COVERS,prevCovers  + covers);
+		tableAndCoversMap.put(startTime, tableMap);
+	}
+	
+	
+	private void updateCoversDistribution(String calendarType, Map<Object, Integer> coversDistributionMap,
+			Reservation reservation) {
+
+		DateTime actStartTime;
+
+		if (reservation.getActStartTime() != null)
+			actStartTime = new DateTime(reservation.getActStartTime().getTime());
+		else
+			actStartTime = new DateTime(reservation.getEstStartTime().getTime());
+
+		switch (calendarType) {
+		case EmpowerConstants.DAYS:
+			addToCoversMap(coversDistributionMap, actStartTime.getHourOfDay(), 
+					reservation.getNumCovers());
+			break;
+		case EmpowerConstants.WEEK:
+			addToCoversMap(coversDistributionMap, actStartTime.getDayOfWeek(),
+					reservation.getNumCovers());
+			break;
+		case EmpowerConstants.MONTH:
+			addToCoversMap(coversDistributionMap, actStartTime.getDayOfMonth(),
+					reservation.getNumCovers());
+			break;
+	}
+}	
+	private void addToCoversMap(Map<Object, Integer> coversDistributionMap, int startHour,
+			Integer numCovers) {
+		//This condition is for handling 0 hour of the day in case of CaledarType DAY
+		if (!coversDistributionMap.containsKey(startHour))
+			coversDistributionMap.put(startHour, 0);
+		coversDistributionMap.put(startHour, coversDistributionMap.get(startHour) + numCovers);
+	}
+
+	private Map<Integer, Map<String, Integer>> getInitializedMap(String calendarType,DateTime endDate) {
+		Map<Integer, Map<String, Integer>> reviewRatingMap = null;
+
+		switch (calendarType) {
+		case EmpowerConstants.DAYS:
+			reviewRatingMap = initializeRatingMap(endDate.getHourOfDay());
+			break;
+		case EmpowerConstants.WEEK:
+			reviewRatingMap = initializeRatingMap(endDate.getDayOfWeek());
+			break;
+		case EmpowerConstants.MONTH:
+			reviewRatingMap = initializeRatingMap(endDate.getDayOfMonth());
+			break;
+		}
+		return reviewRatingMap;
+	}
+		
+	private void initializeMap(String calendarType,Map<Object,Integer> coverDistMap,DateTime lastDay) {
+		
+		switch (calendarType) {
+		case EmpowerConstants.DAYS:
+			initializeMapByCalendarDay(lastDay.getHourOfDay(), coverDistMap);
+			break;
+		case EmpowerConstants.WEEK:
+			initializeMapByCalendarDay(lastDay.getDayOfWeek(), coverDistMap);
+			break;
+		case EmpowerConstants.MONTH:
+			initializeMapByCalendarDay(lastDay.getDayOfMonth(), coverDistMap);
+			break;
+		}
+	}
+
+	private Map<Integer,Integer> initializeMapForRating() {
+		Map<Integer,Integer> ratingDistMap = new TreeMap<>();
+		for(int i=1;i<=10;i++) {
+			ratingDistMap.put(i, 0);
+		}
+		return ratingDistMap;
+	}
+	
+	private void initializeMapByCalendarDay(Integer count,Map<Object,Integer> coverMap) {
+		for(int i=1;i<=count;i++) {
+			coverMap.put(i, 0);
+		}
+		
+	}
+	
+	private void initializeRatingMap(String calendarType,Map<Integer,Float> distMap,DateTime endDay ) {
+		
+		switch (calendarType) {
+		case EmpowerConstants.DAYS:
+			initializeRatingMapByCalendarDay(endDay.getHourOfDay(), distMap);
+			break;
+		case EmpowerConstants.WEEK:
+			initializeRatingMapByCalendarDay(endDay.getDayOfWeek(), distMap);
+			break;
+		case EmpowerConstants.MONTH:
+			initializeRatingMapByCalendarDay(endDay.getDayOfMonth(), distMap);
+			break;
+		}
+	}
+	
+	private void initializeRatingMapByCalendarDay(Integer count,Map<Integer,Float> coverMap) {
+		for(int i=1;i<=count;i++) {
+			coverMap.put(i, 0.0f);
+		}
+	}
+	
+	private Map<Integer, Integer> getInitialCoversMap() {
+		Map<Integer, Integer> coversMap = new TreeMap<>();
+		for(int i=1;i<=30;i++) {
+			coversMap.put(i, 0);
+		}
+		return coversMap;
+	}
+	
+	private void populateMapByStatusAndSource(Map<String, Object> distributionMap, List<ReservationReview> reservations) {
+
+		Map<String, Object> bookingModeMap = new HashMap<>();
+		Map<String, Integer> reservationStatusCountMap = new HashMap<>();
+		Map<String, Object> ctConfirmVsRejected = new HashMap<>();
+
+		Map<Integer, Integer> coverDistForSeated = getInitialCoversMap();
+		Map<Integer, Integer> coverDistForDropOut = getInitialCoversMap();
+		
+		Integer walkinCount = 0;
+		Integer resvFinishedCount = 0;
+		Integer resvCancelCount = 0;
+		Integer resvNoShowCount = 0;
+		Integer resvConfirmCount = 0;
+		Integer resvUnConfirmCount = 0;
+		Integer ctResvCancelCount = 0;
+		Integer ctResvConfirmCount = 0;
+
+		Map<String, Object> queueDistributionMap = new HashMap<>();
+
+		for (ReservationReview reservation : reservations) {
+			String resvStatus = reservation.getReservationStatus();
+			String sourceGuid = reservation.getSourceGuid();
+			String bookingMode = reservation.getBookingMode();
+
+			if (EmpowerConstants.ONLINE_STATUS.equalsIgnoreCase(bookingMode)) {
+				switch (resvStatus) {
+				case EmpowerConstants.FINISHED:
+					if (EmpowerConstants.CLICKTABLE_SOURCE_GUID.equals(sourceGuid)) {
+						ctResvConfirmCount = ctResvConfirmCount + 1;
+					}
+					resvConfirmCount = resvConfirmCount + 1;
+					resvFinishedCount = resvFinishedCount + 1;
+					break;
+				case EmpowerConstants.NO_SHOW_STATUS:
+					resvNoShowCount = resvNoShowCount + 1;
+					resvConfirmCount = resvConfirmCount + 1;
+					break;
+				case EmpowerConstants.CANCELLED:
+					resvCancelCount = resvCancelCount + 1;
+					if (EmpowerConstants.CLICKTABLE_SOURCE_GUID.equals(sourceGuid)
+							&& reservation.getCancelledBy() != null
+							&& (reservation.getCancelledBy().equalsIgnoreCase(EmpowerConstants.STAFF) || reservation.getCancelledBy().equalsIgnoreCase(EmpowerConstants.RESTAURANT))) {
+						ctResvCancelCount = ctResvCancelCount + 1;
+					}
+					break;
+				case EmpowerConstants.CREATED:
+				case EmpowerConstants.SEATED:
+					resvConfirmCount = resvConfirmCount + 1;
+					if (EmpowerConstants.CLICKTABLE_SOURCE_GUID.equals(sourceGuid)) {
+						ctResvConfirmCount = ctResvConfirmCount + 1;
+					}
+					break;
+				case EmpowerConstants.UNCONFIRMED:
+					resvUnConfirmCount = resvUnConfirmCount + 1;
+					break;
+				}
+			} else if (EmpowerConstants.WALKIN_STATUS.equalsIgnoreCase(bookingMode)) {
+				if (EmpowerConstants.FINISHED.equals(resvStatus)) {
+					walkinCount = walkinCount + 1;
+				}
+				if (reservation.isQueued()) {
+					if (EmpowerConstants.FINISHED.equals(resvStatus)) {
+						updateCoverDistForWaitList(coverDistForSeated, reservation.getNumCovers());
+					} else if (EmpowerConstants.NO_SHOW_STATUS.equals(resvStatus)) {
+						updateCoverDistForWaitList(coverDistForDropOut, reservation.getNumCovers());
+					} else if (EmpowerConstants.CANCELLED.equals(resvStatus)) {
+						updateCoverDistForWaitList(coverDistForDropOut, reservation.getNumCovers());
+					} else if (EmpowerConstants.SEATED.equals(resvStatus)) {
+						updateCoverDistForWaitList(coverDistForSeated, reservation.getNumCovers());
+					}
+				}
+
+			}
+		}
+
+
+		Map<Integer,Object> queueConversion = updateQueueConversion(coverDistForSeated,coverDistForDropOut);
+
+		queueDistributionMap.put(EmpowerConstants.SEATED, coverDistForSeated);
+		queueDistributionMap.put(DROPOUT, coverDistForDropOut);
+		queueDistributionMap.put(QUEUE_CONVERSION, queueConversion);
+
+		bookingModeMap.put(EmpowerConstants.WALKIN_STATUS, walkinCount);
+		bookingModeMap.put(EmpowerConstants.ONLINE_STATUS, resvFinishedCount);
+
+
+		reservationStatusCountMap.put(EmpowerConstants.FINISHED, resvFinishedCount);
+		reservationStatusCountMap.put(EmpowerConstants.NO_SHOW_STATUS, resvNoShowCount);
+		reservationStatusCountMap.put(EmpowerConstants.CONFIRMED, resvConfirmCount);
+		reservationStatusCountMap.put(EmpowerConstants.CANCELLED, resvCancelCount);
+		reservationStatusCountMap.put(EmpowerConstants.UNCONFIRMED, resvUnConfirmCount);
+
+		ctConfirmVsRejected.put(CT_CONFIRM_RESV, ctResvConfirmCount);
+		ctConfirmVsRejected.put(CT_REJECT_COUNT, ctResvCancelCount);
+
+		distributionMap.put(EmpowerConstants.QUEUE_DISTRIBUTION, queueDistributionMap);
+		distributionMap.put(EmpowerConstants.MODE_DISTRIBUTION, bookingModeMap);
+
+		distributionMap.put(EmpowerConstants.STATUS_DISTRIBUTION, reservationStatusCountMap);
+		distributionMap.put(CT_CONFIRM_REJECT_MAP, ctConfirmVsRejected);
+	}
+
+	/**
+	 * @param coverDistForSeated
+	 * @param coverDistForDropOut
+	 * @return
+	 */
+	private Map<Integer, Object> updateQueueConversion(Map<Integer, Integer> coverDistForSeated,
+			Map<Integer, Integer> coverDistForDropOut) {
+		Map<Integer, Object> resultMap = new TreeMap<>();
+		int seated;
+		int dropout;
+		int total;
+		float conversion;
+		for (int i = 1; i <= 30; i++) {
+			total = 0;		
+			conversion = 0L;
+			seated = coverDistForSeated.get(i);
+			dropout = coverDistForDropOut.get(i);
+			total = seated + dropout;
+
+			if (total != 0) {
+				conversion = ((float) seated / total) * 100;
+			}
+			resultMap.put(i, conversion);
+		}
+		return resultMap;
+	}
+
+	@Override
+	public BaseResponse getEventAndOfferStats(Map<String, Object> params) {
+		
+		/*expected params: "restaurantGuid" , "startDate" - yyyy-MM-dd,calenderType:DAY,MONTH,WEEK*/
+
+		BaseResponse response;
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		params = restaurantValidator.validateParamsForDashBoard(params,errorList);
+		Map<String,Object> result = new HashMap<>();
+		
+		if (errorList.isEmpty()) {
+			Map<String, Object> oldDateParams = getParamsForPreviousDate(params);
+			Map<String, Object> currentResult = getEventOfferStatsForTime(params);
+			Map<String, Object> oldDateResult = getEventOfferStatsForTime(oldDateParams);
+			Map<String,Object> totalcurrentResult = getResultInFormat(currentResult);
+			Map<String,Object> totalPreviousResult = getResultInFormat(oldDateResult);
+			currentResult.put("totalcurrentResult", totalcurrentResult);
+			
+			result.put("currentResult", currentResult);
+			result.put("previousResult", totalPreviousResult);
+			
+			response = new GetResponse<>(ResponseCodes.EVENT_OFFER_STATS_FETCHED_SUCCESSFULLY, Arrays.asList(result));
+			
+		} else {
+			response = new ErrorResponse(ResponseCodes.EVENT_OFFER_STATS_FETCH_FAILURE, errorList);
+		}
+		return response;
+
+	}
+
+	
+	
+	/**
+	 * @param eventAndOfferStats
+	 * @return
+	 */
+	private Map<String, Object> getResultInFormat(Map<String, Object> eventAndOfferStats) {
+		
+		Map<String,Map<String, Integer>> catAndCoverMapping = (Map<String,Map<String, Integer>>)eventAndOfferStats.get("catAndCoverMapping");
+		List<DashBoardEventAndOffer> eventAndOfferList = (List<DashBoardEventAndOffer>)eventAndOfferStats.get("eventAndOffer");
+		Map<String, Integer> eventCovers = (Map<String, Integer>)catAndCoverMapping.get("eventCovers");
+		Map<String, Integer> offerCovers = (Map<String, Integer>)catAndCoverMapping.get("offerCovers");
+		
+		
+		int totalEventCovers = 0;
+		int totalOfferCovers = 0;
+		int eventPromotion = 0;
+		int offerPromotion = 0;
+		int eventCount = 0;
+		int offerCount = 0;
+		if (eventCovers != null) {
+			Iterator<Integer> eventItr = eventCovers.values().iterator();
+			while (eventItr.hasNext()) {
+				totalEventCovers = totalEventCovers + eventItr.next();
+			}
+		}
+
+		if (offerCovers != null) {
+			Iterator<Integer> offerItr = offerCovers.values().iterator();
+			while (offerItr.hasNext()) {
+				totalOfferCovers = totalOfferCovers + offerItr.next();
+			}
+		}
+	
+		for(DashBoardEventAndOffer dashBoard :eventAndOfferList ){
+			
+			if(dashBoard.getEventType().equals(EmpowerConstants.EVENT)){
+				eventCount = eventCount + dashBoard.getEventCount();
+				eventPromotion = eventPromotion + dashBoard.getEventPromotionCount();
+			} else if(dashBoard.getEventType().equals(EmpowerConstants.OFFER)){
+				offerCount = offerCount + dashBoard.getEventCount();
+				offerPromotion = offerPromotion + dashBoard.getEventPromotionCount();
+			}
+		}
+		
+		Map<String,Object> result = new HashMap<>();
+		result.put("totalEventCovers", totalEventCovers);
+		result.put("totalOfferCovers", totalOfferCovers);
+		result.put("eventPromotion", eventPromotion);
+		result.put("offerPromotion", offerPromotion);
+		result.put("eventCount", eventCount);
+		result.put("offerCount", offerCount);
+		
+		
+		return result;
+	}
+
+	/**
+	 * @param params
+	 * @return
+	 */
+	private Map<String, Object> getEventOfferStatsForTime(Map<String, Object> params) {
+		Map<String,List<Map<String,Object>>> eventStartTimeBucket = new HashMap<>();
+		Map<String,Object> finalResult = new HashMap<>();
+		
+		List<DashBoardEventAndOffer> resultList = dashBoardDao.getEventOfferStatsForDashBoard(params);
+		Map<String, String> offerGuidAndName = dashBoardDao.getOffersGuidAndName(params);
+		eventStartTimeBucket = 	createBucket(resultList);
+		Collection<List<Map<String, Object>>> s = eventStartTimeBucket.values();
+		Iterator<List<Map<String, Object>>> itr  = s.iterator();
+		
+		while(itr.hasNext()) {
+			Collections.sort((List<Map<String, Object>>)itr.next(), new Comparator<Map<String, Object>>() {
+			    public int compare(Map<String, Object> m1, Map<String, Object> m2) {
+			        return m1.get("startTime").toString().compareTo(m2.get("startTime").toString());
+			    }
+			});
+			
+		}
+		
+		List<Map<String,Object>> resvList = dashBoardDao.getReservationForDashBoard(params);
+			
+		Map<String,Map<String, Integer>> coversAndCatgoryMapping = createFinalEventAndResvListForDashBoard(resvList, eventStartTimeBucket,offerGuidAndName);			
+
+		finalResult.put("eventAndOffer", resultList);
+		finalResult.put("catAndCoverMapping", coversAndCatgoryMapping);
+		return finalResult;
+	}
+
+	private Map<String, List<Map<String, Object>>> createBucket(List<DashBoardEventAndOffer> resultList) {
+		Map<String, List<Map<String, Object>>> startMap = new HashMap<>();
+		DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		
+		for (DashBoardEventAndOffer result : resultList) {
+			if (result.getEventType().equals("EVENT")) {
+				int i = 0;
+				List<Long> startTimeList = result.getStartTimeList();
+				List<Long> endTimeList = result.getEndTimeList();
+				String category = result.getCategory();
+				List<Map<String, Object>> startTimeMapList = null;
+
+				for (Long startTime : startTimeList) {
+					Date startDate = new Date(startTime);
+					try {
+						startDate = formatter.parse(formatter.format(startDate));
+					} catch (ParseException e) {
+						log.error("Exception in createBucket {}",e);
+					}
+					startTimeMapList = startMap.get(startDate.toString()) == null ? new ArrayList<>()
+							: startMap.get(startDate.toString());
+					Map<String, Object> startEndAndCategoryMap = new HashMap<>();
+					startEndAndCategoryMap.put("startTime", startTime);
+					startEndAndCategoryMap.put("endTime", endTimeList.get(i));
+					startEndAndCategoryMap.put("category", category);
+					startTimeMapList.add(startEndAndCategoryMap);
+					startMap.put(startDate.toString(), startTimeMapList);
+					i++;
+						
+				}
+			} 			
+			result.setStartTimeList(null);
+			result.setEndTimeList(null);
+		}
+		return startMap;
+
+	}
+	
+	class ListMapComparator implements Comparator<Map<String, Object>> {
+		public int compare(Map<String, Object> obj1, Map<String, Object> obj2) {
+			Map<String, Object> test1 = obj1;
+			Map<String, Object> test2 = obj2;
+			return test1.get("startTime").toString().compareTo(test2.get("startTime").toString());
+		}
+	}
+	
+/*	Comparator<Map<String, Object>> mapComparator = new Comparator<Map<String, Object>>() {
+		
+
+	};	*/
+	
+	private Map<String,Map<String,Integer>> createFinalEventAndResvListForDashBoard(List<Map<String,Object>> resvList, 
+ Map<String, List<Map<String, Object>>> eventStartTimeBucket,Map<String,String> offerGuidNameMap) {
+		Map<String, Map<String, Integer>> result = new HashMap<>();
+		Map<String, Integer> eventMap = new HashMap<>();
+		Map<String, Integer> offerMap = new HashMap<>();
+		DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+		if (!eventStartTimeBucket.isEmpty()) {
+			for (Map<String, Object> resv : resvList) {
+				try {
+					Long startTime = (Long) resv.get("startTime");
+					Long endTime = (Long) resv.get("endTime");
+					Date startDate = new Date(startTime);
+					startDate = formatter.parse(formatter.format(startDate));
+					List<Map<String, Object>> bucketList = eventStartTimeBucket.get(startDate.toString()) == null
+							? new ArrayList<>() : eventStartTimeBucket.get(startDate.toString());
+					for (Map<String, Object> map : bucketList) {
+						String category = map.get("category").toString();
+						if ((Long) map.get("startTime") < endTime && (Long) map.get("endTime") >= startTime) {
+							Integer lastCoversSum = eventMap.get(category) == null ? 0
+									: (Integer) eventMap.get(category);
+							eventMap.put(category, (Integer) resv.get("covers") + lastCoversSum);
+							break;
+						}
+					}
+				} catch (Exception e) {
+					log.error("Exception in createFinalEventAndResvListForDashBoard {},",e);
+				}
+				if (resv.get("offerId") != null) {
+					String offerId = resv.get("offerId").toString();
+					String offerName = offerGuidNameMap.get(offerId);
+					Integer lastCoversSum = offerMap.get(offerName) == null ? 0
+							: (Integer) offerMap.get(offerName);
+					offerMap.put(offerName, (Integer) resv.get("covers") + lastCoversSum);
+				}
+			}
+			result.put("eventCovers", eventMap);
+			result.put("offerCovers", offerMap);
+		}
+		return result;
+	}
+	
+	public Map<String,Object> getParamsForPreviousDate(Map<String,Object> params) {
+		Map<String,Object> oldDateParams = new HashMap<>();
+		DateTime startDate = new DateTime((Long)params.get(EmpowerConstants.START_DATE)); 
+		DateTime endDate = new DateTime((Long)params.get(EmpowerConstants.END_DATE));
+
+		String calendarType = params.get(EmpowerConstants.CALENDER_TYPE).toString();
+
+		oldDateParams.putAll(params);
+		
+		
+		// end Date of previous date result will be minus 1 second of current startDate
+		if(calendarType.equals(EmpowerConstants.DAYS)) {
+			oldDateParams.put(EmpowerConstants.START_DATE,startDate.minusDays(1).getMillis());
+			oldDateParams.put(EmpowerConstants.END_DATE,startDate.minusSeconds(1).getMillis());
+		} else if(calendarType.equals(EmpowerConstants.WEEK)) {
+			oldDateParams.put(EmpowerConstants.START_DATE,startDate.minusWeeks(1).getMillis());
+			oldDateParams.put(EmpowerConstants.END_DATE,startDate.minusSeconds(1).getMillis());
+		} else if(calendarType.equals(EmpowerConstants.MONTH)) {
+			oldDateParams.put(EmpowerConstants.START_DATE,startDate.minusMonths(1).getMillis());
+			oldDateParams.put(EmpowerConstants.END_DATE,startDate.minusSeconds(1).getMillis());
+		}
+		return oldDateParams;
+
+	}
+
+
+}

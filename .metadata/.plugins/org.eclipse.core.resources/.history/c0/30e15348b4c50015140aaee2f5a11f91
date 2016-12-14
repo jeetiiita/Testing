@@ -1,0 +1,790 @@
+{
+  "ApiPermissions": {
+    "/restaurant": [
+     {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+     {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+     "/restaurant/attribute": [
+    {
+        "POST": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+     "/restaurant/config": [
+     {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+     {
+        "POST": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+     "/restaurant/device": [
+     {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+     {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+       {
+        "DELETE": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],"/restaurant/section": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+      "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+       {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+     "/guest": [
+     {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          },
+          {
+            "roleId": 6
+          }
+        ]
+      },
+     {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      },
+      {
+        "POST": [
+           {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          },
+          {
+            "roleId": 5
+          }
+        ]
+      }
+    ],
+    "/staff": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/cuisine": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],
+    "/table": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+    "/onboarding": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          }
+        ]
+      }
+    ],"/reservation": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+      "PUT":  [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+       {
+        "POST":  [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PATCH":  [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+    ],
+    "/event": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+        {
+        "PATCH": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+    ],
+     "/event/calender": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      }
+      ],
+       "/section": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/attribute": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/attribute/country": [
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/country": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/tat": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/server": [
+      {
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          }
+        ]
+      },
+      {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+       {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      },
+       {
+        "DELETE": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+        "/assignTable": [
+     {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ],
+       "/guestTag": [
+     {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },{
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+      ],
+       "/quickSearchReservation": [
+     {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },{
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+      ],
+       "/tag": [
+     {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },{
+        "GET": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      },
+      {
+        "PUT": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          },
+          {
+            "roleId": 3
+          },
+          {
+            "roleId": 4
+          }
+        ]
+      }
+      
+      ],
+       "/unassignTable": [
+     {
+        "POST": [
+          {
+            "roleId": 1
+          },
+          {
+            "roleId": 2
+          }
+        ]
+      }
+      ]
+      
+  }
+}

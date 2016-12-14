@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
+		<item value="452" key="DIALOG_X_ORIGIN"/>
+		<item value="248" key="DIALOG_Y_ORIGIN"/>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item value="false" key="isRegEx"/>
+		<item value="GuestRating" key="selection"/>
+		<item value="false" key="casesensitive"/>
+		<item value="false" key="incremental"/>
+		<item value="false" key="wrap"/>
+		<item value="false" key="wholeword"/>
+		<list key="findhistory">
+			<item value="GuestRating"/>
+			<item value="guestRating"/>
+			<item value="attribute"/>
+			<item value="bar"/>
+			<item value="PrintStream"/>
+			<item value="guestReservation"/>
+			<item value="/reservation"/>
+			<item value="/consumer/reservation"/>
+		</list>
+		<list key="replacehistory">
+			<item value="t"/>
+			<item value="finishedResvs"/>
+			<item value="+91-95826-12345"/>
+			<item value="&quot;{&quot; +"/>
+			<item value="false"/>
+			<item value="SupportConstants"/>
+			<item value=""/>
+			<item value="Float"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item value="404" key="DIALOG_WIDTH"/>
+		<item value="1|Segoe UI|9.0|0|WINDOWS|1|-12|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI" key="DIALOG_FONT_NAME"/>
+		<item value="478" key="DIALOG_HEIGHT"/>
+		<item value="823" key="DIALOG_X_ORIGIN"/>
+		<item value="138" key="DIALOG_Y_ORIGIN"/>
+	</section>
+</section>

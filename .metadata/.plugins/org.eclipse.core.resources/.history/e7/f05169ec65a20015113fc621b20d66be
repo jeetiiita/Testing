@@ -1,0 +1,1025 @@
+package com.clicktable.service.impl;
+
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.core.MultivaluedMap;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.Logger;
+import play.i18n.Messages;
+import play.libs.Crypto;
+import play.libs.Json;
+
+import com.clicktable.config.StormpathConfig;
+import com.clicktable.dao.intf.RestaurantDao;
+import com.clicktable.dao.intf.StaffDao;
+import com.clicktable.model.Oauth;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.Staff;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.model.UserToken;
+import com.clicktable.repository.RestaurantRepo;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.LoginResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.response.SMSResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.NotificationService;
+import com.clicktable.service.intf.StaffService;
+import com.clicktable.service.intf.UserTokenService;
+import com.clicktable.util.Constants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.StaffValidator;
+import com.clicktable.validate.ValidationError;
+import com.firebase.security.token.TokenGenerator;
+import com.firebase.security.token.TokenOptions;
+import com.stormpath.sdk.account.Account;
+import com.stormpath.sdk.authc.AuthenticationResult;
+import com.stormpath.sdk.authc.UsernamePasswordRequest;
+import com.stormpath.sdk.client.Client;
+import com.stormpath.sdk.directory.Directories;
+import com.stormpath.sdk.directory.Directory;
+import com.stormpath.sdk.directory.DirectoryList;
+import com.stormpath.sdk.resource.ResourceException;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.core.util.MultivaluedMapImpl;
+
+import play.cache.*;
+
+/**
+ * 
+ * @author p.singh
+ * 
+ */
+
+@org.springframework.stereotype.Service
+public class StaffServiceImpl implements StaffService {
+
+	@Autowired
+	StaffDao staffDao;
+
+	@Autowired
+	RestaurantDao restDao;
+
+	@Autowired
+	RestaurantRepo restRepo;
+
+	@Autowired
+	UserTokenService userTokenService;
+
+	@Autowired
+	StaffValidator validateStaffObject;
+
+	@Autowired
+	AuthorizationService authorizationService;
+
+	@Autowired
+	NotificationService notification;
+	
+	private Oauth oauth;
+
+	/**
+	 * Service Method to add staff to storm path.whenever a staff member is
+	 * created this method is called
+	 */
+	@Override
+	public String addStaffToStormPath(Staff staff) {
+		// TODO Auto-generated method stub
+
+		String href = "";
+
+		DirectoryList dirList = StormpathConfig.getInstance().getTenant().getDirectories(Directories.where(Directories.name().eqIgnoreCase(Constants.STAFF_DIRECTORY)));
+		Client client = StormpathConfig.getInstance().getClient();
+		Directory directory = null;
+		for (Directory dir : dirList) {
+			directory = dir;
+		}
+		com.stormpath.sdk.application.Application application = StormpathConfig.getInstance().getApplication();
+
+		Account account = client.instantiate(Account.class);
+
+		// Set the account properties
+		account.setGivenName(staff.getFirstName());
+		account.setSurname(staff.getLastName());
+		account.setEmail(staff.getEmail());
+
+		// use the generatePassword method of UtilityMethods class to generate
+		// random password
+		String password = UtilityMethods.generatePassword();
+		account.setPassword(password);
+
+		// Create the account using the directory object
+		// Account createdAccount = application.createAccount(account);
+		Account createdAccount = directory.createAccount(account);
+		href = createdAccount.getHref();
+		String[] subStr = href.split("/");
+		// whenever a new staff is added to storm path a password reset email is
+		// send to staff member to change the login password
+		application.sendPasswordResetEmail(staff.getEmail());
+
+		return subStr[subStr.length - 1];
+
+	}
+
+	/**
+	 * Service Method to authenticate staff in stormpath
+	 * 
+	 * @return 1,if user is authenticated successfully 2,if user is not
+	 *         authenticated due to invalid username 3,if user is not
+	 *         authenticated due to wrong password
+	 */
+	public Integer authenticateStaff(String userName, String password) {
+		Integer isAuthenticated = 0;
+
+		try {
+
+			DirectoryList dirList = StormpathConfig.getInstance().getTenant().getDirectories(Directories.where(Directories.name().eqIgnoreCase(Constants.STAFF_DIRECTORY)));
+			Directory directory = null;
+			for (Directory dir : dirList) {
+				directory = dir;
+			}
+
+			UsernamePasswordRequest authenticationRequest = new UsernamePasswordRequest(userName, password);
+			com.stormpath.sdk.application.Application application = StormpathConfig.getInstance().getApplication();
+
+			AuthenticationResult result = application.authenticateAccount(authenticationRequest);
+
+			// AccountList accountList = directory.getAccounts();
+
+			Directory dir = result.getAccount().getDirectory();
+
+			/*
+			 * Account account = result.getAccount(); for (Account acc :
+			 * accountList) { if(acc.getEmail().equals(account.getEmail())) {
+			 * isAuthenticated = Constants.SUCCESSFULLY_AUTHENTICATED; return
+			 * isAuthenticated; }
+			 * 
+			 * }
+			 */
+
+			Logger.debug("dir name is " + dir.getName() + " directory name is " + directory.getName() + " isauthenticated======" + isAuthenticated);
+			if (dir.getName().equals(directory.getName())) {
+				isAuthenticated = Constants.SUCCESSFULLY_AUTHENTICATED;
+			} else {
+				isAuthenticated = Constants.INVALID_ACCOUNT;
+			}
+
+			Logger.debug("isAuthenticated===============" + isAuthenticated);
+		} catch (ResourceException ex) {
+			String loginFailureMsg = ex.getDeveloperMessage();
+			Logger.debug("login failure message is " + loginFailureMsg);
+			if (loginFailureMsg.contains(Constants.INVALID_USERNAME_MSG)) {
+				isAuthenticated = Constants.INVALID_USERNAME;
+			}
+			if (loginFailureMsg.contains(Constants.WRONG_PASSWORD_MSG)) {
+				isAuthenticated = Constants.WRONG_PASSWORD;
+			}
+
+			// System.out.println(ex.getDeveloperMessage());
+
+		}
+
+		return isAuthenticated;
+	}
+
+	/**
+	 * Service Method to change login password of staff member
+	 * 
+	 * @param userName
+	 * @param oldPassword
+	 * @param newPassword
+	 * @return
+	 */
+	@Override
+	public BaseResponse changePassword(String userName, String oldPassword, String newPassword) {
+		List<ValidationError> listOfErrorForStaff = new ArrayList<ValidationError>();
+		// response object is instantiated on the basi of response type whether
+		// it is a successful response or error response
+		BaseResponse response = new BaseResponse();
+
+		try {
+
+			DirectoryList dirList = StormpathConfig.getInstance().getTenant().getDirectories(Directories.where(Directories.name().eqIgnoreCase(Constants.STAFF_DIRECTORY)));
+			Directory directory = null;
+			for (Directory dir : dirList) {
+				directory = dir;
+			}
+			// authenticate user on the basis of username and old password
+			UsernamePasswordRequest authenticationRequest = new UsernamePasswordRequest(userName, oldPassword);
+			com.stormpath.sdk.application.Application application = StormpathConfig.getInstance().getApplication();
+			AuthenticationResult result = application.authenticateAccount(authenticationRequest);
+			Directory dir = result.getAccount().getDirectory();
+			if (dir.getName().equals(directory.getName())) {
+				// if authenticated successfully then change the password
+				result.getAccount().setPassword(newPassword).save();
+				response.createResponse(ResponseCodes.PASSWORD_CHANGED_SUCCESFULLY, true);
+			} else {
+				response.createResponse(ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_ACCOUNT, false);
+
+			}
+
+		} catch (ResourceException ex) {
+
+			String loginFailureMsg = ex.getDeveloperMessage();
+			Logger.debug("login failure message is " + loginFailureMsg);
+			if (loginFailureMsg.contains(Constants.INVALID_USERNAME_MSG)) {
+				listOfErrorForStaff.add(new ValidationError(Constants.USERNAME, Messages.get(ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_USERNAME, new Object()),
+						ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_USERNAME));
+
+			}
+			if (loginFailureMsg.contains(Constants.WRONG_PASSWORD_MSG)) {
+				listOfErrorForStaff.add(new ValidationError(Constants.OLD_PASSWORD, Messages.get(ResponseCodes.SOCIAL_LOGIN_FAILURE_WRONG_PASSWORD, new Object()),
+						ResponseCodes.SOCIAL_LOGIN_FAILURE_WRONG_PASSWORD));
+
+			}
+
+			// if authentication failed error response is send
+			response = new ErrorResponse(ResponseCodes.PASSWORD_CHANGE_FAILURE, listOfErrorForStaff);
+		}
+
+		return response;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@Transactional
+	public BaseResponse addStaffMember(Staff staff, String token) {
+		BaseResponse response;
+
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+
+		if (staff.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID)) {
+			staff.setCreatedBy(staff.getGuid());
+			staff.setUpdatedBy(staff.getGuid());
+		} else {
+			staff.setCreatedBy(userInfo.getGuid());
+			staff.setUpdatedBy(userInfo.getGuid());
+		}
+		staff.setStatus(Constants.ACTIVE_STATUS);
+
+		Logger.debug("userInfo.getRoleId() == Constants.CT_ADMIN_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID));
+		Logger.debug("userInfo.getRoleId() == Constants.ADMIN_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.ADMIN_ROLE_ID));
+		Logger.debug("userInfo.getRoleId() == Constants.CUSTOMER_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.CUSTOMER_ROLE_ID));
+		Logger.debug("userInfo.getRoleId() == Constants.SERVER_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.SERVER_ROLE_ID));
+		Logger.debug("userInfo.getRoleId() == Constants.STAFF_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.STAFF_ROLE_ID));
+		Logger.debug("userInfo.getRoleId() == Constants.MANAGER_ROLE_ID==================" + userInfo.getRoleId().equals(Constants.MANAGER_ROLE_ID));
+		Logger.debug("role id is ==============" + userInfo.getRoleId());
+
+		Logger.debug("validating staff");
+		List<ValidationError> listOfErrorForStaff = validateStaffObject.validateStaffOnAdd(staff);
+
+		Logger.debug("list of error for staff is " + listOfErrorForStaff + " rest guid is " + staff.getRestaurantGuid());
+
+		if (listOfErrorForStaff.isEmpty()) {
+			Restaurant rest = null;
+			if ((staff.getRestaurantGuid() != null) && (!staff.getRestaurantGuid().equals(""))) {
+				rest = restDao.findRestaurantByGuid(staff.getRestaurantGuid());
+				Logger.debug("finding restaurant " + rest);
+				if (rest == null) {
+					listOfErrorForStaff.add(validateStaffObject.createError(Constants.REST_ID, ErrorCodes.INVALID_REST_ID));
+					Logger.debug("list of error is " + listOfErrorForStaff);
+					response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+					return response;
+				}
+
+			}
+
+			// if user is not ct admin then check if staff member being created
+			// and logged in staff member both belongs to same restaurant
+			if (!userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID)) {
+				listOfErrorForStaff = validateStaffObject.validateStaffForRestaurant(staff.getRestaurantGuid(), userInfo.getRestGuid());
+				if (!listOfErrorForStaff.isEmpty()) {
+					response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+					return response;
+				}
+			}
+
+			Logger.debug("list of error is empty");
+			// If no validation error then add staff to stormpath within try
+			// catch so that if exception
+			// arises in adding user to storm path
+			// response for failure is send
+			try {
+
+				staff.setHref(addStaffToStormPath(staff));
+				Logger.debug("staff added to stormpath");
+
+				/* Generation FireBase Token */
+				try {
+					Map<String, Object> authPayload = new HashMap<String, Object>();
+					authPayload.put("uid", UtilityMethods.generateCtId());
+					authPayload.put("token", Constants.FIREBASE_TOKEN_NAME);
+
+					TokenOptions tokenOptions = new TokenOptions();
+					tokenOptions.setAdmin(true);
+
+					TokenGenerator tokenGenerator = new TokenGenerator(Constants.FIREBASE_TOKEN);
+					staff.setFirebase_token(tokenGenerator.createToken(authPayload, tokenOptions));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+				/*
+				 * Create relationship of staff with restaurant
+				 */
+				Staff newStaff = staffDao.create(staff);
+				Logger.debug("staff created");
+				// if restaurant guid is not null then create relationship of
+				// restaurant and staff
+				if ((staff.getRestaurantGuid() != null) && (!staff.getRestaurantGuid().equals(""))) {
+					Long id = staffDao.addRestaurantStaff(rest.getGuid(), newStaff);
+					Logger.debug("relationship id is " + id);
+				}
+
+				response = new PostResponse<Staff>(ResponseCodes.STAFF_ADDED_SUCCESFULLY, newStaff.getGuid());
+			} catch (ResourceException e) {
+				if (e.getDeveloperMessage().contains("Account with that email already exists")) {
+					listOfErrorForStaff.add(new ValidationError(Constants.EMAIL, UtilityMethods.getErrorMsg(ErrorCodes.EMAIL_ACCOUNT_ALREADY_EXISTS), ErrorCodes.EMAIL_ACCOUNT_ALREADY_EXISTS));
+				}
+				else if (e.getDeveloperMessage().contains("Account email address is in an invalid format")) {
+					listOfErrorForStaff.add(new ValidationError(Constants.EMAIL, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_EMAIL_FORMAT), ErrorCodes.INVALID_EMAIL_FORMAT));
+				}
+				else {
+					listOfErrorForStaff.add(new ValidationError(Constants.STORMPATH_MODULE, e.getMessage()));
+				}
+				response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+			}
+
+		} else {
+			// if validation error then send error response
+			response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+		}
+
+		return response;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@Transactional
+	public BaseResponse updateStaffMember(Staff staff, String token) {
+		BaseResponse response;
+
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+
+		staff.setUpdatedBy(userInfo.getGuid());
+
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		if (staff.getGuid() == null)
+			listOfError.add(validateStaffObject.createError(Constants.GUID, ErrorCodes.STAFF_ID_REQUIRED));
+		else {
+
+			Staff staffObj = staffDao.find(staff.getGuid());
+
+			if (staffObj == null)
+				listOfError.add(validateStaffObject.createError(Constants.GUID, ErrorCodes.INVALID_STAFF_ID));
+			else {
+				if ((staff.getRestaurantGuid() == null) || staff.getRestaurantGuid().equals("")) {
+					Logger.debug("Rest id iss required");
+				} else {
+					Restaurant rest = restDao.findRestaurantByGuid(staff.getRestaurantGuid());
+					if (rest == null) {
+						listOfError.add(validateStaffObject.createError(Constants.REST_ID, ErrorCodes.INVALID_REST_ID));
+
+					}
+
+					else if (!staff.getRestaurantGuid().equals(staffObj.getRestaurantGuid())) {
+						listOfError.add(validateStaffObject.createError(Constants.REST_ID, ErrorCodes.RESTAURANT_NOT_EDITABLE));
+
+					}
+				}
+				staff.setCreatedBy(staffObj.getCreatedBy());
+				staff.setCreatedDate(staffObj.getCreatedDate());
+				staff.setEmail(staffObj.getEmail());
+				staff.setHref(staffObj.getHref());
+				
+				if(userInfo.getGuid().equals(staff.getGuid()))
+				{
+				    staff.setRoleId(staffObj.getRoleId());
+				}
+
+				Logger.debug("list of error is " + listOfError);
+				listOfError.addAll(validateStaffObject.validateStaffOnUpdate(staff));
+				Logger.debug("staff validated");
+
+			}
+		}
+
+		if (listOfError.isEmpty()) {
+
+			// if user is not ct admin then check if staff member being created
+			// and logged in staff member both belongs to same restaurant
+			if (!userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID)) {
+				listOfError = validateStaffObject.validateStaffForRestaurant(staff.getRestaurantGuid(), userInfo.getRestGuid());
+				if (!listOfError.isEmpty()) {
+					response = new ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE, listOfError);
+					return response;
+				}
+			}
+
+			// admin can create only manager, staff and server
+			/*
+			 * if((userInfo.getRoleId().equals(Constants.ADMIN_ROLE_ID)) &&
+			 * ((!staff.getRoleId().equals(Constants.STAFF_ROLE_ID)) &&
+			 * (!staff.getRoleId().equals(Constants.SERVER_ROLE_ID) &&
+			 * (!staff.getRoleId().equals(Constants.MANAGER_ROLE_ID))))) {
+			 * listOfError.add(validateStaffObject.createError(Constants.ROLE_ID,
+			 * ErrorCodes
+			 * .ADMIN_CAN_CREATE_OR_UPDATE_ONLY_MANAGER_STAFF_OR_SERVER));
+			 * response = new
+			 * ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE,listOfError);
+			 * return response; }
+			 * 
+			 * //manager can create only staff and server
+			 * if((userInfo.getRoleId().equals(Constants.MANAGER_ROLE_ID)) &&
+			 * ((!staff.getRoleId().equals(Constants.STAFF_ROLE_ID)) &&
+			 * (!staff.getRoleId().equals(Constants.SERVER_ROLE_ID)))) {
+			 * listOfError.add(validateStaffObject.createError(Constants.ROLE_ID,
+			 * ErrorCodes.MANAGER_CAN_CREATE_OR_UPDATE_ONLY_STAFF_OR_SERVER));
+			 * response = new
+			 * ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE,listOfError);
+			 * return response; }
+			 */
+
+			// if status is deleted than delete entry for that staff member from
+			// stormpath
+
+			if (staff.getStatus().equals(Constants.DELETED_STATUS)) 
+			{
+			    if(userInfo.getGuid().equals(staff.getGuid()))
+			    {
+				listOfError.add(validateStaffObject.createError(Constants.ACCESS_DENIED,
+					  ErrorCodes.USER_CANNOT_DELETE_HIS_OWN_ACCOUNT));
+				response = new ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE,listOfError);
+				return response;
+				
+			    }
+				Client client = StormpathConfig.getInstance().getClient();
+				client.getResource(Constants.STORMPATH_HREF_PATH_STRING + staff.getHref(), Account.class).delete();
+
+				Logger.debug("staff member deleted");
+			}
+			Staff staffObj = staffDao.updateStaff(staff);
+			response = new UpdateResponse<Staff>(ResponseCodes.STAFF_UPDATED_SUCCESFULLY, staffObj.getGuid());
+		} else {
+			response = new ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE, listOfError);
+		}
+
+		return response;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public BaseResponse getStaffMembers(Map<String, Object> params) {
+		BaseResponse getResponse;
+		Map<String, Object> qryParamMap = validateStaffObject.validateFinderParams(params, Staff.class);
+		List<Staff> staffList = staffDao.findByFields(Staff.class, qryParamMap);
+		getResponse = new GetResponse<Staff>(ResponseCodes.STAFF_RECORD_FETCH_SUCCESFULLY, staffList);
+		return getResponse;
+	}
+
+	/**
+	 * Service method for Resend OTP to staff member
+	 */
+	@Override
+	public BaseResponse staffResendOTP(String guid) {
+
+		// TODO Auto-generated method stub
+		SMSResponse sms_response = new SMSResponse();
+		BaseResponse response = new LoginResponse();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		Map<String, Object> paramMap = new HashMap<String, Object>();
+		paramMap.put(Constants.GUID, guid);
+		paramMap.put(Constants.STATUS, Constants.ACTIVE_STATUS);
+		Staff staff;
+		List<Staff> staffList = staffDao.findByFields(Staff.class, paramMap);
+		if (staffList.size() > 0) {
+			staff = staffList.get(0);
+			Restaurant restaurant = restRepo.findByguid(staff.getRestaurantGuid());
+			if (staff.isIs_otp_require()) {
+				if (null == restaurant.getOtpMobile()) {
+					listOfError.add(new ValidationError(Constants.REST_OTP_MOBILE, ErrorCodes.REST_OTP_MOBILE, ErrorCodes.REST_OTP_MOBILE));
+					return new ErrorResponse(ResponseCodes.REST_OTP_MOBILE, listOfError);
+				}
+				/* Sending Verification Code */
+				List<String> list = new ArrayList<String>();
+				list.add(restaurant.getOtpMobile());
+				/* Generate Message */
+				int otp_token = UtilityMethods.generateOTP();
+				sms_response = new SMSResponse();
+				sms_response = notification.sendSMS(list, Constants.SMS_MESSAGE + otp_token, false).get(0);
+				if (null != sms_response && sms_response.getSmsStatus().equalsIgnoreCase(ResponseCodes.SMS_SENT)) {
+					staff.setOtp_generated_time(new Timestamp(new Date().getTime()));
+					staff.setOtpToken(String.valueOf(otp_token));
+					staffDao.update(staff);
+					((LoginResponse) response).setSmsResponse(sms_response);
+					((LoginResponse) response).setOtpRequire(staff.isIs_otp_require());
+					((LoginResponse) response).setStaff_guid(staff.getGuid());
+					response.createResponse( ResponseCodes.SMS_SENT, true);
+				} else {
+					listOfError.add(new ValidationError(Constants.SMS_NOT_SENT, ErrorCodes.SMS_NOT_DELIVERED, ErrorCodes.SMS_NOT_DELIVERED));
+					return new ErrorResponse(ResponseCodes.CODE_RESEND_FAILURE, listOfError);
+				}
+
+			}
+		}
+		return response;
+	}
+
+	/**
+	 * Service method for login of staff member
+	 */
+	@Override
+	public BaseResponse staffLogin(String userName, String password) {
+
+		BaseResponse response = new LoginResponse();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		MultivaluedMap<String,String> formData=new MultivaluedMapImpl();
+
+		formData.add("grant_type", "password");
+		formData.add("username", userName);
+		formData.add("password", password);	
+		oauth=UtilityMethods.getOauthTokens(formData);
+		
+		if (null!=oauth && oauth.getCode().equalsIgnoreCase(Constants.SERVER_OK)) 
+		{
+			
+			Map<String,String> map=new HashMap<String,String>();
+			Long ttl=Calendar.getInstance().getTimeInMillis()+ (Long.valueOf(oauth.getExpires_in())*1000);
+
+			map.put("TTL", String.valueOf(ttl));
+			map.put("TokenType", oauth.getToken_type());
+			map.put("Authorization", oauth.getAccess_token());
+			
+			Cache.set(Crypto.encryptAES(userName), map, (Integer.parseInt(oauth.getExpires_in())+Constants.CACHE_LIFE_LIVE));
+
+			
+
+			Map<String, Object> paramMap = new HashMap<String, Object>();
+			paramMap.put(Constants.EMAIL, userName);
+			paramMap.put(Constants.STATUS, Constants.ACTIVE_STATUS);
+			List<Staff> staffList = staffDao.findByFields(Staff.class, paramMap);
+			Staff staff;
+
+			if (staffList.size() > 0) {
+				staff = staffList.get(0);
+				
+				Restaurant restaurant=restRepo.findByguid(staff.getRestaurantGuid());
+				if(staff.isIs_otp_require())
+				{
+					if(null==restaurant.getOtpMobile())
+					{
+						listOfError.add(new ValidationError(Constants.REST_OTP_MOBILE, ErrorCodes.REST_OTP_MOBILE, ErrorCodes.REST_OTP_MOBILE));
+						return new ErrorResponse(ResponseCodes.REST_OTP_MOBILE, listOfError);
+					}
+					/* Sending Verification Code */
+					List<String> list = new ArrayList<String>();
+					list.add(restaurant.getOtpMobile());
+
+					/* Generate Message */
+					int otp_token = UtilityMethods.generateOTP();
+					SMSResponse sms_response = new SMSResponse();
+					Object param[] = { staff.getFirstName()+" "+staff.getLastName(), String.valueOf(otp_token) };
+					String sms_messge = UtilityMethods.sendSMSFormat(param, Constants.SMS_LOGIN_OTP_MSG);
+					sms_response = notification.sendSMS(list, sms_messge, false).get(0);
+					if (((SMSResponse) sms_response).getSmsStatus().equalsIgnoreCase(ResponseCodes.SMS_SENT)) {
+						staff.setOtp_generated_time(new Timestamp(new Date().getTime()));
+						staff.setOtpToken(String.valueOf(otp_token));
+						staffDao.update(staff);
+						// UserInfoModel userInfo = new UserInfoModel(staff);
+						response = new LoginResponse();
+						((LoginResponse) response).setOtpRequire(staff.isIs_otp_require());
+						((LoginResponse) response).setStaff_guid(staff.getGuid());
+						((LoginResponse) response).setSmsResponse(sms_response);
+						((LoginResponse) response).setRefreshToken(oauth.getRefresh_token());
+						((LoginResponse) response).setAccess_token(oauth.getAccess_token());
+					} else {
+						listOfError.add(new ValidationError(Constants.SMS_NOT_SENT, ErrorCodes.SMS_NOT_DELIVERED, ErrorCodes.SMS_NOT_DELIVERED));
+						return new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfError);
+					}
+
+					response.createResponse(  ResponseCodes.SMS_SENT, true);
+				} else {
+					/* If Staff is not eligible or sending OTP */
+					//staffDao.update(staff);
+					response = staffVerification(staff.getGuid(), null, true,oauth);
+				}
+
+			} else {
+				response.createResponse( ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_ACCOUNT, false);
+
+			}
+
+		} else {
+			if (null == oauth) {
+				 response.createResponse(ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_ACCOUNT,false);
+			} else if (oauth.getCode().equalsIgnoreCase(Constants.INAVLID_USERNAME_CODE)) {
+				response.createResponse(ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_USERNAME,false);
+			} else if (oauth.getCode().equalsIgnoreCase(Constants.INVALID_PASSWORD_CODE)) {	
+				response.createResponse(ResponseCodes.SOCIAL_LOGIN_FAILURE_WRONG_PASSWORD,false);
+			}		
+		}
+		return response;
+	}
+
+	/* Staff Verification */
+
+	/**
+	 * Service method for login of staff member
+	 */
+	@Override
+
+	public BaseResponse staffVerification(String guid, String token, boolean isFlag, Oauth oauth) {
+		BaseResponse loginResponse = new LoginResponse();
+		Restaurant rest = null;
+
+		Map<String, Object> paramMap = new HashMap<String, Object>();
+		paramMap.put(Constants.GUID, guid);
+		paramMap.put(Constants.STATUS, Constants.ACTIVE_STATUS);
+		
+		List<Staff> staffList = staffDao.findByFields(Staff.class, paramMap);
+		Staff staff = null;
+		if (staffList.size() > 0) {
+			staff = staffList.get(0);
+		}
+
+		if (null != token && !isFlag && null != staff) {
+
+			Calendar cal = Calendar.getInstance();
+			long currentTime = cal.getTimeInMillis();
+			if (null != staff.getOtp_generated_time() && (currentTime - staff.getOtp_generated_time().getTime()) < Constants.OTP_VALIDITY * 60 * 1000 && (staff.getOtpToken().equalsIgnoreCase(token))) {
+				loginResponse.setResponseCode(ResponseCodes.SMS_TOKEN_VERIFIED);
+				loginResponse.setResponseMessage("SMS Tken Verified !");
+				loginResponse.setResponseStatus(Boolean.valueOf(true));
+
+				Logger.debug("Verified===== " + loginResponse.getResponseMessage());
+				isFlag = Boolean.TRUE;
+
+				staff.setOtp_generated_time(new Timestamp(new Date().getTime() - 20 * 60 * 1000));
+				/* update token in staff */
+
+			} else {
+				isFlag = Boolean.FALSE;
+				Logger.debug("Verified===== " + loginResponse.getResponseMessage());
+			}
+		}
+
+		if (null != staff && isFlag) {
+			Logger.debug("staff list size is ==========================================================" + staffList.size());
+
+			staff.setLastLogin(new Timestamp(new Date().getTime()));
+
+			Logger.debug("before updating");
+			staffDao.updateLastLoginInfo(staff);
+			Logger.debug("after updating");
+
+			
+			
+
+			UserInfoModel userInfo = new UserInfoModel(staff);
+			loginResponse = new LoginResponse(userInfo);
+			String generatedToken = UtilityMethods.generateToken(Constants.STAFF + userInfo.getGuid() + userInfo.getRoleId());
+			((LoginResponse) loginResponse).setToken(generatedToken);
+
+			Calendar cldr = Calendar.getInstance();
+			Date dt = cldr.getTime();
+			((LoginResponse) loginResponse).setTimeinmilli(cldr.getTimeInMillis() + "");
+			((LoginResponse) loginResponse).setTime(new SimpleDateFormat(Constants.TIMESTAMP_FORMAT).format(dt));
+			((LoginResponse) loginResponse).setTimezone(new SimpleDateFormat("z").format(dt));
+			((LoginResponse) loginResponse).setDateformat(Constants.TIMESTAMP_FORMAT);
+			((LoginResponse) loginResponse).setRefreshToken(oauth.getRefresh_token());
+			if(staff.getRestaurantGuid() != null)
+			{
+			rest = restDao.findRestaurantByGuid(staff.getRestaurantGuid());
+
+			}
+
+			((LoginResponse) loginResponse).setRest(rest);
+
+			if(null!=oauth){
+
+			((LoginResponse) loginResponse).setAccess_token(oauth.getAccess_token());
+			((LoginResponse) loginResponse).setRefreshToken(oauth.getRefresh_token());
+			}
+
+			// add token to loggedinusersmap
+			authorizationService.addNewSession(generatedToken, userInfo);
+
+			// check whether token already exists in database,if not exists then
+			// insert entry for that token in database
+			boolean exists = userTokenService.tokenExists(generatedToken);
+			if (!exists) {
+				UserToken userToken = new UserToken();
+				userToken.setToken(generatedToken);
+				userToken.setGuid(userInfo.getGuid());
+				userToken.setUserId(Constants.STAFF + userInfo.getGuid());
+				Logger.debug("adding user token");
+				userTokenService.addUserToken(userToken);
+			}
+			if (null != token) {
+				loginResponse.createResponse( ResponseCodes.SOCIAL_LOGIN_SUCCESS_VALID_OTP, true);
+
+			} else {
+
+				loginResponse.createResponse( ResponseCodes.SOCIAL_LOGIN_SUCCESS, true);
+
+			}
+
+		}
+		// if stormpath authenticates user but user info is not in db then send
+		// login failure msg
+		else {
+			if (!isFlag) {
+				loginResponse.createResponse(ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_OTP, false);
+
+			} else {
+				loginResponse.createResponse( ResponseCodes.SOCIAL_LOGIN_FAILURE_INVALID_USER, false);
+
+			}
+		}
+		return loginResponse;
+	}
+
+	/**
+	 * Method for forgot password
+	 * 
+	 * @return
+	 */
+	@Override
+	public BaseResponse forgotPassword(String email) {
+		BaseResponse response = new BaseResponse();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		if (CustomValidations.isValidEmail(email)) {
+			try {
+				com.stormpath.sdk.application.Application application = StormpathConfig.getInstance().getApplication();
+				// send password reset mail to the specified email id
+				application.sendPasswordResetEmail(email);
+				response.createResponse(ResponseCodes.EMAIL_SENT_SUCCESSFULLY, true);
+			} catch (ResourceException e) {
+				Logger.debug("Exception is ------------ " + e.getLocalizedMessage());
+				listOfError.add(validateStaffObject.createError(Constants.EMAIL, ErrorCodes.EMAIL_ACCOUNT_NOT_EXIST));
+				response = new ErrorResponse(ResponseCodes.EMAIL_SENT_FAILURE, listOfError);
+			}
+		} else {
+			listOfError.add(validateStaffObject.createError(Constants.EMAIL, ErrorCodes.INVALID_EMAIL_FORMAT));
+			response = new ErrorResponse(ResponseCodes.EMAIL_SENT_FAILURE, listOfError);
+
+		}
+		return response;
+	}
+
+	/**
+	 * Method for reset password
+	 * 
+	 * @return
+	 */
+	@Override
+	public BaseResponse resetPassword(String sptoken, String password) {
+		BaseResponse response = new BaseResponse();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		Logger.debug("error list " + listOfError);
+		try {
+
+			com.stormpath.sdk.application.Application application = StormpathConfig.getInstance().getApplication();
+
+			// Logger.debug("application is "+application);
+
+			Logger.debug("token is " + sptoken + " password is " + password);
+
+			/*
+			 * Account account =
+			 * application.verifyPasswordResetToken("$"+sptoken);
+			 * Logger.debug("sptoken verified account is "+account);
+			 */
+			Account account = application.resetPassword(sptoken, password);
+
+			Logger.debug("account is " + account);
+
+			response.createResponse( ResponseCodes.PASSWORD_CHANGED_SUCCESFULLY, true);
+		} catch (IllegalArgumentException ie) {
+			Logger.debug("illegal argument exception is " + ie.getLocalizedMessage());
+			listOfError.add(new ValidationError(Constants.SP_TOKEN, ie.getLocalizedMessage()));
+			response = new ErrorResponse(ResponseCodes.PASSWORD_CHANGE_FAILURE, listOfError);
+		} catch (ResourceException e) {
+			// listOfError.add(validateStaffObject.createError(Constants.EMAIL,
+			// ErrorCodes.EMAIL_ACCOUNT_NOT_EXIST));
+			Logger.debug("exception is " + e.getDeveloperMessage());
+			Logger.debug("code is " + e.getCode() + " cause is " + e.getCause() + " more info is " + e.getMoreInfo() + " status is " + e.getStatus() + " stormpath error is " + e.getStormpathError());
+			if (e.getDeveloperMessage().contains("Password") || e.getDeveloperMessage().contains(Constants.PASSWORD) || e.getDeveloperMessage().contains(Constants.PASSWORD.toUpperCase())) {
+				listOfError.add(new ValidationError(Constants.PASSWORD, e.getDeveloperMessage()));
+				response = new ErrorResponse(ResponseCodes.PASSWORD_CHANGE_FAILURE, listOfError);
+			}
+			if (e.getDeveloperMessage().contains("The requested resource does not exist")) {
+				listOfError.add(new ValidationError(Constants.SP_TOKEN, UtilityMethods.getErrorMsg(ErrorCodes.INVALID_SP_TOKEN), ErrorCodes.INVALID_SP_TOKEN));
+				response = new ErrorResponse(ResponseCodes.PASSWORD_CHANGE_FAILURE, listOfError);
+			}
+		}
+
+		return response;
+	}
+
+	@Override
+	public BaseResponse logOut(String token) {
+		BaseResponse response = new BaseResponse();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+		if (token == null) {
+			listOfError.add(new ValidationError(Constants.ACCESS_TOKEN, UtilityMethods.getErrorMsg(ErrorCodes.ACCESS_TOKEN_MISSING), ErrorCodes.ACCESS_TOKEN_MISSING));
+			response = new ErrorResponse(ResponseCodes.LOG_OUT_FAILURE, listOfError);
+		} else {
+			boolean removed = authorizationService.removeSession(token);
+			if (removed) {
+				userTokenService.deleteToken(token);
+				response.createResponse( ResponseCodes.LOGGED_OUT_SUCCESSFULLY, true);
+			} else {
+				listOfError.add(new ValidationError(Constants.LOG_OUT, UtilityMethods.getErrorMsg(ErrorCodes.LOG_OUT_FAILURE), ErrorCodes.LOG_OUT_FAILURE));
+				response = new ErrorResponse(ResponseCodes.LOG_OUT_FAILURE, listOfError);
+			}
+		}
+		return response;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@Transactional
+	public BaseResponse deleteStaffMember(String staffGuid, String token) {
+		BaseResponse response;
+		Staff staffObj = null;
+		UserInfoModel userInfo = authorizationService.getUserInfoByToken(token);
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		if (staffGuid == null || staffGuid.equals(""))
+			listOfError.add(validateStaffObject.createError(Constants.GUID, ErrorCodes.STAFF_ID_REQUIRED));
+		else {
+
+			staffObj = staffDao.find(staffGuid);
+
+			if (staffObj == null)
+				listOfError.add(validateStaffObject.createError(Constants.GUID, ErrorCodes.INVALID_STAFF_ID));
+			else {
+				staffObj.setUpdatedBy(userInfo.getGuid());
+				staffObj.setStatus(Constants.DELETED_STATUS);
+				Logger.debug("list of error is " + listOfError);
+			}
+		}
+
+		if (listOfError.isEmpty()) {
+
+			// if user is not ct admin then check if staff member being created
+			// and logged in staff member both belongs to same restaurant
+			if (!userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID)) {
+				listOfError = validateStaffObject.validateStaffForRestaurant(staffObj.getRestaurantGuid(), userInfo.getRestGuid());
+				if (!listOfError.isEmpty()) {
+					response = new ErrorResponse(ResponseCodes.STAFF_DELETION_FAILURE, listOfError);
+					return response;
+				}
+			}
+
+			// if status is deleted than delete entry for that staff member from
+			// stormpath
+
+			if (staffObj.getStatus().equals(Constants.DELETED_STATUS)) {
+			    
+			    if(userInfo.getGuid().equals(staffObj.getGuid()))
+			    {
+				listOfError.add(validateStaffObject.createError(Constants.ACCESS_DENIED,
+					  ErrorCodes.USER_CANNOT_DELETE_HIS_OWN_ACCOUNT));
+				response = new ErrorResponse(ResponseCodes.STAFF_UPDATION_FAILURE,listOfError);
+				return response;
+				
+			    }
+			    
+				Client client = StormpathConfig.getInstance().getClient();
+				client.getResource(Constants.STORMPATH_HREF_PATH_STRING + staffObj.getHref(), Account.class).delete();
+
+				Logger.debug("staff member deleted");
+			}
+
+			//String staffAccessToken = Constants.STAFF + staffGuid + staffObj.getRoleId();
+			Staff updatedStaffObj = staffDao.updateStaff(staffObj);
+
+			//BaseResponse logOutResponse = this.logOut(staffAccessToken);
+			response = new UpdateResponse<Staff>(ResponseCodes.STAFF_DELETED_SUCCESFULLY, updatedStaffObj.getGuid());
+		} else {
+			response = new ErrorResponse(ResponseCodes.STAFF_DELETION_FAILURE, listOfError);
+		}
+
+		return response;
+	}
+
+	@Override
+	public BaseResponse addStaffMember(Staff staff) {
+
+		BaseResponse response;
+		staff.setStatus(Constants.ACTIVE_STATUS);
+		List<ValidationError> listOfErrorForStaff = validateStaffObject.validateStaffOnAdd(staff);
+
+		if (listOfErrorForStaff.isEmpty()) {
+			Restaurant rest = null;
+			if ((staff.getRestaurantGuid() != null) && (!staff.getRestaurantGuid().equals(""))) {
+				rest = restDao.findRestaurantByGuid(staff.getRestaurantGuid());
+				Logger.debug("finding restaurant " + rest);
+				if (rest == null) {
+					listOfErrorForStaff.add(validateStaffObject.createError(Constants.REST_ID, ErrorCodes.INVALID_REST_ID));
+					Logger.debug("list of error is " + listOfErrorForStaff);
+					response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+					return response;
+				}
+
+			}
+
+			// if user is not ct admin then check if staff member being created
+			// and logged in staff member both belongs to same restaurant
+			/*
+			 * if (!userInfo.getRoleId().equals(Constants.CT_ADMIN_ROLE_ID)) {
+			 * listOfErrorForStaff = validateStaffObject
+			 * .validateStaffForRestaurant(staff.getRestaurantGuid(),
+			 * userInfo.getRestGuid()); if (!listOfErrorForStaff.isEmpty()) {
+			 * response = new ErrorResponse( ResponseCodes.STAFF_ADDED_FAILURE,
+			 * listOfErrorForStaff); return response; } }
+			 */
+
+			Logger.debug("list of error is empty");
+			// If no validation error then add staff to stormpath within try
+			// catch so that if exception
+			// arises in adding user to storm path
+			// response for failure is send
+			try {
+
+				staff.setHref(addStaffToStormPath(staff));
+				Logger.debug("staff added to stormpath");
+
+				/* Generation FireBase Token */
+				try {
+					Map<String, Object> authPayload = new HashMap<String, Object>();
+					authPayload.put("uid", UtilityMethods.generateCtId());
+					authPayload.put("token", Constants.FIREBASE_TOKEN_NAME);
+
+					TokenOptions tokenOptions = new TokenOptions();
+					tokenOptions.setAdmin(true);
+
+					TokenGenerator tokenGenerator = new TokenGenerator(Constants.FIREBASE_TOKEN);
+					staff.setFirebase_token(tokenGenerator.createToken(authPayload, tokenOptions));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+				/*
+				 * Create relationship of staff with restaurant
+				 */
+				Staff newStaff = staffDao.create(staff);
+				Logger.debug("staff created");
+				// if restaurant guid is not null then create relationship of
+				// restaurant and staff
+				if ((staff.getRestaurantGuid() != null) && (!staff.getRestaurantGuid().equals(""))) {
+					Long id = staffDao.addRestaurantStaff(rest.getGuid(), newStaff);
+					Logger.debug("relationship id is " + id);
+				}
+
+				response = new PostResponse<Staff>(ResponseCodes.STAFF_ADDED_SUCCESFULLY, newStaff.getGuid());
+			} catch (ResourceException e) {
+				if (e.getDeveloperMessage().contains("Account with that email already exists")) {
+					listOfErrorForStaff.add(new ValidationError(Constants.EMAIL, UtilityMethods.getErrorMsg(ErrorCodes.EMAIL_ACCOUNT_ALREADY_EXISTS), ErrorCodes.EMAIL_ACCOUNT_ALREADY_EXISTS));
+				} else {
+					listOfErrorForStaff.add(new ValidationError(Constants.STORMPATH_MODULE, e.getMessage()));
+				}
+				response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+			}
+
+		} else {
+			// if validation error then send error response
+			response = new ErrorResponse(ResponseCodes.STAFF_ADDED_FAILURE, listOfErrorForStaff);
+		}
+
+		return response;
+
+	}
+	
+	
+}

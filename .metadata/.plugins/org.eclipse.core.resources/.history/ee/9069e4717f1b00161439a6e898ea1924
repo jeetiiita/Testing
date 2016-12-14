@@ -1,0 +1,20 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class InvoiceBillingInfo {
+	
+	private Integer invoiceId;
+	
+	private String invBillingAddress1;
+	
+	private String invBillingAddress2;
+	
+	private String invBillingLegalName;
+
+}

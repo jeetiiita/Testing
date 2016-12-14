@@ -1,0 +1,320 @@
+package com.clicktable.support.dao.impl;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javassist.bytecode.ConstantAttribute;
+
+import javax.persistence.Query;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.clicktable.support.dao.intf.ConversationDao;
+import com.clicktable.support.dao.intf.TaxCategoryDao;
+import com.clicktable.support.model.GuestConversation;
+import com.clicktable.support.model.TaxCategory;
+import com.clicktable.support.util.Constants;
+import com.clicktable.util.UtilityMethods;
+
+@Component
+public class ConversationDaoImpl extends JPADao<GuestConversation> implements
+		ConversationDao {
+
+	@Autowired
+	TaxCategoryDao taxCategoryDao;
+
+	@Override
+	public List<GuestConversation> getConversationAll() {
+		List<GuestConversation> getConversationList = findAll(GuestConversation.class);
+		return getConversationList;
+	}
+
+	@Override
+	public void deleteConversation(String guid) {
+		delete(guid);
+	}
+
+	
+// function will fetch all delivered messages in which gupshup will charge	
+	@Override
+	@Transactional
+	public List<Object[]> getDeliveredConversationCount() {
+
+
+		Date currentDate = new Timestamp(new Date().getTime());
+
+		String queryStr = "SELECT c.restaurantGuid, SUM(c.smsCount), COUNT(c.smsCount) FROM GuestConversation as c "
+				+ "WHERE c.updatedDate >= :startDate AND c.updatedDate <= :endDate AND c.origin =:eventPromotion "
+				+ "AND smsStatus=:status AND smsStatusCause=:status OR "
+				+ "(c.origin=:eventPromotion AND c.smsStatus =:fail AND c.smsStatusCause=:absentSubscriber OR "
+				+ "c.smsStatusCause=:unknownSubscriber OR c.smsStatusCause=:systemFailure OR c.smsStatusCause=:callBarred OR "
+				+ "c.smsStatusCause=:serviceDown OR c.smsStatusCause=:other) GROUP BY c.restaurantGuid";
+		
+		Query query = em
+				.createQuery(queryStr)
+				.setParameter(Constants.STARTDATE,(Date) getStartOfDay(currentDate))
+				.setParameter(Constants.ENDDATE,(Date) getEndOfDay(currentDate))
+				.setParameter("eventPromotion", Constants.EVENT_PROMOTION)
+				.setParameter("status", Constants.SUCCESS)
+				.setParameter("fail", Constants.FAIL)
+				.setParameter("absentSubscriber", Constants.ABSENT_SUBSCRIBER)
+				.setParameter("unknownSubscriber", Constants.UNKNOWN_SUBSCRIBER)
+				.setParameter("systemFailure", Constants.SYSTEM_FAILURE)
+				.setParameter("callBarred", Constants.CALL_BARRED)
+				.setParameter("serviceDown", Constants.SERVICE_DOWN)
+				.setParameter("other", Constants.OTHER);
+		
+		List<Object[]> result = query.getResultList();
+		return result;
+	}
+
+	private Date getEndOfDay(Date date) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.DATE, -1);
+		int year = calendar.get(Calendar.YEAR);
+		int month = calendar.get(Calendar.MONTH);
+		int day = calendar.get(Calendar.DATE);
+		calendar.set(year, month, day, 23, 59, 59);
+		return calendar.getTime();
+	}
+
+	private Date getStartOfDay(Date date) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.DATE, -1);
+		int year = calendar.get(Calendar.YEAR);
+		int month = calendar.get(Calendar.MONTH);
+		int day = calendar.get(Calendar.DATE);
+		calendar.set(year, month, day, 0, 0, 0);
+		return calendar.getTime();
+	}
+
+	@Override
+	public GuestConversation getConversation(String guid) {
+		GuestConversation conversation = find(GuestConversation.class,
+				guid);
+		return conversation;
+	}
+
+	@Override
+	public List<GuestConversation> updateMultiple(List<String> guidList,
+			Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+
+	}
+
+	private Object getSuccessGuestConversationOfRestaurant(
+			String restaurantGuid, Date startDate, Date endDate,
+			String originGuid) {
+		String queryString = "SELECT SUM(g.smsCount) FROM GuestConversation AS g where g.restaurantGuid=:restaurantGuid "
+				+ "AND g.updatedDate >= :startDate AND g.updatedDate <=:endDate AND smsStatus=:smsStatus AND origin =:origin And originGuid =:originGuid";
+		Query query = em.createQuery(queryString)
+				.setParameter(Constants.RESTAURANTGUID, restaurantGuid)
+				.setParameter(Constants.STARTDATE, startDate)
+				.setParameter(Constants.ENDDATE, endDate)
+				.setParameter(Constants.SMS_STATUS, Constants.SUCCESS)
+				.setParameter(Constants.ORIGIN, Constants.EVENT_PROMOTION)
+				.setParameter(Constants.ORIGIN_GUID, originGuid);
+
+		Object resultList = query.getSingleResult();
+		return resultList;
+	}
+
+	private Object getFailGuestConversationOfRestaurant(String restaurantGuid,
+			Date startDate, Date endDate, String originGuid) {
+		String queryString = "SELECT SUM(g.smsCount) FROM GuestConversation AS g where g.restaurantGuid=:restaurantGuid AND"
+				+ " g.updatedDate >= :startDate AND g.updatedDate <=:endDate AND smsStatus=:smsStatus AND smsStatusCause NOT IN(:other,:blockedMask) AND origin =:origin And originGuid =:originGuid";
+		Query query = em.createQuery(queryString)
+				.setParameter(Constants.RESTAURANTGUID, restaurantGuid)
+				.setParameter(Constants.STARTDATE, startDate)
+				.setParameter(Constants.ENDDATE, endDate)
+				.setParameter(Constants.SMS_STATUS, Constants.FAIL)
+				.setParameter("other", Constants.OTHER)
+				.setParameter("blockedMask", Constants.BLOCKED_MASK)
+				.setParameter(Constants.ORIGIN, Constants.EVENT_PROMOTION)
+				.setParameter(Constants.ORIGIN_GUID, originGuid);
+		Object resultList = query.getSingleResult();
+		return resultList;
+	}
+	
+
+	private Object getDndGuestConversationOfRestaurant(String restaurantGuid,
+			Date startDate, Date endDate, String originGuid) {
+		String queryString = "SELECT SUM(g.smsCount) FROM GuestConversation AS g where g.restaurantGuid=:restaurantGuid AND"
+				+ " g.updatedDate >= :startDate AND g.updatedDate <=:endDate AND smsStatus=:smsStatus AND smsStatusCause=:smsStatusCause "
+				+ "OR smsStatusCause=:dndTimeOut AND origin =:origin And originGuid =:originGuid";
+		
+		Query query = em.createQuery(queryString)
+				.setParameter(Constants.RESTAURANTGUID, restaurantGuid)
+				.setParameter(Constants.STARTDATE, startDate)
+				.setParameter(Constants.ENDDATE, endDate)
+				.setParameter(Constants.SMS_STATUS, Constants.FAIL)
+				.setParameter(Constants.SMS_STATUS_CAUSE, Constants.DND_FAIL)
+				.setParameter("dndTimeOut", Constants.DND_TIMEOUT)
+				.setParameter(Constants.ORIGIN, Constants.EVENT_PROMOTION)
+				.setParameter(Constants.ORIGIN_GUID, originGuid);
+
+		Object resultList = query.getSingleResult();
+		return resultList;
+	}
+
+	private Object getPendingGuestConversationOfRestaurant(
+			String restaurantGuid, Date startDate, Date endDate,
+			String originGuid) {
+		String queryString = "SELECT SUM(g.smsCount) FROM GuestConversation AS g where g.restaurantGuid=:restaurantGuid AND"
+				+ " g.updatedDate >= :startDate AND g.updatedDate <=:endDate AND smsStatus=:smsStatus AND origin =:origin And originGuid =:originGuid";
+		Query query = em.createQuery(queryString)
+				.setParameter(Constants.RESTAURANTGUID, restaurantGuid)
+				.setParameter(Constants.STARTDATE, startDate)
+				.setParameter(Constants.ENDDATE, endDate)
+				.setParameter(Constants.SMS_STATUS, Constants.MSG_SENT)
+				.setParameter(Constants.ORIGIN, Constants.EVENT_PROMOTION)
+				.setParameter(Constants.ORIGIN_GUID, originGuid);
+
+		Object resultList = query.getSingleResult();
+		return resultList;
+	}
+
+	@Override
+	public List<Map<String, Object>> getEventPromotionOfRestaurant(
+			Map<String, Object> params) {
+
+		List<Map<String, Object>> resultMap = new ArrayList<Map<String, Object>>();
+		String queryString = "SELECT g.originGuid, g.smsCount, g.message, g.updatedDate FROM"
+				+ " GuestConversation AS g where g.restaurantGuid=:restaurantGuid AND"
+				+ " g.updatedDate >= :startDate AND g.updatedDate <=:endDate AND origin =:origin GROUP BY g.originGuid";
+
+		String restaurantGuid = params.get(Constants.RESTAURANTGUID).toString();
+
+		Date startDate = UtilityMethods.parseDate(params.get(Constants.STARTDATE).toString(),Constants.DATE_FORMAT);
+		Date endDate = UtilityMethods.parseDate(params.get(Constants.ENDDATE).toString(), Constants.DATE_FORMAT);
+		
+		Query query = em.createQuery(queryString)
+				.setParameter(Constants.RESTAURANTGUID, restaurantGuid)
+				.setParameter(Constants.STARTDATE, startDate)
+				.setParameter(Constants.ENDDATE, endDate)
+				.setParameter(Constants.ORIGIN, Constants.EVENT_PROMOTION);
+
+		List<Object[]> resultList = query.getResultList();
+
+		Long successMessage;
+		Long failMessage;
+		Long dndMessage;
+		Long pendingMessage;
+		Long errorMessage;
+		float unitPrice = 0;
+		String originGuid;
+		Long chargableSmsCount;
+
+		Map<String, Object> taxCategoryparams = new HashMap<String, Object>();
+
+		taxCategoryparams.put(Constants.VALIDFROM_BEFORE_ORON, startDate);
+		taxCategoryparams.put(Constants.VALIDTILL_AFTER_ORON, endDate);
+
+		List<TaxCategory> taxCategoryList = taxCategoryDao.findByFields(
+				TaxCategory.class, taxCategoryparams);
+
+		if (!taxCategoryList.isEmpty()) {
+			unitPrice = taxCategoryList.get(0).getUnitPrice();
+
+		}
+
+		for (Object[] result : resultList) {
+
+			originGuid = (String) result[0];
+
+			successMessage = (Long) getSuccessGuestConversationOfRestaurant(
+					restaurantGuid, startDate, endDate, originGuid);
+			successMessage = successMessage == null ? new Long(0)
+					: successMessage;
+
+			failMessage = (Long) getFailGuestConversationOfRestaurant(
+					restaurantGuid, startDate, endDate, originGuid);
+
+			failMessage = failMessage == null ? new Long(0) : failMessage;
+
+			dndMessage = (Long) getDndGuestConversationOfRestaurant(
+					restaurantGuid, startDate, endDate, originGuid);
+
+			dndMessage = dndMessage == null ? new Long(0) : dndMessage;
+
+			pendingMessage = (Long) getPendingGuestConversationOfRestaurant(
+					restaurantGuid, startDate, endDate, originGuid);
+
+			pendingMessage = pendingMessage == null ? new Long(0)
+					: pendingMessage;
+
+			Map<String, Object> eventMap = new HashMap<String, Object>();
+
+			chargableSmsCount = successMessage + failMessage - dndMessage;
+
+			eventMap.put("smsParts", result[1]);
+			eventMap.put("message", result[2]);
+			eventMap.put("sentDate", result[3]);
+			eventMap.put("originGuid", originGuid);
+			eventMap.put("success", successMessage);
+			eventMap.put("fail", failMessage);
+			eventMap.put("dndFail", dndMessage);
+			eventMap.put("pending", pendingMessage);
+			eventMap.put("amountWithoutTax", chargableSmsCount * unitPrice);
+
+			resultMap.add(eventMap);
+		}
+
+		return resultMap;
+
+	}
+	
+	@Override
+	public Object getGuestConversationCount(Map<String,Object> params)
+	{
+		String queryStr = "SELECT SUM(c.smsCount) FROM GuestConversation as c "
+				+ "where c.guestGuid=:guestGuid and c.createdDate >= :createdDate "
+				+ "AND c.restaurantGuid=:restaurantGuid";
+		
+		Query query = em.createQuery(queryStr)
+				.setParameter("guestGuid",params.get("guestGuid").toString())
+				.setParameter("createdDate", params.get("createdDate"))
+				.setParameter("restaurantGuid", params.get("restaurantGuid").toString());
+		
+		Object result = query.getSingleResult();
+		return result;
+		
+	}
+
+	@Override
+	public List<Object[]> getGuestConversationHistory(Map<String, Object> params) {
+		String queryStr = "SELECT c.message,c.createdDate FROM GuestConversation as c "
+				+ "where c.guestGuid=:guestGuid AND c.restaurantGuid=:restaurantGuid order by createdDate ASC";
+
+		Query query = em
+				.createQuery(queryStr)
+				.setParameter("guestGuid", params.get("guestGuid").toString())
+				.setParameter("restaurantGuid",
+						params.get("restaurantGuid").toString());
+		
+		if (params.get("pageSize") != null && params.get("pageNo") != null) {
+			query.setFirstResult(Integer.parseInt(params.get("pageNo")
+					.toString()));
+			query.setMaxResults(Integer.parseInt(params.get("pageSize")
+					.toString()));
+		} else
+			query.setMaxResults(30);
+
+		List<Object[]> result = query.getResultList();
+		return result;
+
+	}
+}

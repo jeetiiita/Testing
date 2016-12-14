@@ -1,0 +1,265 @@
+package com.clicktable.support.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import play.Logger;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.response.SMSResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.ConversationDao;
+import com.clicktable.support.model.Delivery;
+import com.clicktable.support.model.GuestConversation;
+import com.clicktable.support.response.SupportServerResponse;
+import com.clicktable.support.service.intf.ConversationService;
+import com.clicktable.support.service.intf.NotificationService;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.ConversationValidator;
+import com.clicktable.support.validate.DeliveryValidator;
+import com.clicktable.util.Constants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+
+@Component
+public class ConversationServiceImpl implements ConversationService {
+
+	@Autowired
+	ConversationDao conversationDao;
+
+	@Autowired
+	ConversationValidator conversationValidator;
+
+	@Autowired
+	DeliveryValidator deliveryValidator;
+
+	@Autowired
+	NotificationService notificationService;
+
+	@Override
+	public BaseResponse insertToConversation(GuestConversation conversation) {
+
+		BaseResponse response = null;
+		GuestConversation newConversation;
+
+		String mobileNum = conversation.getGuestMobileNum();
+		conversation.setGuid(UtilityMethods.generateCtId());
+
+		List<ValidationError> listOfError = conversationValidator
+				.validateConversationOnAdd(conversation);
+
+		if (listOfError.isEmpty()) {
+			conversation.setGuid(UtilityMethods.generateCtId());
+			newConversation = conversationDao.create(conversation);
+			Map<String, GuestConversation> conversationMap = new HashMap<String, GuestConversation>();
+			conversationMap.put(mobileNum, newConversation);
+
+			// Async call to send SMS
+			notificationService.sendSMS(conversationMap, false);
+			response = new PostResponse<GuestConversation>(
+					ResponseCodes.GUEST_CONVERSATION_ADDED_SUCCESFULLY,
+					newConversation.getGuid());
+		} else {
+			response = new ErrorResponse(
+					ResponseCodes.GUEST_CONVERSATION_ADDITION_FAILURE,
+					listOfError);
+		}
+		return response;
+	}
+
+	@Override
+	public BaseResponse getGuestConversation(Map<String, Object> params) {
+		BaseResponse response;
+		Map<String, Object> validParams = conversationValidator
+				.validateFinderParams(params, GuestConversation.class);
+		List<GuestConversation> guestConversation = conversationDao
+				.findByFields(GuestConversation.class, validParams);
+		response = new GetResponse<>(
+				ResponseCodes.GUEST_CONVERSATION_RECORD_FETCH_SUCCESFULLY,
+				guestConversation);
+		return response;
+	}
+
+	@Override
+	public BaseResponse insertToMultipleConversation(
+			GuestConversation conversation, Map<String, String> infoMap) {
+
+		BaseResponse response = null;
+		String guestGuid;
+		GuestConversation newConversation;
+
+		List<String> guidList = new ArrayList<String>();
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		Map<String, GuestConversation> conversationMap = new HashMap<String, GuestConversation>();
+		for (Entry<String, String> guestInfo : infoMap.entrySet()) {
+
+			guestGuid = guestInfo.getValue();
+
+			conversation.setGuestMobileNum(guestInfo.getKey()); // key is mobile
+																// no.
+			conversation.setGuestGuid(guestGuid); // value is guid
+			conversation.setGuid(UtilityMethods.generateCtId());
+
+			listOfError.addAll(conversationValidator
+					.validateConversationOnAdd(conversation));
+
+			if (listOfError.isEmpty()) {
+				newConversation = conversationDao.create(new GuestConversation(
+						conversation));
+				conversationMap.put(newConversation.getGuestMobileNum(),
+						newConversation);
+				guidList.add(newConversation.getGuid());
+			}
+		}
+
+		// Send Async SMS
+		notificationService.sendSMS(conversationMap, true);
+
+		if (listOfError.isEmpty()) {
+			response = new PostResponse<GuestConversation>(
+					ResponseCodes.GUEST_CONVERSATION_ADDED_SUCCESFULLY,
+					guidList.toArray());
+		} else {
+			response = new ErrorResponse(
+					ResponseCodes.GUEST_CONVERSATION_ADDITION_FAILURE,
+					listOfError);
+		}
+		return response;
+	}
+
+	@Override
+	public BaseResponse updateGuestConversation(GuestConversation conversation) {
+
+		BaseResponse response = null;
+		List<ValidationError> listOfError = conversationValidator
+				.validateConversationOnUpdate(conversation);
+
+		if (listOfError.isEmpty()) {
+			GuestConversation newConversation = conversationDao
+					.update(conversation);
+			response = new UpdateResponse<GuestConversation>(
+					ResponseCodes.GUEST_CONVERSATION_UPDATED_SUCCESFULLY,
+					newConversation.getGuid());
+		} else {
+			response = new ErrorResponse(
+					ResponseCodes.GUEST_CONVERSATION_UPDATION_FAILURE,
+					listOfError);
+		}
+		return response;
+	}
+
+	// delivery callback function for gupshup.
+	@Override
+	public BaseResponse updateSmsStatus(Delivery delivery) {
+		BaseResponse response = null;
+
+		List<ValidationError> listOfError = deliveryValidator
+				.validateDeliveryOnUpdate(delivery);
+
+		if (listOfError.isEmpty()) {
+			Map<String, Object> params = new HashMap<String, Object>();
+			params.put(Constants.SMS_ID, delivery.getExternalId());
+
+			List<GuestConversation> conversation = conversationDao
+					.findByFields(GuestConversation.class, params);
+
+			if (!conversation.isEmpty()) {
+				conversation.get(0).setSmsId(delivery.getExternalId());
+				conversation.get(0).setSmsStatusCause(delivery.getCause());
+				conversation.get(0).setSmsStatus(delivery.getStatus());
+				conversationDao.update(conversation.get(0));
+				response = new UpdateResponse<GuestConversation>(
+						ResponseCodes.GUEST_CONVERSATION_UPDATED_SUCCESFULLY,
+						conversation.get(0).getGuid());
+				Logger.debug("GuestConversastion Updated Successfully! guid: "
+						+ conversation.get(0).getGuid());
+			} else {
+				Logger.error("Converation delivery Failed as SMS_ID "
+						+ params.get(Constants.SMS_ID).toString()
+						+ "does not exist\n");
+				listOfError.add(new ValidationError(Constants.SMS_ID,
+						ErrorCodes.SMS_ID_DOES_NOT_EXIST));
+				response = new ErrorResponse(
+						ResponseCodes.GUEST_CONVERSATION_UPDATION_FAILURE,
+						listOfError);
+			}
+		} else {
+			Logger.error("Errorlist for the GuestConversation Failure: "
+					+ listOfError.toString());
+			response = new ErrorResponse(
+					ResponseCodes.GUEST_CONVERSATION_UPDATION_FAILURE,
+					listOfError);
+		}
+		return response;
+
+	}
+
+	@Override
+	public void updateConversationWithSMSResponse(
+			GuestConversation conversation, SMSResponse smsResponse) {
+		conversation.setSmsId(smsResponse.getId());
+
+		if (smsResponse.getStatus().equals("success"))
+			conversation.setSmsStatus("MSG_SENT");
+		else
+			conversation.setSmsStatus(smsResponse.getStatus());
+
+		conversation.setSmsStatusCause(smsResponse.getDetails());
+		conversationDao.update(conversation);
+
+	}
+
+	@Override
+	public BaseResponse getEventPromotionOfRestaurant(Map<String, Object> params) {
+
+		List<Map<String, Object>> resultList = conversationDao
+				.getEventPromotionOfRestaurant(params);
+		return new SupportServerResponse(
+				ResponseCodes.RESTAURANT_EVENT_PROMOTION_MESSAGES_FETCHED_SUCCESSFULLY,
+				resultList.size(), resultList);
+
+	}
+
+	@Override
+	public BaseResponse getGuestConversationHistoryAndCount(Map<String, Object> params) {
+		BaseResponse response;
+
+		Map<String, Object> validParams = conversationValidator
+				.validateFinderParams(params, GuestConversation.class);
+
+		List<Map<String, Object>> resultListMap = new ArrayList<Map<String, Object>>();
+		
+		
+		Long guestConversationCount = (Long) conversationDao
+				.getGuestConversationCount(validParams);
+		
+		int count = (guestConversationCount == null) ? 0:guestConversationCount.intValue();
+		
+		List<Object[]> conversationList = conversationDao
+				.getGuestConversationHistory(validParams);
+		
+		conversationList.forEach(list->{
+			Map<String,Object> conversationMap = new HashMap<String, Object>();
+			
+			conversationMap.put("message", list[0]);
+			conversationMap.put("createdDate", list[1]);
+			resultListMap.add(conversationMap);
+		
+		});
+		
+		response = new SupportServerResponse(ResponseCodes.GUEST_CONVERSATION_RECORD_FETCH_SUCCESFULLY,count,resultListMap);
+		
+		return response;
+	}
+}

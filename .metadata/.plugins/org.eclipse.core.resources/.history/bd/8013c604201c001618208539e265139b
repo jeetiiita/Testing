@@ -1,0 +1,79 @@
+package com.clicktable.support.controllers;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.PostResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.TaxService;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.TaxValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+@org.springframework.stereotype.Controller
+
+public class TaxController extends Controller {
+private static final Logger.ALogger log = Logger.of(TaxController.class);
+
+	@Autowired
+	TaxService taxService;
+	
+	@Autowired
+	TaxValidator taxValidator;
+	
+
+	public Result addTax() {
+		
+		BaseResponse response = null;
+	
+		JsonNode json = request().body().asJson();
+
+		Tax tax = Json.fromJson(json, Tax.class);
+
+		List<ValidationError> errorList = taxValidator.validateTaxOnAdd(tax);
+
+		if (errorList.isEmpty()) {
+			Tax taxEntity = taxService.create(tax);			
+			response = new PostResponse<Tax>(ResponseCodes.TAX_ADDED_SUCCESSFULLY, taxEntity.getId().toString());
+		} else
+			response = new ErrorResponse(ResponseCodes.TAX_ADDITION_FAILURE,errorList);
+		
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+
+	public Result getAllTaxes() {
+		
+		Map<String, Object> params = UtilityMethods.convertQueryStringToMap(request().queryString());
+		
+		List<Tax> taxEntityList = taxService.getTax(params);
+		BaseResponse response = new GetResponse<Tax>(ResponseCodes.TAX_FETCHED_SUCCESSFULLY, taxEntityList);
+		
+		JsonNode result = Json.toJson(response);
+		return ok(Json.toJson(result));
+	}
+
+	public Result disableTax(short taxId) {
+		short id = taxId;
+		Boolean status = taxService.disable(id);
+		if(status == true)
+		BaseResponse response = new UpdateResponse<Tax>(ResponseCodes.TAX_UPDATED_SUCCESSFULLY, id);
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+}

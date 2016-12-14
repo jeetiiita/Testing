@@ -1,0 +1,27 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ReverseOfString {
+
+	public static void main() {
+
+	}
+
+	static void reverse(String input1) {
+		if (input1.length() == 0) {
+		}
+		if (input1.length() == 1) {
+			System.out.println(input1);
+		}
+		
+		
+
+		return result;
+	}
+}

@@ -1,0 +1,178 @@
+package com.clicktable.support.validate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.support.dao.intf.TaxCategoryDao;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.model.TaxCategory;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.EntityValidator;
+import com.clicktable.validate.ValidationError;
+
+@org.springframework.stereotype.Service
+public class TaxValidator extends EntityValidator<Tax> {
+
+	@Autowired
+	TaxDao taxDao;
+
+	@Autowired
+	TaxCategoryDao taxCategoryDao;
+
+	@Autowired
+	TaxCategoryValidator taxCategoryValidator;
+
+	public List<ValidationError> validateTaxOnAdd(Tax tax) {
+
+		List<ValidationError> errorList = validateOnAdd(tax);
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		if (errorList.isEmpty()) {
+			if ((!UtilityMethods.getEnumValues(Constants.TAX, Constants.STATUS)
+					.contains(tax.getStatus()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.STATUS, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_STATUS),
+						ErrorCodes.INVALID_TAX_STATUS);
+			}
+
+			if ((!UtilityMethods.getEnumValues(Constants.INVOICE,
+					Constants.INVOICE_COUNTRY).contains(tax.getCountry()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.INVOICE_COUNTRY, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_COUNTRY),
+						ErrorCodes.INVALID_TAX_COUNTRY);
+			}
+
+			if ((!UtilityMethods.getEnumValues(Constants.INVOICE,
+					Constants.INVOICE_STATE).contains(tax.getState()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.INVOICE_STATE, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_STATE),
+						ErrorCodes.INVALID_TAX_STATE);
+			}
+
+			if (tax.getValidFrom().after(tax.getValidTill())) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.TAX_DATE,
+						UtilityMethods.getErrorMsg(ErrorCodes.INVALID_DATES),
+						ErrorCodes.INVALID_DATES);
+			}
+
+			params.put(Constants.TAX_CODE, tax.getTaxCode());
+			params.put("validFromBeforeOrOn", tax.getValidTill());
+			params.put("validTillAfterOrOn", tax.getValidFrom());
+
+			List<Tax> existing = taxDao.findByFields(Tax.class, params);
+			if (existing.size() > 0) {
+				errorList = CustomValidations
+						.populateErrorList(
+								errorList,
+								Constants.TAX_DATE,
+								UtilityMethods
+										.getErrorMsg(ErrorCodes.OVERLAPPING_VALID_FROM_AND_TILL),
+								ErrorCodes.OVERLAPPING_VALID_FROM_AND_TILL);
+			}
+
+			String categoryGuid = tax.getTaxCategory().getGuid();
+
+			TaxCategory taxCategory = taxCategoryDao.find(categoryGuid);
+
+			if (taxCategory == null) {
+				errorList.add(new ValidationError(Constants.GUID,
+						UtilityMethods.getErrorMsg(taxCategoryValidator
+								.getInvalidGuidErrorCode())
+								+ " "
+								+ categoryGuid,
+						ErrorCodes.INVALID_TAX_CATEGORY_GUID));
+			}
+		}
+		return errorList;
+	}
+
+	public List<ValidationError> validateOnUpdate(Tax tax) {
+
+		List<ValidationError> errorList = validateOnAdd(tax);
+		
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		if (errorList.isEmpty()) {
+			if ((!UtilityMethods.getEnumValues(Constants.TAX, Constants.STATUS)
+					.contains(tax.getStatus()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.STATUS, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_STATUS),
+						ErrorCodes.INVALID_TAX_STATUS);
+			}
+
+			if ((!UtilityMethods.getEnumValues(Constants.INVOICE,
+					Constants.INVOICE_COUNTRY).contains(tax.getCountry()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.INVOICE_COUNTRY, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_COUNTRY),
+						ErrorCodes.INVALID_TAX_COUNTRY);
+			}
+
+			if ((!UtilityMethods.getEnumValues(Constants.INVOICE,
+					Constants.INVOICE_STATE).contains(tax.getState()))) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.INVOICE_STATE, UtilityMethods
+								.getErrorMsg(ErrorCodes.INVALID_TAX_STATE),
+						ErrorCodes.INVALID_TAX_STATE);
+			}
+
+			if (tax.getValidFrom().after(tax.getValidTill())) {
+				errorList = CustomValidations.populateErrorList(errorList,
+						Constants.TAX_DATE,
+						UtilityMethods.getErrorMsg(ErrorCodes.INVALID_DATES),
+						ErrorCodes.INVALID_DATES);
+			}
+
+			params.put(Constants.TAX_CODE, tax.getTaxCode());
+			params.put("validFromBeforeOrOn", tax.getValidTill());
+			params.put("validTillAfterOrOn", tax.getValidFrom());
+
+			List<Tax> existing = taxDao.findByFields(Tax.class, params);
+			if (existing.size() > 0) {
+				errorList = CustomValidations
+						.populateErrorList(
+								errorList,
+								Constants.TAX_DATE,
+								UtilityMethods
+										.getErrorMsg(ErrorCodes.OVERLAPPING_VALID_FROM_AND_TILL),
+								ErrorCodes.OVERLAPPING_VALID_FROM_AND_TILL);
+			}
+
+			String categoryGuid = tax.getTaxCategory().getGuid();
+
+			TaxCategory taxCategory = taxCategoryDao.find(categoryGuid);
+
+			if (taxCategory == null) {
+				errorList.add(new ValidationError(Constants.GUID,
+						UtilityMethods.getErrorMsg(taxCategoryValidator
+								.getInvalidGuidErrorCode())
+								+ " "
+								+ categoryGuid,
+						ErrorCodes.INVALID_TAX_CATEGORY_GUID));
+			}
+		}
+		return errorList;
+	}
+
+	@Override
+	public String getMissingGuidErrorCode() {
+		return ErrorCodes.TAX_GUID_REQUIRED;
+	}
+
+	@Override
+	public String getInvalidGuidErrorCode() {
+		return ErrorCodes.INVALID_TAX_GUID;
+	}
+}

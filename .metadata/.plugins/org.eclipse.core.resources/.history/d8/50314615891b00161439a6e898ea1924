@@ -1,0 +1,76 @@
+
+package com.clicktable.support.controllers;
+
+import static com.clicktable.util.Constants.ACCESS_TOKEN;
+
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.TaxCategory;
+import com.clicktable.support.service.intf.TaxCategoryService;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+
+/**
+ */
+@org.springframework.stereotype.Controller
+public class TaxCategoryController extends Controller {
+
+	private static final Logger.ALogger log = Logger
+			.of(TaxCategoryController.class);
+	
+	/**
+	 * Field taxCategoryService.
+	 */
+	@Autowired
+	TaxCategoryService taxCategoryService;
+
+	/**
+	 * Method addMasterData.
+	 * @return Result
+	 */
+	public Result addMasterData() {
+		BaseResponse response = null;
+		JsonNode json = request().body().asJson();
+		TaxCategory taxCategory = Json.fromJson(json, TaxCategory.class);
+		if (json != null) {
+			taxCategory.setGuid(UUID.randomUUID().toString());
+			response = taxCategoryService.addTaxCategoryMasterData(taxCategory);
+		}
+
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+	
+	/**
+	 * Method getTaxCategory.
+	 * @return Result
+	 */
+	public Result getTaxCategory(){
+		Map<String, Object> params = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse result = taxCategoryService.getTaxCategory(params);
+		return ok(Json.toJson(result));
+	}
+	
+	/**
+	 * Method patchTaxCategory.
+	 * @return Result
+	 */
+	public Result patchTaxCategory() {
+		JsonNode json = request().body().asJson();
+		TaxCategory taxCategory = Json.fromJson(json, TaxCategory.class);
+		BaseResponse response = taxCategoryService.updateTaxCategory(taxCategory);
+		JsonNode result = Json.toJson(response);
+		log.debug(Json.stringify(result));
+		return ok(result);
+	}
+}

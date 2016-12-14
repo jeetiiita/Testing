@@ -1,0 +1,1064 @@
+package com.clicktable.consumer.dao.impl;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+
+import org.joda.time.DateTime;
+import org.neo4j.graphdb.Relationship;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.neo4j.conversion.Result;
+import org.springframework.stereotype.Service;
+
+import play.Logger;
+
+import com.clicktable.consumer.dao.intf.ReservationDao;
+import com.clicktable.consumer.dao.intf.RestaurantDao;
+import com.clicktable.consumer.util.ReserveConstants;
+import com.clicktable.model.CalenderEvent;
+import com.clicktable.model.ConsumerEvent;
+import com.clicktable.model.ConsumerOffer;
+import com.clicktable.model.ConsumerReservation;
+import com.clicktable.model.CustomGuidCalEvent;
+import com.clicktable.model.CustomReservation;
+import com.clicktable.model.Discount;
+import com.clicktable.model.Event;
+import com.clicktable.model.GuestRating;
+import com.clicktable.model.OperationalHours;
+import com.clicktable.model.Reservation;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.ReviewRating;
+import com.clicktable.model.Shift;
+import com.clicktable.util.UtilityMethods;
+
+/**
+ * Consumer Reservation API
+ */
+@Service
+public class ReservationDaoImpl extends GraphDBDao<Reservation> implements ReservationDao {
+    @Autowired
+    RestaurantDao restaurantDao;
+    private static final Logger.ALogger log = Logger.of(ReservationDaoImpl.class);
+    
+    /**
+     * Constructor used for set class Type
+     */
+    public ReservationDaoImpl(){
+        super();
+        this.setType(Reservation.class);
+    }
+    
+    @Override
+    public List<ConsumerReservation> getAllRestReservation(Map<String, Object> params) {
+        
+        List<ConsumerReservation> consumerResvList = new ArrayList<>();
+        
+        StringBuilder query = new StringBuilder();
+        query = query
+                .append("   MATCH (rest:Restaurant)-[hg:HAS_GUEST]->(guest:GuestProfile {guid:{"+ ReserveConstants.GUEST_GUID+ "}})"
+                        + " -[:GUEST_HAS_RESV]->(t:Reservation) "
+                        + " WHERE toInt(guest.login_dt)<=toInt(t.created_dt)"
+                        + " AND rest.guid=t.rest_guid AND t.guest_guid={"+ ReserveConstants.GUEST_GUID +"} "
+                        + " AND (t.booked_by='CUSTOMER' OR t.booked_by='AGENT')");
+        
+                        if(params.containsKey(ReserveConstants.FREE_SEARCH)){
+                            query.append(" AND REPLACE(LOWER(rest.name),' ','')=~('(?i).*"
+                                                + params.get(ReserveConstants.FREE_SEARCH).toString().replaceAll(" ", "")
+                                    + ".*')  ");
+                        }
+                        
+                        if(params.containsKey(ReserveConstants.RESERVATION_STATUS) && !params.get(ReserveConstants.RESERVATION_STATUS).equals(ReserveConstants.ALL)){
+                            if(params.get(ReserveConstants.RESERVATION_STATUS).toString().equalsIgnoreCase(ReserveConstants.UPCOMING)){
+                                query.append(" AND toInt(t.est_start_time)>="+Calendar.getInstance().getTimeInMillis());
+                                query.append(" AND NOT t.reservation_status IN ['"+ReserveConstants.FINISHED+"','"+ReserveConstants.CANCELLED+"','"+ReserveConstants.NO_SHOW_STATUS+"']");
+                            }else{
+                                query.append(" AND  t.reservation_status ={"+ReserveConstants.RESERVATION_STATUS+"}");  
+                            }
+                        }
+                        
+                        query.append(" WITH rest,guest,t, hg.followed as follow "
+                        + "           OPTIONAL MATCH (guest)-[:GUEST_HAS_REVIEW{reviewed:true}]->(review:ReviewRating) WHERE review.resv_guid=t.guid  WITH rest,guest,t,review,follow"
+                        + "           OPTIONAL MATCH (rest)-[:HAS_ATTR]->(h: `Attribute`{type:'CATEGORY'}) WITH rest,guest,t,review,follow,collect(h.name)[0] as categoryName"
+                        + "           OPTIONAL MATCH (rest)-[:REST_HAS_EXTN]->(restExtn:RestaurantExtension) WHERE rest.guid=restExtn.rest_guid  WITH rest,guest,t,restExtn,review,follow,categoryName"
+                        + "           RETURN  DISTINCT t, rest.disp_name as name,collect(rest.images)[0] as photo, rest.locality as LOCALITY,rest.locality_display_name as localityDisplayName, rest.address as addressLine1,rest.masked_guid as restaurantGuid,"
+                        + "           rest.address_line_2 as addressLine2, rest.city as city, rest.state as STATE , rest.region as region,rest.type as restSource,follow as restfollowed,"
+                        + "           review.rating as rating,review.review as review,review.guid as reviewGuid,categoryName,"
+                        + "           t.short_id as reservationShortId,t.guid as reservationGuid,t.est_start_time as reservationTime,"
+                        + "           t.num_covers as num_covers, t.reservation_status as reservationStatus,t.offer_id as offerId,t.notes as notes, "
+                        + "           restExtn.total_rest_rating as total_rest_rating , restExtn.total_guest_reviewed as total_guest_reviewed,restExtn.total_guest_rated as total_guest_rated ");
+        
+        query = handleOrderBy(query, params);
+        Integer pageSize = getPageSize(params);
+        Integer startIndex = getIndex(params, pageSize);
+        query.append(" " + ReserveConstants.SKIP + " " + startIndex + " " + ReserveConstants.LIMIT + " " + pageSize);
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+            ConsumerReservation consumerReservation = new ConsumerReservation();
+            fetchRestaurantMap(map, consumerReservation);
+            fetchResvationMap(map, consumerReservation);
+            fetchReviewRatingMap(map, consumerReservation);
+            consumerResvList.add(consumerReservation);
+        }
+        return consumerResvList;
+        
+    }
+    
+    private ConsumerReservation fetchRestaurantMap(Map<String, Object> map, ConsumerReservation consumerReservation) {
+        consumerReservation.setAddressLine1(null != map.get(ReserveConstants.ADDRESS_LINE_1) ? map.get(
+                ReserveConstants.ADDRESS_LINE_1).toString() : null);
+        consumerReservation.setAddressLine2(null != map.get(ReserveConstants.ADDRESS_LINE_2) ? map.get(
+                ReserveConstants.ADDRESS_LINE_2).toString() : null);
+        consumerReservation.setRestaurantGuid(null != map.get(ReserveConstants.REST_GUID) ? map.get(
+                ReserveConstants.REST_GUID).toString() : null);
+        consumerReservation.setCity(null != map.get(ReserveConstants.CITY) ? map.get(ReserveConstants.CITY).toString()
+                : null);
+        consumerReservation.setRestSource(null != map.get("restSource") ? map.get("restSource").toString() : null);
+        
+        if(null!=map.get(ReserveConstants.PHOTO) && !Arrays.asList(map.get(ReserveConstants.PHOTO).toString()).isEmpty())
+        { 
+            String image[]=map.get(ReserveConstants.PHOTO).toString().
+                    substring(1, map.get(ReserveConstants.PHOTO).toString().length()-1).split(",");
+            for(int i=0;i<image.length;i++){
+                if(image[i].length()>0){
+                    consumerReservation.setRestPhotoUrl(image[i]);
+                    break;
+                }
+            }
+        	
+        }
+        
+        consumerReservation.setState(null != map.get(ReserveConstants.STATE) ? map.get(ReserveConstants.STATE)
+                .toString() : null);
+        consumerReservation.setRegion(null != map.get(ReserveConstants.REGION) ? map.get(ReserveConstants.REGION)
+                .toString() : null);
+        consumerReservation.setLocality(null != map.get(ReserveConstants.LOCALITY) ? map.get(ReserveConstants.LOCALITY)
+                .toString() : null);
+        consumerReservation.setLocalityDisplayName((String)map.get("localityDisplayName"));
+        consumerReservation.setBuilding(null != map.get(ReserveConstants.BUILDING) ? map.get(ReserveConstants.BUILDING)
+                .toString() : null);
+        consumerReservation.setName(null != map.get(ReserveConstants.NAME) ? map.get(ReserveConstants.NAME).toString()
+                : null);
+        consumerReservation.setFollowed(null != map.get("restfollowed") ? (Boolean) map.get("restfollowed") : false);
+        consumerReservation.setCategory(null != map.get("categoryName") ? map.get("categoryName").toString():null);
+        return consumerReservation;
+    }
+    
+    private ConsumerReservation fetchResvationMap(Map<String, Object> map, ConsumerReservation consumerReservation) {
+        
+        consumerReservation.setName(null != map.get(ReserveConstants.NAME) ? map.get(ReserveConstants.NAME).toString()
+                : null);
+        consumerReservation.setReservationId(null != map.get(ReserveConstants.RESERVATION_SHORT_ID) ? map.get(
+                ReserveConstants.RESERVATION_SHORT_ID).toString() : null);
+        consumerReservation.setReservationGuid(null != map.get(ReserveConstants.RESERVATION_GUID) ? map.get(
+                ReserveConstants.RESERVATION_GUID).toString() : null);
+        consumerReservation.setReservationTime(null != map.get(ReserveConstants.RESERVATION_TIME) ? new Date(Long
+                .valueOf(map.get(ReserveConstants.RESERVATION_TIME).toString())) : null);
+        consumerReservation.setReservationStatus(null != map.get(ReserveConstants.RESERVATION_STATUS) ? map.get(
+                ReserveConstants.RESERVATION_STATUS).toString() : null);
+        consumerReservation.setReservationCovers(null != map.get(ReserveConstants.NUM_COVERS) ? map.get(
+                ReserveConstants.NUM_COVERS).toString() : null);
+        consumerReservation.setOfferId(null != map.get(ReserveConstants.OFFER_ID) ? map.get(
+                ReserveConstants.OFFER_ID).toString() : null);
+        consumerReservation.setReservationNote(null != map.get(ReserveConstants.NOTES) &&
+                map.get(ReserveConstants.NOTES).toString().trim().length()>0 ? map.get(
+                ReserveConstants.NOTES).toString() : null);
+        
+        return consumerReservation;
+    }
+    
+    private ConsumerReservation fetchReviewRatingMap(Map<String, Object> map, ConsumerReservation consumerReservation) {
+        
+        consumerReservation.setSumOfAllGuestRating(null != map.get(ReserveConstants.TOTAL_REST_RATING) ? Integer
+                .parseInt(map.get(ReserveConstants.TOTAL_REST_RATING).toString()) : null);
+        consumerReservation.setNoOfGuestReviewed(null != map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY) ? Integer
+                .parseInt(map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY).toString()) : null);
+        consumerReservation.setNoOfGuestRated(null != map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY) ? Integer
+                .parseInt(map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY).toString()) : null);
+        consumerReservation.setGuestRating(null != map.get(ReserveConstants.RATING) ? Integer.parseInt(map.get(
+                ReserveConstants.RATING).toString()) : null);
+        consumerReservation.setGuestReviews(null != map.get(ReserveConstants.REVIEW) ? map.get(ReserveConstants.REVIEW)
+                .toString() : null);
+        consumerReservation.setReviewGuid(null != map.get(ReserveConstants.REVIEW_GUID) ? map.get(ReserveConstants.REVIEW_GUID)
+                .toString() : null);
+        return consumerReservation;
+    }
+    
+    @Override
+    public Map<String, Object> getPartailCustomReservationsForGuest(Map<String, Object> params) {
+        StringBuilder query = new StringBuilder();
+        query.append("MATCH (guest:GuestProfile {guid:{" + ReserveConstants.GUEST_GUID + "}}) \n");
+        query.append("OPTIONAL MATCH (guest)-[rel:GUEST_FOLLOW_REST]->(n:Restaurant) WITH  guest, count(rel) as restFollowed \n"
+               /* + "OPTIONAL MATCH (guest)-[hr:GUEST_HAS_REVIEW]-(t2:ReviewRating) WITH guest,restFollowed,count(hr) as reviewcount \n"*/
+                
+                +" OPTIONAL MATCH (guest)-[hr:GUEST_HAS_RESV]->(reservation:Reservation) WHERE toInt(reservation.created_dt)>toInt({"
+                + ReserveConstants.LOGIN_DT
+                + "}) AND  (reservation.booked_by='CUSTOMER' OR reservation.booked_by='AGENT') "
+                + "   AND reservation.guest_guid=guest.guid"
+                + "   WITH \n"
+                + "SIZE(filter(n IN collect(reservation) where  n.booking_mode='WALKIN' AND n.reservation_status={"
+                + ReserveConstants.FINISHED
+                + "})) as consumerWalkinCount,"
+                + "SIZE(filter(n IN collect(reservation) where   n.reservation_status={"
+                + ReserveConstants.FINISHED
+                + "})) as consumerFinishedReservation,"
+                + "SIZE(filter(n IN collect(reservation) where  n.reservation_status={"
+                + ReserveConstants.NO_SHOW_STATUS
+                + "})) as consumerNoShowCount,"
+                + "SIZE(filter(n IN collect(reservation) where  n.reservation_status={"
+                + ReserveConstants.CANCELLED
+                + "})) as consumerCancelCount,"
+                + "SIZE(filter(n IN collect(reservation) where  n.booking_mode='ONLINE' "
+                + "AND NOT n.reservation_status IN ['FINISHED','CANCELLED','NO_SHOW','ARRIVED','SEATED'] AND toInt(n.est_start_time) > timestamp())) "
+                + " as upcomingResvCount,"
+                + "count(reservation) as consumerReservationCount,guest,restFollowed\n");
+        
+        query.append(" RETURN guest.login_dt as sinceLogin ,consumerFinishedReservation,consumerNoShowCount,"
+                + "consumerCancelCount,consumerReservationCount,restFollowed,consumerWalkinCount,upcomingResvCount");
+        
+        query = handleOrderBy(query, params);
+        Integer pageSize = getPageSize(params);
+        
+        Integer startIndex = getIndex(params, pageSize);
+        query.append(" " + ReserveConstants.SKIP + " " + startIndex + " " + ReserveConstants.LIMIT + " " + pageSize);
+        
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put(ReserveConstants.CONSUMER_CANCEL_COUNT, 0);
+        resultMap.put(ReserveConstants.CONSUMER_NO_SHOW_COUNT, 0);
+        resultMap.put(ReserveConstants.CONSUMER_RESERVATION_COUNT, 0);
+        resultMap.put(ReserveConstants.CONSUMER_RESERVATION_FINISHED, 0);
+        resultMap.put(ReserveConstants.CONSUMER_WALKIN_COUNT, 0);
+        resultMap.put(ReserveConstants.REST_FOLLOWED, 0);
+        resultMap.put("upcomingResvCount", 0);
+        Result<Map<String, Object>> r = template.query(query.toString(), params);
+        
+        Iterator<Map<String, Object>> itr = r.iterator();
+        
+        while (itr.hasNext()) {
+            Map<String, Object> map = itr.next();
+            if (null != map.get(ReserveConstants.CONSUMER_CANCEL_COUNT))
+                resultMap.put(ReserveConstants.CONSUMER_CANCEL_COUNT, map.get(ReserveConstants.CONSUMER_CANCEL_COUNT));
+            if (null != map.get(ReserveConstants.CONSUMER_NO_SHOW_COUNT))
+                resultMap
+                        .put(ReserveConstants.CONSUMER_NO_SHOW_COUNT, map.get(ReserveConstants.CONSUMER_NO_SHOW_COUNT));
+            if (null != map.get(ReserveConstants.CONSUMER_RESERVATION_COUNT))
+                resultMap.put(ReserveConstants.CONSUMER_RESERVATION_COUNT,
+                        map.get(ReserveConstants.CONSUMER_RESERVATION_COUNT));
+            if (null != map.get(ReserveConstants.CONSUMER_RESERVATION_FINISHED))
+                resultMap.put(ReserveConstants.CONSUMER_RESERVATION_FINISHED,
+                        map.get(ReserveConstants.CONSUMER_RESERVATION_FINISHED));
+            if (null != map.get(ReserveConstants.CONSUMER_WALKIN_COUNT))
+                resultMap.put(ReserveConstants.CONSUMER_WALKIN_COUNT,
+                        map.get(ReserveConstants.CONSUMER_WALKIN_COUNT));
+            if (null != map.get(ReserveConstants.REST_FOLLOWED))
+               resultMap.put(ReserveConstants.REST_FOLLOWED, map.get(ReserveConstants.REST_FOLLOWED));            
+            if (null != map.get(ReserveConstants.GUEST_SINCE_LOGIN))
+                resultMap.put(ReserveConstants.GUEST_SINCE_LOGIN,map.get(ReserveConstants.GUEST_SINCE_LOGIN) );
+            if (null != map.get("upcomingResvCount"))
+                resultMap.put("upcomingResvCount",
+                        map.get("upcomingResvCount"));
+            
+            
+        }
+        return resultMap;
+    }
+    
+    @Override
+    public List<ConsumerReservation> getPartailReservationHistoryDetails(Map<String, Object> params) {
+        
+        List<ConsumerReservation> consumerResvList = new ArrayList<>();
+        
+        StringBuilder query = new StringBuilder();
+        query = query
+                .append(" MATCH (rest:Restaurant)-[HAS_GUEST]->(guest:GuestProfile {guid:{"
+                        + ReserveConstants.GUEST_GUID
+                        + "}})-[GUEST_HAS_RESV]->(t:Reservation) WHERE toInt(guest.login_dt)<=toInt(t.created_dt) "
+                        + " AND (t.booked_by='CUSTOMER' OR t.booked_by='AGENT') AND t.rest_guid=rest.guid"
+                        + " WITH rest,guest,t"
+                        + "           OPTIONAL MATCH (rest)-[:REGION_HAS_REST]-(region:Region) WITH rest,guest,t,region"
+                        + "           OPTIONAL MATCH (rest)-[:LOCALITY_HAS_REST]-(locality:Locality) WITH rest,guest,t,region,locality"
+                        + "           OPTIONAL MATCH (rest)-[:BUILDING_HAS_REST]-(building:building) WITH rest,guest,t,region,locality,building"
+                        + "           RETURN  DISTINCT rest,rest.masked_guid as restaurantGuid,rest.name as name,rest.images as photo,"
+                        + "           rest.city as city, rest.state as STATE , locality.name as LOCALITY,building.name as BUILDING,region.name as region,"
+                        + "           t,t.short_id as reservationShortId,t.guid as reservationGuid,t.est_start_time as reservationTime,t.num_covers as num_covers, t.reservation_status as reservationStatus");
+        
+        query = handleOrderBy(query, params);
+        Integer pageSize = getPageSize(params);
+        Integer startIndex = getIndex(params, pageSize);
+        query.append(" " + ReserveConstants.SKIP + " " + startIndex + " " + ReserveConstants.LIMIT + " " + pageSize);
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+            ConsumerReservation consumerReservation = new ConsumerReservation();
+            fetchRestaurantMap(map, consumerReservation);
+            fetchResvationMap(map, consumerReservation);
+            consumerReservation.setCreatedDate(null);
+            consumerResvList.add(consumerReservation);
+        }
+        return consumerResvList;
+        
+    }
+    
+    @Override
+    public List<ConsumerReservation> getReservationDetailsWithEventDetails(Map<String, Object> params) {
+        StringBuilder query = new StringBuilder();
+        query.append("MATCH (t:Reservation{guid:{"+ReserveConstants.RESERVATION_GUID+"}})");
+        query.append( "<-[guestRel:`GUEST_HAS_RESV`]-(guest:`GuestProfile`) <-[hg:`HAS_GUEST`]-(rest:`Restaurant`{guid:t.rest_guid}) ");
+
+        query.append("WHERE (t.booked_by='CUSTOMER' OR t.booked_by='AGENT') WITH rest,guest,t \n");
+        query.append(" OPTIONAL MATCH (rest)-[:REST_HAS_EXTN]->(restExtn:RestaurantExtension) WITH rest,guest,t,restExtn \n");
+        
+        query.append(" OPTIONAL MATCH (rest)-[:REST_HAS_CAL]->(cal:CalenderEvent) WHERE toInt(cal.start_time)<= toInt(t.est_start_time) "
+            		+ "AND toInt(cal.end_time)>= toInt(t.est_start_time) WITH rest,guest,t,restExtn,cal");
+            
+        query.append(" OPTIONAL MATCH (guest)-[relReview:GUEST_HAS_REVIEW]->(review:ReviewRating{resv_guid:{"
+                    + ReserveConstants.RESERVATION_GUID + "}}) WITH rest,guest,t,restExtn,cal, review ");
+            
+        query.append(" RETURN  DISTINCT rest,rest.name as restaurantName,rest.images as photo,guest.photo_url as photoUrl,");
+        query.append(" rest.city as city, rest.state as STATE, rest.masked_guid as restaurantGuid, rest.region as region,rest.locality as LOCALITY, rest.locality_display_name as localityDisplayName, rest.building as BUILDING,");
+        query.append(" rest.latitude as lat, rest.longitude as lng , rest.phone_no_1 as phone1,rest.phone_no_2 as phone2,"
+                + "rest.phone_no_2_verified as phone2Verified,rest.phone_no_1_verified as phone1Verified,"
+                + "rest.address_line_1 as addressLine1,");
+        query.append(" t,");
+        query.append(" t.short_id as reservationShortId,t.est_start_time as reservationTime,t.num_covers as num_covers, t.reservation_status as reservationStatus,t.notes as notes,");
+        query.append(" restExtn.total_rest_rating as total_rest_rating ,restExtn.total_guest_reviewed as total_guest_reviewed,restExtn.total_guest_rated as total_guest_rated,");
+        
+        
+        query.append(" EXTRACT(p IN filter(n IN collect(cal) where n.type='OFFER' AND n.guid=t.offer_id)| p) as offer,");
+        query.append(" EXTRACT(p IN filter(n IN collect(cal) where n.type='EVENT' )| p) as event, ");
+        
+        query.append(" review.guid as reviewGuid, review.review as reviewMessage ,review.review_response as response,review.rating as rating,review.created_dt as guestRatingDate,"
+                    + "review.response_dt as restResponseDate");
+        
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        List<ConsumerReservation> reservationList = new ArrayList<>();
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+            ConsumerReservation consumerReservation = new ConsumerReservation();
+            consumerReservation.setAddressLine1(null != map.get(ReserveConstants.ADDRESS_LINE_1) ? map.get(
+                    ReserveConstants.ADDRESS_LINE_1).toString() : null);
+            consumerReservation.setLatitude(null != map.get(ReserveConstants.LAT) ? map.get(
+                    ReserveConstants.LAT).toString() : null);
+            consumerReservation.setLongitude(null != map.get(ReserveConstants.LNG) ? map.get(
+                    ReserveConstants.LNG).toString() : null);
+            consumerReservation.setPhone1(null != map.get(ReserveConstants.PHONE_NO_1) ? map.get(
+                    ReserveConstants.PHONE_NO_1).toString() : null);
+            consumerReservation.setPhone2(null != map.get(ReserveConstants.PHONE_NO_2) ? map.get(
+                    ReserveConstants.PHONE_NO_2).toString() : null);
+            consumerReservation.setRestaurantGuid(null != map.get(ReserveConstants.REST_GUID) ? map.get(
+                    ReserveConstants.REST_GUID).toString() : null);
+            consumerReservation.setRestaurantName(null != map.get(ReserveConstants.RESTAURANT_NAME) ? map.get(
+                    ReserveConstants.RESTAURANT_NAME).toString() : null);
+            List<String> imageList = null;
+            if(null!=map.get(ReserveConstants.PHOTO)  && !Arrays.asList(map.get(ReserveConstants.PHOTO).toString()).isEmpty())
+            {
+            	imageList = Arrays.asList(map.get(ReserveConstants.PHOTO).toString());
+            }
+            consumerReservation.setRestImages(imageList);
+            consumerReservation.setCity(null != map.get(ReserveConstants.CITY) ? map.get(ReserveConstants.CITY)
+                    .toString() : null);
+            consumerReservation.setState(null != map.get(ReserveConstants.STATE) ? map.get(ReserveConstants.STATE)
+                    .toString() : null);
+            consumerReservation.setRegion(null != map.get(ReserveConstants.REGION) ? map.get(ReserveConstants.REGION)
+                    .toString() : null);
+            consumerReservation.setBuilding(null != map.get(ReserveConstants.BUILDING) ? map.get(
+                    ReserveConstants.BUILDING).toString() : null);
+            consumerReservation.setLocality(null != map.get(ReserveConstants.LOCALITY) ? map.get(
+                    ReserveConstants.LOCALITY).toString() : null);
+            consumerReservation.setLocalityDisplayName((String)map.get(ReserveConstants.LOCALITY_DISPLAY_NAME));
+            consumerReservation.setSumOfAllGuestRating(null != map.get(ReserveConstants.TOTAL_REST_RATING) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAL_REST_RATING).toString()) : null);
+            consumerReservation
+                    .setNoOfGuestReviewed(null != map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY) ? Integer
+                            .valueOf(map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY).toString()) : null);
+            consumerReservation.setNoOfGuestRated(null != map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY).toString()) : null);
+            consumerReservation.setReservationId(null != map.get(ReserveConstants.RESERVATION_SHORT_ID) ? map.get(
+                    ReserveConstants.RESERVATION_SHORT_ID).toString() : null);
+            consumerReservation.setReservationTime(null != map.get(ReserveConstants.RESERVATION_TIME) ? new Date(Long
+                    .valueOf(map.get(ReserveConstants.RESERVATION_TIME).toString())) : null);
+            consumerReservation.setReservationStatus(null != map.get(ReserveConstants.RESERVATION_STATUS) ? map.get(
+                    ReserveConstants.RESERVATION_STATUS).toString() : null);
+            consumerReservation.setReservationCovers(null != map.get(ReserveConstants.NUM_COVERS) ? map.get(
+                    ReserveConstants.NUM_COVERS).toString() : null);
+            consumerReservation.setReservationNote(null != map.get(ReserveConstants.NOTES) ? map.get(
+                    ReserveConstants.NOTES).toString() : null);
+            consumerReservation.setGuestPhotoURL(null != map.get(ReserveConstants.PHOTO_URL) ? map.get(
+                    ReserveConstants.PHOTO_URL).toString() : null);
+
+
+            if (null != map.get(ReserveConstants.RESERVATION_OFFER)) {
+                List<Map<String, Object>> mapList = extracted(map, ReserveConstants.RESERVATION_OFFER);
+
+                consumerReservation.setOfferList(offerList(mapList).isEmpty() ? null : offerList(mapList));
+            }
+
+            if (null != map.get(ReserveConstants.EVENT_MODULE)) {
+                List<Map<String, Object>> mapList = extracted(map, ReserveConstants.EVENT_MODULE);
+                consumerReservation.setEventList(eventList(mapList).isEmpty() ? null : eventList(mapList));
+            }
+
+            consumerReservation.setGuestRating(null != map.get(ReserveConstants.RATING) ? Integer.valueOf(map.get(
+                    ReserveConstants.RATING).toString()) : null);
+            consumerReservation.setGuestReviews(null != map.get(ReserveConstants.REVIEW_MESSAGE) ? map.get(
+                    ReserveConstants.REVIEW_MESSAGE).toString() : null);
+            consumerReservation.setReviewResponse(null != map.get(ReserveConstants.REVIEW_MESSAGE_RESPONSE) ? map
+                    .get(ReserveConstants.REVIEW_MESSAGE_RESPONSE).toString() : null);
+            consumerReservation.setReviewGuid((String) map.get(ReserveConstants.REVIEW_GUID));
+
+            if (null != map.get(ReserveConstants.GUEST_RATING_DATE)) {
+                consumerReservation.setGuestReviewCreatedDt(null != convertLongToDate(
+                        ReserveConstants.GUEST_RATING_DATE, map) ? convertLongToDate(
+                        ReserveConstants.GUEST_RATING_DATE, map) : null);
+            }
+
+            if (null != map.get(ReserveConstants.REST_REVIEW_RESPONSE_DATE)) {
+                consumerReservation.setReviewResponseCreatedDt(null != convertLongToDate(
+                        ReserveConstants.REST_REVIEW_RESPONSE_DATE, map) ? convertLongToDate(
+                        ReserveConstants.REST_REVIEW_RESPONSE_DATE, map) : null);
+            }
+            
+            
+            reservationList.add(consumerReservation);
+        }
+        return reservationList;
+        
+    }
+    
+    @Override
+    public Map<String, Object> validateRestGuestReservation(Map<String, Object> params) {
+        Map<String, Object> paramsReturn = new HashMap<>();
+        StringBuilder query = new StringBuilder();
+        query.append("MATCH (guest:GuestProfile {guid:{" + ReserveConstants.GUEST_GUID+"}}) ");
+        query.append(" OPTIONAL MATCH (guest)-[res:GUEST_HAS_RESV]-(resv:Reservation {guid:{"
+                + ReserveConstants.RESERVATION_GUID + "}})");
+        query.append(" RETURN guest.guid as guestGuid,resv.guid as resv_guid");
+        
+        log.info("---------Query -------" + query.toString());
+        Map<String, Object> map;
+        
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+            map = i.next();
+            /*paramsReturn.put(ReserveConstants.REST_ID,
+                    (map.get(ReserveConstants.REST_GUID) != null) ? map.get(ReserveConstants.REST_GUID).toString()
+                            : null);*/
+            paramsReturn.put(ReserveConstants.GUEST_ID,
+                    (map.get(ReserveConstants.GUEST_GUID) != null) ? map.get(ReserveConstants.GUEST_GUID).toString()
+                            : null);
+            paramsReturn.put(ReserveConstants.RESERVATION_GUID, (map.get(ReserveConstants.RESV_GUID) != null) ? map
+                    .get(ReserveConstants.RESV_GUID).toString() : null);
+        }
+        return paramsReturn;
+    }
+    
+    @Override
+    public Map<String, Object> validateGuestReservation(Map<String, Object> params) {
+        Map<String, Object> paramsReturn = new HashMap<>();
+        StringBuilder query = new StringBuilder();
+        
+        query.append("MATCH (guest:GuestProfile {guid:{" + ReserveConstants.GUEST_GUID
+                + "}})-[res:GUEST_HAS_RESV]-(resv:Reservation {guid:{" + ReserveConstants.RESERVATION_GUID + "}}) ");
+        query.append("RETURN distinct guest.guid as guestId");
+        
+        log.info("---------Query -------" + query.toString());
+        Map<String, Object> map;
+        
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+            map = i.next();
+            paramsReturn
+                    .put(ReserveConstants.GUEST_GUID,
+                            (map.get(ReserveConstants.GUEST_ID) != null) ? map.get(ReserveConstants.GUEST_ID)
+                                    .toString() : null);
+        }
+        
+        return paramsReturn;
+    }
+    
+    @Override
+    public CustomReservation getUpcomingReservation(String guestGuid) {
+        StringBuilder query = new StringBuilder();
+        query.append("match (guest:GuestProfile {guid:{")
+                .append(ReserveConstants.GUEST_GUID)
+                .append("}})-[GUEST_HAS_RESV]->(resv:Reservation) where toInt(resv.est_start_time) > timestamp() ")
+                .append("optional match (rest:Restaurant) where rest.guid=resv.rest_guid ")
+                .append("return resv.num_covers as num_covers,resv.est_start_time as estStartTime, resv.short_id as reservationShortId, ")
+                .append("rest.disp_name as name order by toInt(resv.est_start_time) asc limit 1");
+        Map<String, Object> params = new HashMap<>();
+        params.put(ReserveConstants.GUEST_GUID, guestGuid);
+        CustomReservation customReservation = null;
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> resultIterator = results.iterator();
+        if (resultIterator.hasNext()) {
+            Map<String, Object> map = resultIterator.next();
+            customReservation = new CustomReservation();
+            customReservation.setTableGuid(null);
+            customReservation.setNumCovers((Integer) map.get(ReserveConstants.NUM_COVERS));
+            customReservation.setRestaurantName((String) map.get(ReserveConstants.NAME));
+            customReservation.setEstStartTime(new Date((Long) map.get(ReserveConstants.EST_START_TIME)));
+            customReservation.setShortId((String) map.get(ReserveConstants.RESERVATION_SHORT_ID));
+            customReservation.setReservationTime(null);
+        }
+        return customReservation;
+    }
+    
+    @Override
+    public ConsumerReservation getReservationDetails(String guid) {
+    	return getConsumerReservationDetails(guid, null);
+    }
+    
+    
+    @Override
+    public ConsumerReservation getReservationDetailsByShortId(String shortId) {
+    	return getConsumerReservationDetails(null, shortId);
+    }
+    
+    private ConsumerReservation getConsumerReservationDetails(String guid,String shortId) {
+        StringBuilder query = new StringBuilder();
+        Map<String, Object> params = new HashMap<>();
+        if(guid!=null){
+        	query.append("MATCH (resv:Reservation {guid:{" + ReserveConstants.RESERVATION_GUID)
+            .append("}}),");
+        	params.put(ReserveConstants.RESERVATION_GUID, guid);
+        }else{
+        	query.append("MATCH (resv:Reservation {short_id:{" + ReserveConstants.RESERVATION_SHORT_ID)
+            .append("}}),");
+        	params.put(ReserveConstants.RESERVATION_SHORT_ID, shortId);
+        }
+        	query .append("(rest:Restaurant) ")    
+                .append("where resv.rest_guid=rest.guid ")
+                .append("OPTIONAL MATCH (guest:GuestProfile {guid:resv.guest_guid}) ")
+                .append("OPTIONAL MATCH (rest)-[:REST_HAS_EXTN]->(restExtn:RestaurantExtension) ")
+                .append("OPTIONAL MATCH (rest)-[:HAS_CUISINE]->(cuisine:Cuisine) ")
+                .append("OPTIONAL MATCH (rest)-[:REST_HAS_OPHR]->(shift:`Shift`) ")
+                .append("OPTIONAL MATCH (rest)-[:HAS_ATTR]->(attribute:`Attribute`{type : 'CATEGORY'}) ")
+                .append("OPTIONAL MATCH (rest)-[hg:HAS_GUEST]->(guest) ")
+                .append("OPTIONAL MATCH (rest)-[gfr:HAS_GUEST{followed : true}]->(guest1 : GuestProfile) ")
+                .append("OPTIONAL MATCH (guest)-[ghr:GUEST_HAS_REVIEW]->")
+                .append("(rr:ReviewRating{resv_guid:resv.guid}) ")
+                .append(" WHERE NOT has(ghr.reviewed) OR ghr.reviewed = true ")
+                .append("RETURN distinct rest, attribute.name as restaurantType, rr as reviewRating,")
+                .append("guest.first_name as guestName,guest.mobile as guestMobile,count(gfr) as followerCount,")
+                .append("resv.short_id as reservationShortId,resv.est_start_time as reservationTime, resv.est_end_time as reservationEndTime, resv.num_covers as num_covers,")
+                .append("resv.reservation_status as reservationStatus,resv.notes as notes,")
+                .append("resv.created_by as createdBy,resv.offer_id as offer,resv.guid as reservationGuid,resv.table_guid as tableGuid, hg.followed as guestFollowRest,")
+                .append("restExtn.total_rest_rating as total_rest_rating ,restExtn.total_guest_reviewed as total_guest_reviewed,restExtn.total_guest_rated as total_guest_rated,")
+                .append("collect(distinct cuisine.name) as cuisine,")
+                .append("collect(distinct shift) as shift");
+        
+        
+        
+        params.put(ReserveConstants.EVENT, ReserveConstants.EVENT);
+        ConsumerReservation consumerReservation = new ConsumerReservation();
+        List<Event> eventOfferList = new ArrayList<>();
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+        	Map<String, Object> map = i.next();
+            Restaurant rest = new Restaurant();
+            if (null != map.get("rest")) {
+                rest = template.convert(map.get("rest"), Restaurant.class);
+                consumerReservation.setRestaurantName(null != rest.getDisplayName() ? rest.getDisplayName() : null);
+                consumerReservation.setRestaurantGuid(null != rest.getMaskedGuid() ? rest.getMaskedGuid() : null);
+                consumerReservation.setRestImages(null != rest.getImages() ? rest.getImages() : null);
+                consumerReservation.setLatitude(null != rest.getLatitude() ? rest.getLatitude() : null);
+                consumerReservation.setLongitude(null != rest.getLongitude() ? rest.getLongitude() : null);
+                consumerReservation.setCostForTwo(null != rest.getCostFor2() ? rest.getCostFor2().toString() : null);
+                consumerReservation.setPhone1(null != rest.getPhoneNo1() ? rest.getPhoneNo1() : null);
+                consumerReservation.setPhone2(null != rest.getPhoneNo2() ? rest.getPhoneNo2() : null);
+                consumerReservation.setCity(null != rest.getCity() ? rest.getCity() : null);
+                consumerReservation.setRegion(null != rest.getRegion() ? rest.getRegion() : null);
+                consumerReservation.setLocality(null != rest.getLocality() ? rest.getLocality() : null);
+                consumerReservation.setLocalityDisplayName(null != rest.getLocalityDisplayName() ? rest.getLocalityDisplayName() : null);
+                consumerReservation.setState(null != rest.getState() ? rest.getState() : null);
+                consumerReservation.setZipCode(null != rest.getZipcode() ? rest.getZipcode().toString() : null);
+                consumerReservation.setAddressLine1(null != rest.getAddressLine1() ? rest.getAddressLine1() : null);
+                //consumerReservation.setAddressLine2(null != rest.getAddressLine2() ? rest.getAddressLine2() : null);
+                consumerReservation.setBuilding(null != rest.getBuilding() ? rest.getBuilding() : null);
+                consumerReservation.setRestSource(null != rest.getType() ? rest.getType() : null);
+                
+            }
+            
+            consumerReservation.setRestaurantType(null != map.get("restaurantType") ? map.get("restaurantType").toString() : null);
+            
+            consumerReservation.setGuestName(map.get("guestName").toString());
+            consumerReservation.setGuestMobile(map.get("guestMobile")!=null ?map.get("guestMobile").toString() : null);
+            
+            if(null != map.get("guestFollowRest")){
+            	consumerReservation.setFollowed((boolean) map.get("guestFollowRest"));
+            }else{
+            	consumerReservation.setFollowed(false);
+            }
+            
+            consumerReservation.setFollowerCount((Integer) map.get("followerCount"));
+            
+            consumerReservation.setGuid((String)map.get(ReserveConstants.RESERVATION_GUID));
+            consumerReservation.setReservationId(null != map.get(ReserveConstants.RESERVATION_SHORT_ID) ? map.get(
+                    ReserveConstants.RESERVATION_SHORT_ID).toString() : null);
+            consumerReservation.setReservationTime(null != map.get(ReserveConstants.RESERVATION_TIME) ? new Date(Long
+                    .valueOf(map.get(ReserveConstants.RESERVATION_TIME).toString())) : null);
+            consumerReservation.setReservationCovers(null != map.get(ReserveConstants.NUM_COVERS) ? map.get(
+                    ReserveConstants.NUM_COVERS).toString() : null);
+            consumerReservation.setReservationStatus(null != map.get(ReserveConstants.RESERVATION_STATUS) ? map.get(
+                    ReserveConstants.RESERVATION_STATUS).toString() : null);
+            consumerReservation.setReservationNote(null != map.get(ReserveConstants.NOTES) ? map.get(
+                    ReserveConstants.NOTES).toString() : null);
+            consumerReservation.setBookedBy(null != map.get(ReserveConstants.CREATED_BY) ? map.get(
+                    ReserveConstants.CREATED_BY).toString() : null);
+           consumerReservation.setTableGuid(null != map.get("tableGuid") ? (ArrayList<String>) map.get("tableGuid") : new ArrayList<>());
+            
+            consumerReservation.setSumOfAllGuestRating(null != map.get(ReserveConstants.TOTAL_REST_RATING) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAL_REST_RATING).toString()) : null);
+            consumerReservation
+                    .setNoOfGuestReviewed(null != map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY) ? Integer
+                            .valueOf(map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY).toString()) : null);
+            consumerReservation.setNoOfGuestRated(null != map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY).toString()) : null);
+            consumerReservation.setCuisineNames(null != map.get(ReserveConstants.REST_CUISINE) ? extractedSingle(map,
+                    ReserveConstants.REST_CUISINE) : null);
+           /* int totalGuestRated = consumerReservation.getNoOfGuestRated();
+            consumerReservation.setAvgRating(totalGuestRated != 0 ? ((float) (consumerReservation
+                    .getSumOfAllGuestRating() / totalGuestRated)) : null);*/
+          
+            if(null != map.get(ReserveConstants.RESERVATION_OFFER)){
+            	eventOfferList.addAll(getOfferForReservation(map.get(ReserveConstants.RESERVATION_OFFER).toString()));
+            }
+            ReviewRating reviewRating = null;
+            
+            if(map.get("reviewRating") != null){
+            	reviewRating = template.convert(map.get("reviewRating"), ReviewRating.class);
+            	consumerReservation.setReply(reviewRating.isReply());
+            	consumerReservation.setRating(reviewRating.getRating());
+            	consumerReservation.setReview(reviewRating.getReview());
+            	consumerReservation.setReviewGuid(reviewRating.getGuid());
+            	consumerReservation.setReviewResponse(reviewRating.getReviewResponse());
+            	consumerReservation.setReviewCreatedDate(reviewRating.getCreatedDate());
+            	consumerReservation.setReviewResponseCreatedDt(reviewRating.getResponseCreatedDt());
+            }
+            
+            Long reservationStartTime = consumerReservation.getReservationTime().getTime();
+            Long reservationEndTime = map.get("reservationEndTime") != null ? Long.parseLong(map.get("reservationEndTime").toString()) : reservationStartTime; 
+            
+            List<Event> eventList = getEventForReservation(rest, reservationStartTime, reservationEndTime);
+            eventOfferList.addAll(eventList);
+            consumerReservation.setEventOfferList(eventOfferList);
+            OperationalHours operationalHours = restaurantDao.convertToOperationalHours(extractedShift(map,
+                    ReserveConstants.SHIFT));
+            consumerReservation.setOpertionalHour(operationalHours);
+        }
+        
+        return consumerReservation;
+    }
+    
+    @Override
+    public ConsumerReservation getResvDetailsWithOutAccessToken(String guid){
+    	
+    	Map<String, Object> params = new HashMap<>();
+        params.put(ReserveConstants.GUID, guid);
+        params.put(ReserveConstants.EVENT, ReserveConstants.EVENT);
+        
+        StringBuilder query = new StringBuilder();
+        query.append("MATCH (resv:Reservation{guid:{"+ReserveConstants.GUID+"}})<-[guestRel:`GUEST_HAS_RESV`]-(guest:`GuestProfile`) ");
+        query.append("<-[hg:`HAS_GUEST`]-(rest:`Restaurant`{guid:resv.rest_guid}) ");
+        query.append("OPTIONAL MATCH (rest)-[ha:HAS_ATTR]->(attr:Attribute{type:'CATEGORY'}) ");
+        query.append("OPTIONAL MATCH (cal:CalenderEvent {guid:resv.offer_id}) ");
+        query.append("OPTIONAL MATCH (guest)-[ghr:GUEST_HAS_REVIEW]->(rr:ReviewRating{resv_guid:resv.guid}) ");
+        query.append("OPTIONAL MATCH (rest)-[:REST_HAS_EXTN]->(restExtn:RestaurantExtension) ");
+        query.append("OPTIONAL MATCH (guest)-[rel:GUEST_HAS_RATING]->(rating:GuestRating) ");
+        query.append("OPTIONAL MATCH (rest)-[:REST_HAS_CAL ]-(calEvent:`CalenderEvent`{type:{" + ReserveConstants.EVENT+"},status:'ACTIVE'})<-[]-(e:Event) ");
+        query.append("WHERE toInt(calEvent.start_time)<= toInt(resv.est_start_time) AND toInt(calEvent.end_time)>= toInt(resv.est_start_time) ");
+        query.append("RETURN collect(distinct e) as event, cal as calOffer, resv.short_id as reservationShortId, resv.est_start_time as reservationTime, resv.num_covers as numCovers, ");
+        query.append("resv.reservation_status as reservationStatus, guest.first_name as guestFirstName, guest.last_name as guestLastName, resv.rest_guid as restaurantGuid, resv.notes as notes, ");
+        query.append("resv.queued as queued, resv.est_start_time as estStartTime,resv.table_guid as tableGuid, guest.mobile as guestMobile, guest.isd_code as guestIsdCode, rest.name as name, rest.images as restImages, rest.latitude as latitude, rest.longitude as longitude, ");
+        query.append("rest.phone_no_1 as phone1, rest.phone_no_2 as phone2, rest.locality_display_name as locality, rest.address_line_1 as addressLine1, rest.type as restSource, ");
+        query.append("restExtn.total_rest_rating as total_rest_rating , restExtn.total_guest_rated as total_guest_rated, restExtn.total_guest_review as total_guest_review, ");
+        query.append("hg as relHasGuest, rr.rating as resvGuestRating, rr.review as review, rr.review_response as reviewResponse, rr.response_dt as responseDate, ");
+        query.append("rating.completed_resv as completedResv, rating.noshow_resv as noshowResv, rating.confirmed_cancelled_by_guest as confirmedCancelled,attr.name as category"); 
+
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+
+        ConsumerReservation consumerReservation = new ConsumerReservation();
+        CalenderEvent calenderEvent = null;
+        List<Event> events = new ArrayList<Event>();
+        
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+            consumerReservation.setReservationId(null != map.get(ReserveConstants.RESERVATION_SHORT_ID) ? map.get(
+                    ReserveConstants.RESERVATION_SHORT_ID).toString() : null);
+            consumerReservation.setReservationTime(null != map.get(ReserveConstants.RESERVATION_TIME) ? new Date(Long
+                    .valueOf(map.get(ReserveConstants.RESERVATION_TIME).toString())) : null);
+            consumerReservation.setReservationCovers(null != map.get("numCovers") ? map.get("numCovers").toString() : null);
+            consumerReservation.setTableGuid(null != map.get("tableGuid") ? (ArrayList<String>) map.get("tableGuid") : new ArrayList<>());
+            
+            consumerReservation.setReservationStatus((String) map.get(ReserveConstants.RESERVATION_STATUS));
+            consumerReservation.setRestaurantName((String) map.get(ReserveConstants.NAME));
+            List<String> restImages = (List) map.get("restImages");
+            if(restImages!=null && !restImages.isEmpty()){
+            	String image = restImages.get(0);
+            	restImages.clear();
+            	restImages.add(image);
+            	consumerReservation.setRestImages(restImages);
+            }
+            consumerReservation.setLatitude((String) map.get("latitude"));
+            consumerReservation.setLongitude((String) map.get("longitude"));
+            consumerReservation.setPhone1((String) map.get(ReserveConstants.PHONE_NO_1));
+            consumerReservation.setPhone2((String) map.get(ReserveConstants.PHONE_NO_2));
+            consumerReservation.setLocalityDisplayName((String) map.get("locality"));
+            consumerReservation.setAddressLine1((String) map.get(ReserveConstants.ADDRESS_LINE_1));
+            consumerReservation.setAddressLine2((String) map.get(ReserveConstants.ADDRESS_LINE_2));
+            consumerReservation.setRestSource((String) map.get("restSource"));
+            consumerReservation.setGuestName((String) map.get("guestFirstName"));
+            consumerReservation.setGuestMobile((String) map.get("guestMobile"));
+            consumerReservation.setRating(null != map.get("resvGuestRating") ? Integer
+                    .valueOf(map.get("resvGuestRating").toString()) : null);
+            consumerReservation.setSumOfAllGuestRating(null != map.get(ReserveConstants.TOTAL_REST_RATING) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAL_REST_RATING).toString()) : null);
+            consumerReservation.setNoOfGuestRated(null != map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAl_GUEST_RATED_ONLY).toString()) : null);
+            consumerReservation.setNoOfGuestReviewed(null != map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY) ? Integer
+                    .valueOf(map.get(ReserveConstants.TOTAl_GUEST_REVIEWED_ONLY).toString()) : null);
+            consumerReservation.setReviewCreatedDate((Date)map.get("responseDate"));
+            consumerReservation.setReservationNote(null != map.get(ReserveConstants.NOTES) ? map.get(ReserveConstants.NOTES).toString() : null);
+            consumerReservation.setReview((String) map.get("review"));
+            consumerReservation.setReviewResponse((String) map.get("reviewRespo nse"));
+            consumerReservation.setRestaurantType(null != map.get("category") ? map.get("category").toString() : null);
+            int totalGuestRated = consumerReservation.getNoOfGuestRated();
+            Long estStartTime = (null != map.get("estStartTime") ? Long.valueOf(map.get("estStartTime").toString()) : 0);
+            boolean isQueued = (Boolean) map.get("queued");
+            
+            Integer noShowResv = (null != map.get("noshowResv") ? Integer.valueOf(map.get("noshowResv").toString()) : 0);
+            Integer completedResv = (null != map.get("completedResv") ? Integer.valueOf(map.get("completedResv").toString()) : 0);
+            Integer cancelledConfirmed = (null != map.get("confirmedCancelled") ? Integer.valueOf(map.get("confirmedCancelled").toString()) : 0);
+            
+            Double avgRating = totalGuestRated != 0 ? ((double) (consumerReservation
+                    .getSumOfAllGuestRating()) / totalGuestRated) : null;
+            if(avgRating!=null)
+            	consumerReservation.setAvgRating(UtilityMethods.formatToOneDecimal(avgRating));
+            calenderEvent = template.convert(map.get("calOffer"), CalenderEvent.class);
+            GuestRating guestRating = template.convert(map.get("rating"), GuestRating.class);
+            Relationship relation = (Relationship) map.get("relHasGuest");
+            populateSpendRating(relation, consumerReservation);
+            populatePlatformRating(noShowResv, cancelledConfirmed, completedResv, consumerReservation);
+            if(isQueued){
+            	int queuePosition = getQueuePosition(guid);
+            	consumerReservation.setQueuePosition(queuePosition);
+            	if(estStartTime!=null){
+            		Date date = new Date();
+            		long curretTimeInMillis = date.getTime();
+            		long estWaitingTimeInMillis = ((estStartTime>curretTimeInMillis)?(estStartTime-curretTimeInMillis):0);
+            		consumerReservation.setWaitingTime(estWaitingTimeInMillis);
+            	}
+            }
+            events.addAll((List<Event>) map.get("event"));
+        }
+        if(calenderEvent != null){
+        	ConsumerOffer consumerOffer = new ConsumerOffer();
+        	consumerOffer.setOfferValue(calenderEvent.getOfferValue() != null ? calenderEvent.getOfferValue().toString() : null);
+        	consumerOffer.setOfferDiscountValue(calenderEvent.getDiscountedValue() != null ? calenderEvent.getDiscountedValue().toString() : null);
+        	consumerOffer.setOfferName(calenderEvent.getName());
+        	consumerOffer.setCategory(calenderEvent.getCategory());
+        	consumerOffer.setOfferActualValue(calenderEvent.getActualValue() == null ? null : calenderEvent.getActualValue().toString());
+        	consumerOffer.setBuyCount(calenderEvent.getBuyCount() == null ? null : calenderEvent.getBuyCount().toString() );
+        	consumerOffer.setGetCount(calenderEvent.getGetCount() == null ? null : calenderEvent.getGetCount().toString() );
+        	consumerOffer.setMaxCovers(calenderEvent.getMaxCovers() == null ? null:calenderEvent.getMaxCovers().toString());
+        	consumerOffer.setMinCovers(calenderEvent.getMinCovers() == null ? null:calenderEvent.getMinCovers().toString());
+        	consumerOffer.setOffer(calenderEvent.getOffer());
+        	consumerOffer.setOfferType(calenderEvent.getOfferType());
+        	List<ConsumerOffer> consumerOffers = new ArrayList<ConsumerOffer>();
+        	consumerOffers.add(consumerOffer);
+        	consumerReservation.setOfferList(consumerOffers);
+        }
+        consumerReservation.setEventOfferList(events);
+        
+		return consumerReservation;
+    	
+    }
+    
+    private List<Event> getEventForReservation(Restaurant rest, Long time, Long reservationEndTime) {
+        StringBuilder query = new StringBuilder();
+        query.append(
+                "MATCH (rest:Restaurant{guid:{" + ReserveConstants.REST_GUID
+                        + "}})-[:REST_HAS_CAL ]-(calEvent:`CalenderEvent`{type:{" + ReserveConstants.EVENT
+                        + "},status:'ACTIVE'})<-[]-(e:Event) ")
+                .append("WHERE toInt(calEvent.start_time) < toInt({" + ReserveConstants.EVENT_END_TIME
+                        + "}) AND toInt(calEvent.end_time) > toInt({" + ReserveConstants.RESERVATION_TIME + "}) ")
+                .append("RETURN distinct e,calEvent");
+        
+        Map<String, Object> params = new HashMap<>();
+        params.put(ReserveConstants.EVENT, ReserveConstants.EVENT);
+        params.put(ReserveConstants.REST_GUID, rest.getGuid());
+        params.put(ReserveConstants.RESERVATION_TIME, time);
+        params.put(ReserveConstants.EVENT_END_TIME, reservationEndTime);
+        
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        Iterator<Map<String, Object>> i = results.iterator();
+        List<Event> eventOfferList = new ArrayList<>();
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+            Event event = template.convert(map.get("e"), Event.class);
+            CustomGuidCalEvent customCalEvent = new CustomGuidCalEvent(event);
+            CalenderEvent calEvent = template.convert(map.get("calEvent"), CalenderEvent.class);
+            customCalEvent = getCustomCalEvent(customCalEvent, calEvent);
+            eventOfferList.add(customCalEvent);
+        }
+        
+        return eventOfferList;
+        
+    }
+    
+    private CustomGuidCalEvent getCustomCalEvent(CustomGuidCalEvent customCalEvent, CalenderEvent calEvent) {
+        customCalEvent.setCreatedBy(calEvent.getCreatedBy());
+        customCalEvent.setCreatedDate(calEvent.getCreatedDate());
+        Date startTime = calEvent.getStartTime();
+        Date endTime = calEvent.getEndTime();
+        
+        customCalEvent.setEndDate(endTime);
+        customCalEvent.setEndTime(endTime);
+        customCalEvent.setStartDate(startTime);
+        customCalEvent.setStartTime(startTime);
+        
+        customCalEvent.setEventDescription(calEvent.getEventDescription());
+        customCalEvent.setName(calEvent.getName());
+        customCalEvent.setGuid(calEvent.getGuid());
+        customCalEvent.setPhotoURL(calEvent.getPhotoURL());
+        customCalEvent.setStatus(calEvent.getStatus());
+        customCalEvent.setUpdatedBy(calEvent.getUpdatedBy());
+        customCalEvent.setUpdatedDate(calEvent.getUpdatedDate());
+        
+        if (("END_AFTER").equalsIgnoreCase(customCalEvent.getRecurEndType())) {
+            Long recurEndTime = restaurantDao.getLastCalendarEventTime(calEvent.getParentEventGuid());
+            DateTime recurEndDate = new DateTime(recurEndTime);
+            customCalEvent.setRecurrenceEndDate(recurEndDate.toDate());
+        }
+        
+        if (calEvent.getType().equals(ReserveConstants.OFFER)) {
+            Discount discount = new Discount(calEvent);
+            customCalEvent.setDiscount(discount);
+        }
+        
+        return customCalEvent;
+    }
+    
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> extracted(Map<String, Object> map, String param) {
+        return (List<Map<String, Object>>) map.get(param);
+    }
+    
+    private Date convertLongToDate(String param, Map<String, Object> map) {
+        SimpleDateFormat timeFormat = new SimpleDateFormat(ReserveConstants.TIMESTAMP_FORMAT);
+        Calendar cal = Calendar.getInstance();
+        Date format = null;
+        try {
+            cal.setTimeInMillis(Long.valueOf(map.get(param).toString()));
+            format = timeFormat.parse(timeFormat.format(cal.getTime()));
+        } catch (ParseException e) {
+            log.error(" Parsing Exception in Consumer Reservation Dao impl " + e.getMessage());
+        }
+        return format;
+    }
+    
+    private List<ConsumerEvent> eventList(List<Map<String, Object>> mapList) {
+        Iterator<Map<String, Object>> i1 = mapList.iterator();
+        List<ConsumerEvent> consumerEventList = new ArrayList<>();
+        while (i1.hasNext()) {
+            Map<String, Object> map1 = i1.next();
+            ConsumerEvent event = new ConsumerEvent();
+            SimpleDateFormat timeFormat = new SimpleDateFormat(ReserveConstants.TIME_FORMATTING);
+            timeFormat.setTimeZone(TimeZone.getTimeZone(ReserveConstants.TIMEZONE));
+            event.setEventCategory(null != map1.get(ReserveConstants.EVENT_CATEGORY) ? map1.get(
+                    ReserveConstants.EVENT_CATEGORY).toString() : null);
+            event.setEventName(map1.get(ReserveConstants.NAME).toString());
+            try {
+                Calendar cal = Calendar.getInstance();
+                cal.setTimeInMillis(Long.valueOf(map1.get(ReserveConstants.EVENT_START_TIME).toString()));
+                event.setEventEndTime(timeFormat.parse(timeFormat.format(cal.getTime())));
+                cal.setTimeInMillis(Long.valueOf(map1.get(ReserveConstants.EVENT_END_TIME).toString()));
+                event.setEventStartTime(timeFormat.parse(timeFormat.format(cal.getTime())));
+            } catch (ParseException e) {
+                log.error("Parsing Exception in Consumer Reservation Dao impl " + e.getMessage());
+            }
+            consumerEventList.add(event);
+            
+        }
+        return consumerEventList;
+    }
+    
+    private List<ConsumerOffer> offerList(List<Map<String, Object>> mapList) {
+        Iterator<Map<String, Object>> i1 = mapList.iterator();
+        List<ConsumerOffer> consumerOfferList = new ArrayList<>();
+        while (i1.hasNext()) {
+            Map<String, Object> map1 = i1.next();
+            ConsumerOffer offer = new ConsumerOffer();
+            offer.setOfferName(null != map1.get(ReserveConstants.NAME) ? map1.get(ReserveConstants.NAME).toString()
+                    : null);
+            offer.setOfferDiscountValue(null != map1.get(ReserveConstants.OFFER_DISCOUNT_VALUE) ? map1.get(
+                    ReserveConstants.OFFER_DISCOUNT_VALUE).toString() : null);
+            offer.setOfferActualValue(null != map1.get(ReserveConstants.OFFER_ACTUAL_VALUE) ? map1.get(
+                    ReserveConstants.OFFER_ACTUAL_VALUE).toString() : null);
+            offer.setOfferValue(null != map1.get(ReserveConstants.OFFER_VALUES) ? map1.get(
+                    ReserveConstants.OFFER_VALUES).toString() : null);
+            consumerOfferList.add(offer);
+        }
+        return consumerOfferList;
+    }
+    
+    private List<Event> getOfferForReservation(String offerId) {
+        StringBuilder query = new StringBuilder();
+        query.append("MATCH  (calOffer:CalenderEvent{guid:{" + ReserveConstants.OFFER_ID + "}, status: 'ACTIVE'})<-[]-(event:Event) ")
+                .append("RETURN distinct event, calOffer as offer");
+        
+        Map<String, Object> params = new HashMap<>();
+        params.put(ReserveConstants.OFFER_ID, offerId);
+        
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        
+        Iterator<Map<String, Object>> i = results.iterator();
+        List<Event> eventOfferList = new ArrayList<>();
+        
+        while (i.hasNext()) {
+            
+            Map<String, Object> map = i.next();
+            Event event = template.convert(map.get(ReserveConstants.EVENT_MODULE), Event.class);
+            CustomGuidCalEvent customCalEvent = new CustomGuidCalEvent(event);
+            CalenderEvent calEventOffer = template.convert(map.get(ReserveConstants.OFFER_FIELD), CalenderEvent.class);
+            customCalEvent = getCustomCalEvent(customCalEvent, calEventOffer);
+            eventOfferList.add(customCalEvent);
+        }
+        
+        return eventOfferList;
+        
+    }
+    
+    @SuppressWarnings("unchecked")
+    private List<Shift> extractedShift(Map<String, Object> map, String param) {
+        return (List<Shift>) map.get(param);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private List<String> extractedSingle(Map<String, Object> map, String param) {
+        return (List<String>) map.get(param);
+    }
+    
+    @Override
+    public ConsumerReservation getReservationDetailsForReview(String guid) {
+    	
+    	StringBuilder query = new StringBuilder();
+        
+    	query.append("MATCH (resv:Reservation {guid:{" + ReserveConstants.RESERVATION_GUID)
+        	 .append("}}),")
+             .append("(rest:Restaurant{guid:resv.rest_guid}) ")
+             .append("return resv.act_start_time as reservationTime,resv.num_covers as numCovers,")
+             .append("rest.name as restName,rest.region as region,rest.locality as locality,rest.address_line_1 as address1,")
+             .append("rest.address_line_2 as address2,rest.city as city,rest.building as building,rest.state as state,rest.images as images");
+        
+        Map<String, Object> params = new HashMap<>();
+        params.put(ReserveConstants.RESERVATION_GUID, guid);
+        
+        ConsumerReservation consumerReservation = new ConsumerReservation();
+        Result<Map<String, Object>> results = template.query(query.toString(), params);
+        
+        Iterator<Map<String, Object>> i = results.iterator();
+        while (i.hasNext()) {
+            Map<String, Object> map = i.next();
+                consumerReservation.setRestaurantName(map.get("restName").toString());
+                consumerReservation.setRestImages((List<String>)map.get("images"));
+                consumerReservation.setCity(map.get("city").toString());
+                consumerReservation.setRegion(map.get("region").toString());
+                consumerReservation.setLocality(map.get("locality")==null ?null:map.get("locality").toString());
+                consumerReservation.setState(map.get("state").toString());
+                consumerReservation.setAddressLine1(map.get("address1").toString());
+                consumerReservation.setAddressLine2(map.get("address2") == null ? null:map.get("address2").toString());
+                consumerReservation.setBuilding(map.get("building")==null ? null :map.get("building").toString());
+                consumerReservation.setReservationTime(new Date((Long)map.get("reservationTime")));
+                consumerReservation.setReservationCovers(map.get("numCovers").toString());
+    }
+        
+        //set unnecessary values to null 
+       consumerReservation.setNoOfGuestRated(null);
+       consumerReservation.setGuestRating(null);
+       consumerReservation.setSumOfAllGuestRating(null);
+       consumerReservation.setNoOfGuestReviewed(null);
+        return consumerReservation;
+    }
+    
+    private void populatePlatformRating(int noshowResv, int confirmCancel, int completedResv, ConsumerReservation consumerReservation) {
+		// TODO Auto-generated method stub
+    	/*if(guestRating==null){
+    		return;
+    	}
+		int noshowResv = guestRating.getNoshowResv() == null ? 0 : guestRating.getNoshowResv();
+		int confirmCancel = guestRating.getConfirmedCancelledByGuest() == null ? 0 : guestRating.getConfirmedCancelledByGuest();
+		int completedResv = guestRating.getCompletedResv() == null ? 0 : guestRating.getCompletedResv();*/
+		
+		int denominator = completedResv + noshowResv + confirmCancel;
+		
+		double conversionRatio = 0.0;//(double)completedResv/(double)denominator ;
+		double noShowCount = 0.0;//(double)noshowResv/(double)denominator ;
+		
+		if(denominator != 0){
+			conversionRatio = ((double)completedResv/(double)denominator)*100 ;
+			noShowCount = ((double)noshowResv/(double)denominator)*100 ;
+		}
+		consumerReservation.setConversionRatio(conversionRatio);
+		consumerReservation.setNoShowRatio(noShowCount);
+		
+	}
+    
+    private void populateSpendRating(Relationship relation, ConsumerReservation reservation) {
+
+		Integer revervationCount = relation.hasProperty("reservation_count") ? (Integer)relation.getProperty("reservation_count") : 0;
+		Integer aggregateRating = relation.hasProperty("aggregate_rating") ? (Integer)relation.getProperty("aggregate_rating") : 0;
+
+		if(aggregateRating != null && revervationCount != null && revervationCount != 0){
+			double spendRating = (double)aggregateRating/revervationCount;
+			reservation.setSpendRating(spendRating);
+		}else{
+			reservation.setSpendRating(0.0);
+		}
+	}
+
+	@Override
+	public Integer getQueuePosition(String reservationGuid) {
+		// TODO Auto-generated method stub
+
+		StringBuilder query = new StringBuilder();
+		Map<String,Object> params = new HashMap<>();
+		params.put(ReserveConstants.RESERVATION_GUID, reservationGuid);
+		query.append("MATCH (resv:Reservation {guid:{" + ReserveConstants.RESERVATION_GUID)
+		.append("}}) WITH resv.rest_guid as restGuid \n")
+		.append("MATCH (rest:Restaurant{guid:restGuid})-[:REST_HAS_QUEUE]->(q:Queue)-[:QUEUE_HAS_RESV]-(r:Reservation) ")
+		.append("return r.guid as guid ORDER BY toInt(r.created_dt)");
+
+		List<String> resvGuidList = new ArrayList<>();
+
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+
+		while(itr.hasNext()){
+			Map<String,Object> map = itr.next();
+			resvGuidList.add((String) map.get("guid"));
+		}
+
+		Integer queuePosition = resvGuidList.indexOf(reservationGuid) == -1 ? -1 : resvGuidList.indexOf(reservationGuid) + 1;
+
+		return queuePosition;
+
+	}
+    
+}
+

@@ -1,0 +1,77 @@
+package com.clicktable.service.impl;
+
+import java.text.ParseException;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
+import org.joda.time.DateTime;
+import org.joda.time.Seconds;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.Logger;
+import play.libs.Akka;
+import play.libs.Time.CronExpression;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
+
+import com.clicktable.dao.intf.CalenderEventDao;
+import com.clicktable.dao.intf.ConversationDao;
+import com.clicktable.dao.intf.GuestHasTagsDao;
+import com.clicktable.dao.intf.QueueDao;
+import com.clicktable.dao.intf.ReservationDao;
+import com.clicktable.dao.intf.RestaurantDao;
+import com.clicktable.dao.intf.UserTokenDao;
+import com.clicktable.dao.intf.WSRequestDao;
+import com.clicktable.scheduler.BarEntryStatusUpdate;
+import com.clicktable.scheduler.ExtendRecurEndDateForNever;
+import com.clicktable.scheduler.PopulateMasterData;
+import com.clicktable.scheduler.RemoveAccessToken;
+import com.clicktable.scheduler.RemoveServer;
+import com.clicktable.scheduler.ReservationStatusUpdate;
+import com.clicktable.scheduler.ReservationStatusUpdateAtShiftEnd;
+import com.clicktable.scheduler.RetryFailedFbSyncRequests;
+import com.clicktable.scheduler.SMSScheduler;
+import com.clicktable.service.intf.AddressService;
+import com.clicktable.service.intf.AttributeService;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.BarEntryService;
+import com.clicktable.service.intf.CountryService;
+import com.clicktable.service.intf.EventService;
+import com.clicktable.service.intf.NotificationService;
+import com.clicktable.service.intf.RoleService;
+import com.clicktable.service.intf.StaffService;
+import com.clicktable.service.intf.TatService;
+import com.clicktable.service.intf.ThreadSchedulerService;
+import com.clicktable.util.Constants;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ReservationValidator;
+
+/**
+ * @author s.gupta
+ *
+ */
+@org.springframework.stereotype.Service
+public class ThreadSchedulerServiceImpl implements ThreadSchedulerService {
+
+	
+	
+	@Override
+	public void startThreads() {
+		
+}
+
+	private void startThreadEarlyMorning(Runnable thread) {
+		// TODO Auto-generated method stub
+
+		try {
+			
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	
+}

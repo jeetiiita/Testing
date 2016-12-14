@@ -1,0 +1,96 @@
+
+common.status=ACTIVE,INACTIVE,DELETED
+common.languageCode=EN-US,FR-FR,DE-CH
+common.orderPreference=ASC,DESC
+customer.reason=CELEBRITY,INVESTOR,OWNER_VIP,PREFERRED
+customer.gender=MALE,FEMALE
+
+table.area=INDOOR,OUTDOOR
+table.type=SMOKING,NONSMOKING,PRIVATE_DINING
+
+restaurant.timezone=IST,PST,GMT
+restaurant.currency=INR,USD
+#restaurant.tempratureScale=Fahrenheit,Celsius,Kelvin
+restaurantGeneralInfo.preferredDateFormat=YYYY-MM-DD,MM-DD-YYYY,DD-MM-YYYY,YYYY-DD-MM
+restaurantGeneralInfo.preferredTimeFormat=24 HOUR,12 HOUR
+restaurantGeneralInfo.tempratureScale=Fahrenheit,Celsius,Kelvin
+restaurantGeneralInfo.currency=INR,USD
+
+reservation.reservationStatus=CREATED,CONFIRMED,WAITING,CANCELLED,NO_SHOW,ARRIVED,SEATED,MSG_SENT,CALLED,FINISHED,MOVED_TO_BAR
+reservation.modifier=CUSTOMER,RESTAURANT
+reservation.bookingMode=WALKIN,ONLINE
+reservation.bookedBy=CUSTOMER,RESTAURANT
+reservation.statusToChange=CREATED,CONFIRMED,MSG_SENT,CALLED
+reservation.statusToChangeAtShiftEnd= ARRIVED,SEATED,WAITING
+reservation.calenderType= DAY,WEEK,MONTH,YEAR
+reservation.finalStatus=NO_SHOW,FINISHED,CANCELLED
+
+reservation.csvHeaders=Name,Contact No.,VIP,No. of Covers,Date,Estimated Time,Status,Note,Created Date,Created Time
+reservation.source=CLICKTABLE,DIRECT
+
+
+reservation.extension=62116597,62116598,62116599
+
+onboarding.requestStatus=NEW_REQUEST,APPROVED,REJECTED
+reservation.waitlistFinalStatus=NO_SHOW,FINISHED,CANCELLED,SEATED
+
+event.type=EVENT,OFFER,BLOCK,FULL_BLOCK,HOLIDAY
+#event.category=HOLIDAY,HAPPY_HR,OP_HR,BLOCK,FULL_BLOCK,EVENT
+event.eventCategory=Live Band,Comedy Nights,Music Special,Dance Show,World Cuisines,Food Specials,Food Festivals,Special Menus,Sports or Event Screening
+#event.categoryDropdown=Live Band,Comedy Nights,Music Special,Dance Show,World Cuisines,Food Specials,Food Festivals,Special Menus,Sports or Event Screening
+event.offerCategory=Happy Hours,Ladies Night,Media Night,Drink Packages,Special Brunch,Bill Discounts,Combo Meals,EVENT
+event.dayOfTheWeek=SUNDAY,MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY
+event.eventSubCategory=LUNCH,BREAKFAST,DINNER
+event.blockCategory=VIP,BUFFER,MAINTENANCE,WEATHER,EVENT
+event.blockingType=VIP,BUFFER
+event.blockingAreaType=Section,Table
+event.recurrenceType=DAILY,WEEKLY,MONTHLY
+event.recurEndType=END_ON_DATE,END_AFTER
+
+
+#Conflicting Event Categories
+category.HOLIDAY=FULL_BLOCK
+category.OP_HR=OP_HR
+category.FULL_BLOCK=BLOCK,FULL_BLOCK,HOLIDAY
+category.BLOCK=FULL_BLOCK
+category.HAPPY_HR=HOLIDAY
+category.EVENT=
+
+tag.type=Food Preferences,Seating Preferences,Events And Offers,SPECIAL_EVENTS
+
+
+device.type=IOS,Android
+
+Menu.type=Food,Beverages,Happy Hour
+MenuItem.itemType=Vegetarian, Non-Vegetarian, Contains Egg
+MenuItem.spiceLevel=Spicy, Medium, Light
+GuestConversation.origin=EVENT_PROMOTION,RESERVATION,CONVERSATION,BAR_ENTRY
+EventPromotion.guestType=VIP,NORMAL,BOTH
+EventPromotion.gender=MALE,FEMALE,BOTH
+ticket.issueType=application,others
+attachment.fileExt=JPEG,JPG,PNG
+
+
+OperationHour.subCategory=LUNCH,BREAKFAST,DINNER,ALLDAY,BRUNCH
+
+#Roles
+role.1=CT_ADMIN
+role.2=ADMIN
+role.3=MANAGER
+role.4=STAFF
+#role.5=SERVER
+role.6=GUEST
+
+BarEntry.status=CREATED,FINISHED
+
+ERROR.email=g.singh@clicktable.com
+
+reservation.csvHeaders=Name,Contact No.,No. of Covers,Date,Estimated Time,Status,Note,Created Date,Created Time
+customer.csvHeaders=Name,Contact No.,Email Id,Gender
+CalenderEvent.csvHeaders=Date,Name,Description,Category,Start Time,End Time,Status
+promotion.csvHeaders=Message,Message Count,Date Time,Total Messages
+CalenderEventAttendence.csvHeaders=Date,Name,Description,Category,Start Time,End Time,Covers,Engagements,Repeat,Unknown,New					
+reports.fileFormat=pdf,csv
+INVALID.csvHeaders=firstName,isdCode,mobile,gender,emailId,error
+AppDetails.appName=CLICKTABLE
+AppDetails.platform=ANDROID,IOS,WINDOWS

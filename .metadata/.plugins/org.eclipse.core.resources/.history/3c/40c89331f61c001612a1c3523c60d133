@@ -1,0 +1,144 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.TaxLayer;
+import com.clicktable.support.model.InvoiceLine;
+import com.clicktable.support.model.InvoiceLineTax;
+import com.clicktable.support.model.PlanItem;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.TaxLayerService;
+import com.clicktable.support.service.intf.ConversationService;
+import com.clicktable.support.service.intf.InvoiceLineService;
+import com.clicktable.support.service.intf.ItemTaxService;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Component
+public class SMSInvoiceLineServiceImpl implements InvoiceLineService {
+	
+	@Autowired
+	ConversationService conversationService;
+	
+	@Autowired
+	ItemTaxService itemTaxService;
+	
+	@Autowired
+	TaxLayerService taxLayerService;
+	
+	
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#create(com.clicktable.support.model.InvoiceLine)
+	 */
+	@Override
+	public InvoiceLine create(InvoiceLine invoiceLine) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#createMultiple(java.util.List)
+	 */
+	@Override
+	public List<InvoiceLine> createMultiple(List<InvoiceLine> listInvoiceLine) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#generateInvoiceLine(com.clicktable.support.model.Item, int)
+	 */
+	@Override
+	public InvoiceLine generateInvoiceLine(Restaurant restaurant, PlanItem planItem) {
+		
+		InvoiceLine invoiceLine = new InvoiceLine();	
+		// set Item
+		invoiceLine.setItem(planItem.getItem());
+		
+		// set Item Quantity
+		int itemQuantity = calculateItemCount(restaurant);
+		if(itemQuantity>planItem.getMinItemQuantity())
+			invoiceLine.setItemQty(calculateItemCount(restaurant));
+		else
+			invoiceLine.setItemQty(planItem.getMinItemQuantity());
+		
+		//set Item Price
+		float itemPrice;
+		if(planItem.getItemUnitPrice() ==0)
+			itemPrice = planItem.getItem().getDefaultUnitPrice();
+		else
+			itemPrice = planItem.getItemUnitPrice();
+		invoiceLine.setItemPlanPrice(itemPrice);
+		
+		// set Basic Amount
+		invoiceLine.setBasicAmount(invoiceLine.getItemPlanPrice() * invoiceLine.getItemQty());		
+		
+		//set Taxes
+		calculateTaxes(invoiceLine, restaurant);
+		
+		InvoiceLine created = create(invoiceLine);
+		return created;
+	}
+
+	private void calculateTaxes(InvoiceLine invoiceLine, Restaurant restaurant) {
+		
+		Tax tax=itemTaxService.getApplicableTaxForItem(invoiceLine.getItem(), restaurant);
+		List<TaxLayer> taxLayers= taxLayerService.getTaxLayers(tax);
+		
+		List<InvoiceLineTax> invoiceLineTaxes = new ArrayList<InvoiceLineTax>();
+		InvoiceLineTax layer0Tax = new InvoiceLineTax();
+		layer0Tax.setAmount(invoiceLine.getBasicAmount());
+		layer0Tax.setTaxRate(100f);		
+		invoiceLineTaxes.add(layer0Tax);
+		
+		int layerNo =1; 		
+		for(TaxLayer taxLayer:taxLayers){
+			if(taxLayer.getLayerNumber().equals(layerNo)){
+				applyTax( taxLayer, invoiceLineTaxes);
+			}else{
+				invoiceLineTaxes.add(null);
+			}
+			layerNo++;
+		}
+		invoiceLine.setTotalTax(invoiceLineTaxes);
+	}
+
+	private void applyTax(TaxLayer taxLayer,
+			List<InvoiceLineTax> invoiceLineTaxes) {
+		Integer layerNo = taxLayer.getLayerNumber();
+		float amount=0;
+		for(int i=0;i<layerNo;i++){
+			if(taxLayer.getAppliedLayers().get(i).equals(true)){
+				amount+= (invoiceLineTaxes.get(i).getAmount()*taxLayer.getSingleTax().getTaxRate());
+			}
+		}
+		
+		InvoiceLineTax layerTax = new InvoiceLineTax();
+		layerTax.setAmount(amount);
+		layerTax.setTaxRate(taxLayer.getTaxRate());	
+		layerTax.setTax(taxLayer);
+		invoiceLineTaxes.add(layerTax);
+		
+	}
+
+	private int calculateItemCount(Restaurant restaurant) {
+		Date startDate = DateTime.now().minusMonths(1).dayOfMonth().withMinimumValue().toDate();
+		Date endDate = new DateTime(startDate).dayOfMonth().withMaximumValue().toDate();
+		Integer count = conversationService.getRestaurantPromotionCountForPeriod(restaurant, startDate, endDate);
+		return count;
+	}
+
+}

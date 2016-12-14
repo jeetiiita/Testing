@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy element &apos;ThreadSchedulerServiceImpl.java&apos; to &apos;conversation/app/com.clicktable.service.impl&apos;&#x0D;&#x0A;- Original project: &apos;clicktable-app&apos;&#x0D;&#x0A;- Destination element: &apos;conversation/app/com.clicktable.service.impl&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.service.impl.ThreadSchedulerServiceImpl.java&apos;" description="Copy compilation unit" destination="=conversation/app&lt;com.clicktable.service.impl" element1="/app&lt;com.clicktable.service.impl{ThreadSchedulerServiceImpl.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyResources" stamp="1453990762038" units="1" version="1.0"/>
+</session>

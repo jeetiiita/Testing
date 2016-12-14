@@ -1,0 +1,78 @@
+package com.clicktable.support.model;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "plan_item")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class PlanItem extends BaseEntity{
+
+	private static final long serialVersionUID = -1886615171669775333L;
+
+	@Id
+	@GeneratedValue
+	private Short id;
+	
+	@Required(message = ErrorCodes.ITEM_UNIT_PRICE_REQUIRED)
+	@Column(name = "item_unit_price")
+	private double itemUnitPrice;
+
+	@Required(message = ErrorCodes.MIN_ITEM_QTY_REQUIRED)
+	@Column(name = "min_item_qty")
+	private int minItemQuantity;
+	
+	@Required(message = ErrorCodes.PLAN_ITEM_STATUS_REQUIRED)
+	@Column(name = "status")
+	private String status;
+
+	public Short getId() {
+		return id;
+	}
+
+	public void setId(Short id) {
+		this.id = id;
+	}
+
+	public double getItemUnitPrice() {
+		return itemUnitPrice;
+	}
+
+	public void setItemUnitPrice(double itemUnitPrice) {
+		this.itemUnitPrice = itemUnitPrice;
+	}
+
+	public int getMinItemQuantity() {
+		return minItemQuantity;
+	}
+
+	public void setMinItemQuantity(int minItemQuantity) {
+		this.minItemQuantity = minItemQuantity;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+}

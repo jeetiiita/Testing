@@ -1,0 +1,16 @@
+1474971540004	Rename method 'getSmsInfoObjectForRest'
+1474972582420	Rename method 'notifyByEmailToCustomer'
+1474972592504	Rename method 'sendSmsToCustomer'
+1474972606176	Rename method 'notifyByEmailToRestaurant'
+1474976536442	Rename local variable 'lineArray'
+1474977186980	Rename method 'sendStreamNotification'
+1475045464652	Delete elements
+1475054821421	Copy file
+1475061609541	Delete elements
+1475141125997	Rename method 'updateInvoiceByOtherMode'
+1475143670063	Rename field 'INVOICE_NET_AMOUNT'
+1475143687425	Rename field 'INVOICE_AMOUNT'
+1475246724812	Rename method 'updateInvoiceAndPaymentByOtherMode'
+1475246737239	Rename method 'unpaidInvoice'
+1475246760929	Rename method 'unpayInvoiceByCtAdmin'
+1475247001112	Rename local variable 'statusMessage'

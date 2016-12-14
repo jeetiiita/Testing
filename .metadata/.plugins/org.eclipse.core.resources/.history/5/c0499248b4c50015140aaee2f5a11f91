@@ -1,0 +1,244 @@
+error.required={0} is missing
+error.minLength={0} must have minimum {1} characters.
+error.maxLength={0} can have maximum {1} characters.
+error.min={0} must be greater then {1}
+error.max={0} must be less then {1}
+error.email=invalid email 
+error.pattern=not a valid {0}
+7=Invalid value {0}. Value should be from {1} 
+8=Provide value for {0} or {1}
+10=Both of these are required
+
+200 = Success
+204 = No Content Found
+301 = Moved Permanently
+302 = Moved Temporarily
+401 = Unauthorized Access
+403 = Forbidden
+404 = Not Found
+500 = Internal Server Error
+501 = Not Implemented Yet!
+503 = Service Unavailable
+601=Ooops!! Route Not Found
+602=Don't try to hack the URI!
+700=Access Token is Missing
+701=Invalid Access Token
+702=Invalid header value for {0}
+
+1001=Users fetched successfully!
+1002=Logged in successfully!
+1003=Login failure!
+1004=Customer Information Successfully Updated!
+1005=Validation Error!
+1006=No User Found!
+1007=Login failure due to wrong password!
+1008=Login failure due to invalid username or email!
+1009=Customer added successfully!
+1010=Customer addition failure!
+1011=Login failure due to invalid Account!
+1012=Guest Book data fetched successfully!
+1013=Guest Book data fetch failure!
+1014=No records found in Guest Book for given Guest guid!
+1015=Login failure as no record found for this user !
+
+pageSize=100000
+
+2001=Restaurants fetched successfully!
+2002=Restaurant added successfully!
+2003=Restaurant Information Successfully Updated!
+2004=Restaurant addition failure!
+2005=Validation Error!
+2006=Restaurant System Configuration fetched successfully!
+2007=Restaurant System Configuration fetch failure!
+2008=Restaurant System Configuration updated successfully!
+2009=Restaurant System Configuration updation failure!
+2010=Restaurant Attributes updated successfully!
+2011=Restaurant Attributes updation failure!
+
+3001=login fail due to stormpath error
+
+4001=Tables fetched successfully!!
+4002=Table added successfully!!
+4003=Table Information Successfully Updated!!
+4004=Table addition failure!!
+4005=Restaurant Has Table RelationShip failure!
+4006=Table deleted successfully!!
+4004=Table deletion failure!!
+20006=Table {0} is not Available as status is {1}. 
+
+5001=Staff members fetched successfully!
+5002=Staff member added successfully!
+5003=Staff member information successfully updated!
+5004=Staff member addition failure!
+5005=Staff member updation failure!
+5006=An email has been sent to change password!
+5007=Email is not send
+
+6001=Password changed successfully!
+6002=Password change failure!
+
+7001=Cuisine fetched successfully!
+7002=Cuisine added successfully!
+7003=Cuisine information successfully updated!
+7004=Cuisine addition failure!
+7005=Cuisine updation failure!
+7006=Cuisine removed Succeddfully!
+7007=Cuisine can't be removed!
+
+8001=OnBoarding Request Successful!
+8002=OnBoarding Request Updated successfully!
+8003=OnBoarding Request Creation failure!
+8004=OnBoarding Request Updated failure!
+8005=OnBoarding Requests fetched successfully!
+8006=Code Verification failure!
+8007=Code Verified successfully!
+8008=Code sending failure!
+8009=Code sent successfully!
+
+9001=Reservation fetched successfully!
+9002=Reservation added successfully!
+9003=Reservation information successfully updated!
+9004=Reservation addition failure!
+9005=Reservation updation failure!
+
+
+10001=Notes fetched successfully!!
+10002=Note added successfully!!
+10003=Note Information Successfully Updated!!
+10004=Note addition failure!!
+
+
+
+110003=Guest Tag Relationship successfully created
+110002=Guest Tag Relationship failed 
+110008=Guest Tag Relationship successfully retrieved
+110005=Guest Tag Relationship successfully deleted
+
+1201=Section records fetched successfully!
+1202=Section added successfully!
+1203=Section information successfully updated!
+1204=Section addition failure!
+1205=Section updation failure!
+1206=Section deleted successfully!
+1207=Section deleted failure!
+
+1301=Attribute records fetched successfully!
+1302=Attribute added successfully!
+1303=Attribute information successfully updated!
+1304=Attribute addition failure!
+1305=Attribute updation failure!
+1306=Relationship with country created successfully!
+1307=Relationship with country creation failure!
+1308=Attribute records fetch failure!
+
+140006= Area not available between {0} and {1}
+140008= Event of category {0} cannot co-exist with event category {1}
+
+1501=Country records fetched successfully!
+1502=Country added successfully!
+1503=Country information successfully updated!
+1504=Country addition failure!
+1505=Country updation failure!
+
+1601=Tat records fetched successfully!
+1602=Tat added successfully!
+1603=Tat information successfully updated!
+1604=Tat addition failure!
+1605=Tat updation failure!
+
+
+1701=Server records fetched successfully!
+1702=Server added successfully!
+1703=Server information successfully updated!
+1704=Server addition failure!
+1705=Server updation failure!
+1706=Server deleted successfully!
+1707=Server deleted failure!
+
+
+1801=Table assignment records fetched successfully!
+1802=Tables assigned successfully!
+1803=Table assignment information successfully updated!
+1804=Table assignment failure!
+1805=Table assignment updation failure!
+1806=Table unassigned successfully!
+1807=Table un-assignment failure!
+1808=Table assignment records fetched failure!
+1809=No Table assignments found for given server guid!
+
+1901=Language records fetched successfully!
+
+16001=Event records fetched successfully!
+16002=Event added successfully!
+16003=Event information successfully updated!
+16004=Event addition failure!
+16005=Event updation failure!
+
+2101=City records fetched successfully!
+2102=City added successfully!
+2104=City addition failure!
+
+2201=State records fetched successfully!
+2202=State added successfully!
+2204=State addition failure!
+
+2301=Area records fetched successfully!
+2302=Area added successfully!
+2304=Area addition failure!
+
+2401=Locality records fetched successfully!
+2402=Locality added successfully!
+2404=Locality addition failure!
+
+2501=Building records fetched successfully!
+2502=Tag  records Added successfully!
+2503=Tag  records Added failure!
+2504=Tag  records deleted successfully!
+2505=Tag  records deleted failure!
+2506=Tag  records fetched successfully!
+2507=Tag  records fetched failure!
+2508=Building added successfully!
+2509=Building addition failure!
+
+
+2601=Device records fetched successfully!
+2602=Device added successfully!
+2603=Device information successfully updated!
+2604=Device addition failure!
+2605=Device updation failure!
+2606=Device deleted successfully!
+2607=Device deleted failure!
+
+2608=Quick search records fetched successfully!
+2609=Quick search records fetch failure!
+
+
+2701=Conversation fetched successfully!
+2702=Conversation added successfully!
+2703=Conversation addition failure!
+
+
+
+#sms
+auto_response_sms=Hello {0},\n your Reservation is  {1}.
+
+2801=Roles fetched successfully!
+
+
+2901=Enum property file's data fetched successfully!
+
+
+
+#Reservation 
+60201=Restaurant GUID  is missing!
+60202=Guest GUID is Missing!
+60203=BookingMode is Missing for Reservation!
+60204=BookingBy is Missing for Reservation!
+60205=COVERS is Missing for Reservation!
+60206=EST START TIME is Missing for Reservation!
+
+
+
+
+
+

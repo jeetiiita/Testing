@@ -1,0 +1,34 @@
+ $("#mobile-number").intlTelInput({
+        //allowExtensions: true,
+        //autoFormat: false,
+        //autoHideDialCode: false,
+        //autoPlaceholder: false,
+        //defaultCountry: "auto",
+        //ipinfoToken: "yolo",
+        //nationalMode: false,
+        //numberType: "MOBILE",
+        //onlyCountries: ['us', 'gb', 'ch', 'ca', 'do'],
+        preferredCountries: ['in'],
+        //preventInvalidNumbers: true,
+        utilsScript: "assets/javascripts/utils.js"
+      });
+ 
+ function showSignUpForm(){
+	 $("#login").hide();
+	 $("#signUp").show(); 
+ }
+ 
+ function connect(provider,token) {
+	 $(location).attr('href',"http://localhost:9000/auth/"+provider+"?token=" + token);
+/*		$.ajax({
+			url : "/auth/"+provider+"?token=" + token,
+			data : null,
+			success : function(resp) {
+				$(location).attr('href',"http://localhost:9000/");
+			},
+			error : function(objRequest) {
+				// Remove request flag.
+				alert("Server Error!");
+			}
+		});*/
+	}

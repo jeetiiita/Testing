@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;clicktable-utility/src/main/java/com/clicktable/model/HighLight.java&apos;" deleteContents="false" description="Delete resource &apos;clicktable-utility/src/main/java/com/clicktable/model/HighLight.java&apos;" element1="/clicktable-utility/src/main/java/com/clicktable/model/HighLight.java" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1467357722555"/>
+</session>

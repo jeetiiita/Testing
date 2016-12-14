@@ -1,0 +1,143 @@
+pageSize=10
+#conversation
+2701=Conversation fetched successfully!
+2702=Conversation added successfully!
+2703=Conversation addition failure!
+2706=Promotion Conversation fetched successfully!
+2707=Promotion Conversation added successfully!
+2708=Promotion Conversation addition failure!
+2709=Template fetched successfully!
+2710=Template added successfully!
+2711=Template addition failure!
+2712=Template updated successfully!
+2713=Template updation failure!
+2714=Guest Count fetched successfully!
+2715=Guest Count failure!
+
+	
+#Guest Conversation
+26001=Guest Conversation Added Successfully!
+26002=Guest Conversation Addition Failure!
+26003=Guest Conversation Records Fetched Successfully!
+26006=Guest Conversation Updated Successfully!
+26007=Guest Conversation Updation Failure!
+26008=Guest Conversation Fetched Failure!
+
+#invoice
+5100001=Invoice Txn Added Successfully!
+5100002=Invoice Txn Addition Failure!
+5100011=Invoice Txn Updated Successfully!
+5100012=Invoice Txn Updation Failure!
+	
+5100021=Invoice Added Successfully!
+5100022=Invoice Addition Failure!
+5100031=Invoice Updated Successfully!
+5100032=Invoice Updation Failure!
+	
+5100033=Invoice Txn Amount Fetched Successfully!
+
+#Aggregate Tax
+6100001=Aggregate Tax Added Successfully!
+6100002=Aggregate Tax Addition Failed!
+6100003=Aggregate Tax Fetched Successfully!
+6100004=Aggregate Tax Update Failed!
+6100005=Aggregate Tax Updated Successfully!
+
+#ItemAggregateTax
+6110001=Item and AggregateTax Mapping Successfully Added!
+6110002=Item and AggregateTax Mapping failed!
+6110003=Item and Aggregate Tax RelationShip Updated Successfully!
+6110004=Item and Aggregate Tax RelationShip Update Failed!
+6110005=Aggregated Tax For Item is fetched Successfully!
+
+#Single Tax 
+6200001=Single Tax Added Successfully!
+6200002=Single Tax Addition Failure!
+6200003=Single Tax Fetched Successfully!
+6200004=Single Tax Update Failed!
+6200005=Single Tax Updated Successfully!
+
+#Tax Layer
+6300001=Tax Layer Added Successfully!
+6300002=Tax Layer Addition Failure!
+6300003=Tax Layer Fetched Successfully!
+6300004=Tax Layer Updated Failed!
+6300005=Tax Layer Updated Successfully!
+
+6100015=Invoice Line Fetched Successfully!
+6100016=Invoice Fetched Successfully!
+
+6100017=Tax Category Fetched Successfully! 
+6100018=Tax Fetched Successfully!
+6100019=Tax Updation Failure!
+6100020=Tax Updated Successfully!
+6100021=Tax Category Updation Failure!
+6100022=Tax Category Updated Successfully!
+6100025=Invoice Tax Fetched Successfully!
+
+7100001=Encrypted Invoice Data Fetched Successfully!
+7100002=Error In Fetching Encrypted Invoice!
+7100003=Restaurant Event Promotion Data Fetched Successfully!
+7100004=Payment Successfull!
+7100005=Payment Updation Failed!
+7100006=Payment Failed
+7100007=Payment Reverted Successfully!
+7100008=RSA public key fetched Successfully!
+7100009=RSA public key fetch failure!
+
+#item
+1200001=Item added successfully!
+1200002=Item addition failure!
+1200003=Items fetched successfully!
+1200004=Item Updated Successfully!
+1200005=Item Update Failure!
+
+#plan
+1200011=Plan added successfully!
+1200012=Plan addition failure!
+1200013=Plan fetched successfully!
+1200014=Plan updated successfully!
+1200015=Plan updation failure!
+
+#planItem
+1200021=PlanItem added successfully!
+1200022=PlanItem addition failure!
+1200023=PlanItem fetched successfully!
+
+#rest plan
+1200031=RestaurantPlan added successfully!
+1200032=RestaurantPlan addition failure!
+1200033=RestaurantPlan fetched successfully!
+1200034=RestaurantPlan fetch failure!
+1200035=RestaurantPlan updated successfully!
+1200036=RestaurantPlan updation failure!
+1200037= RestaurantPlan SMS Price fetched Successfully!
+
+#TransactionHistory
+123211=TransactionHistory addition successful!
+123212=TransactionHistory addition failure!
+123213=TransactionHistory fetch successful!
+
+#ReferralCode
+26151=Valid code!
+26152=Invalid code!
+
+#RewardTxn and RewardTxnType
+7110=Reward Transaction Created Successfully!
+7111=Reward Transaction creation failed!
+7112=Reward Transaction Type Created Successfully!
+7113=Reward Transaction Type creation failed!
+7114=Reward Transaction Fetched Successfully!
+7115=Reward Transaction Fetch failed!
+7116=Reward Transaction Type Fetched Successfully!
+7117=Reward Transaction Type Fetch failed!
+7118=Reward Transaction Update Failure!
+7119=Reward Transaction Updated Successfully!
+
+#AWS
+27110=Aws Recording added successfully!
+27111=Aws recording addition Failure!
+27112=Aws Recording fetched Successfully!
+27113=Aws Recording deleted successfully!
+27114=Aws Recording Deletion failure!
+27115=Aws Recording Fetch Failure!

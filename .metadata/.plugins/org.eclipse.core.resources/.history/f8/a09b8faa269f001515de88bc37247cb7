@@ -1,0 +1,27 @@
+
+import java.util.*;
+
+import com.clicktable.util.RelationshipTypes;
+
+public class CollectionDemo {
+
+	   public static void main(String args[]) {
+	      // create a hash set
+		   Map<Integer,String> newMap= new HashMap<Integer,String>();
+		   
+		   newMap.put(2, "abs");
+		   newMap.put(1,"jeet");
+		  
+		   
+	      HashSet<Map> hs = new HashSet<Map>();
+	      // add elements to the hash set
+	      
+	      hs.add(newMap);
+	      StringBuilder query = new StringBuilder();
+	      query.append("<-[rel:"
+					+ "GUEST_HAS_TAG" + " {__type__:'"+ "GUEST_HAS_TAG" + "'}]");
+				query.append("-(guest:`GuestProfile`)");
+	      
+	      System.out.println(query);
+	   }
+	}

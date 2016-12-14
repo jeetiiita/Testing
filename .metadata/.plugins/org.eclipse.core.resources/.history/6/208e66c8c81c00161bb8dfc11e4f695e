@@ -1,0 +1,96 @@
+/**
+ * 
+ */
+package com.clicktable.support.validate;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.EntityValidator;
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public class AggregateTaxValidator extends EntityValidator<AggregateTax> {	
+	
+	@Autowired
+	AggregateTaxDao aggregateTaxDao;
+	
+	@Autowired
+	TaxDao taxDao;
+	
+	public List<ValidationError> validateAggregateTaxOnAdd(AggregateTax aggregateTax) {
+
+	
+	List<ValidationError> errorList = validateOnAdd(aggregateTax);
+	
+	Map<String,Object> params = new HashMap<String, Object>();
+	
+	params.put(Constants.ID, aggregateTax.getSingleTaxCodeId());
+	params.put(Constants.STATUS, Constants.ACTIVE);
+	
+	List<Tax> singleTaxList = taxDao.findByFields(Tax.class, params);
+	
+	if(singleTaxList.isEmpty()) {
+		errorList = CustomValidations.populateErrorList(errorList, "singleTaxCodeId",UtilityMethods.getErrorMsg(ErrorCodes.ID_DOES_NOT_EXIST), ErrorCodes.ID_DOES_NOT_EXIST);
+	} 
+	
+	params.put(Constants.ID, aggregateTax.getAggregateTaxCodeId());
+	params.put(Constants.STATUS, Constants.ACTIVE);
+	
+	List<Tax> aggregateTaxList = taxDao.findByFields(Tax.class, params);
+	
+	if(aggregateTaxList.isEmpty())
+		errorList = CustomValidations.populateErrorList(errorList, "aggregateTaxCodeId", UtilityMethods.getErrorMsg(ErrorCodes.ID_DOES_NOT_EXIST), ErrorCodes.ID_DOES_NOT_EXIST);
+	
+	return errorList;
+	}
+	
+	public List<ValidationError> validateAggregateTaxLayer(
+			AggregateTax aggregateTax) {
+
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		Integer layerNumber = aggregateTax.getLayerNumber();
+
+		for (int i = 9; i >= layerNumber; i--) {
+			if (aggregateTax.getAppliedLayers().get(i).equals(true)) {
+				errorList = CustomValidations
+						.populateErrorList(
+								errorList,
+								"appliedLayers",
+								UtilityMethods
+										.getErrorMsg(ErrorCodes.INVALID_APPLICABLE_LAYER),
+								ErrorCodes.INVALID_APPLICABLE_LAYER);
+			}
+		}
+		return errorList;
+	}
+	
+	@Override
+	public String getMissingGuidErrorCode() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getInvalidGuidErrorCode() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+}

@@ -1,0 +1,99 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@Entity
+@Table(name = "invoice_tax")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_dt")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_dt")) })
+public class InvoiceLineTax extends BaseEntity {
+
+
+
+	private static final long serialVersionUID = -2884088203967324384L;
+	
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	public InvoiceLineTax() {
+		super();
+	}
+
+	@ManyToOne
+	@JsonBackReference
+	private InvoiceLine invoiceLine;
+
+	@ManyToOne
+	@JoinColumn(name = "aggregate_tax_id")
+	private AggregateTax tax;
+	
+	@Column(name = "tax_rate")
+	private Float taxRate;
+
+	@Column(name = "amount")
+	private Float amount;
+
+
+	public Float getTaxRate() {
+		return taxRate;
+	}
+
+	public void setTaxRate(Float taxRate) {
+		this.taxRate = taxRate;
+	}
+
+	public Float getAmount() {
+		return amount;
+	}
+
+	public void setAmount(Float amount) {
+		this.amount = amount;
+	}
+
+	public InvoiceLine getInvoiceLine() {
+		return invoiceLine;
+	}
+
+	public void setInvoiceLine(InvoiceLine invoiceLine) {
+		this.invoiceLine = invoiceLine;
+	}
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	
+	public AggregateTax getTax() {
+		return tax;
+	}
+
+	public void setTax(AggregateTax tax) {
+		this.tax = tax;
+	}
+
+}

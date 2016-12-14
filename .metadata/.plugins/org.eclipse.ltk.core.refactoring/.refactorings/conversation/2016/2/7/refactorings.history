@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Copy element &apos;JPADao.java&apos; to &apos;clicktable-app/support/app/com.clicktable.support.dao.impl&apos;&#x0D;&#x0A;- Original project: &apos;conversation&apos;&#x0D;&#x0A;- Destination element: &apos;clicktable-app/support/app/com.clicktable.support.dao.impl&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.dao.impl.JPADao.java&apos;" description="Copy compilation unit" destination="=clicktable-app/support\/app&lt;com.clicktable.support.dao.impl" element1="/app&lt;com.clicktable.dao.impl{JPADao.java" files="0" flags="589830" folders="0" id="org.eclipse.jdt.ui.copy" policy="org.eclipse.jdt.ui.copyResources" stamp="1454924696095" units="1" version="1.0"/>
+</session>

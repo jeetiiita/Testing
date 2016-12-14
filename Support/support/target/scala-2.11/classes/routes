@@ -1,0 +1,68 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET    /                        @com.clicktable.support.controllers.Application.index()
+OPTIONS   /*all                 com.clicktable.support.controllers.Application.preflight(all)
+
+GET    /conversation            @com.clicktable.support.controllers.ConversationController.getGuestConversation
+#GET    /conversation/history    @com.clicktable.support.controllers.ConversationController.getGuestConversationCount
+POST   /conversation            @com.clicktable.support.controllers.ConversationController.insertGuestConversation
+POST   /conversation/multiple   @com.clicktable.support.controllers.ConversationController.insertMultipleGuestConversation
+PUT    /conversation            @com.clicktable.support.controllers.ConversationController.updateConversation
+GET    /report/promotion        @com.clicktable.support.controllers.ConversationController.getResaturantEventPromotion
+GET    /conversation/delivery   @com.clicktable.support.controllers.ConversationController.delivery
+#GET   /conversation/generate 		@com.clicktable.support.controllers.ConversationController.generatePdf
+#GET	/conversation/callback
+
+# Map static resources from the /public folder to the /assets URL path
+GET    /assets/*file            controllers.Assets.versioned(path="/public", file: Asset)
+
+GET    /support/export/download        @com.clicktable.support.controllers.InvoiceController.getInvoicePdf
+GET    /support/invoice         		@com.clicktable.support.controllers.InvoiceController.getInvoice()
+#GET    /delivery               		    @com.clicktable.support.controllers.ConversationController.delivery
+GET       /support/enum                 @com.clicktable.support.controllers.EnumController.getAllEnums
+
+#Single tax
+GET     /support/singleTax                            @com.clicktable.support.controllers.SingleTaxController.getSingleTaxes
+POST    /support/singleTax                            @com.clicktable.support.controllers.SingleTaxController.addSingleTax
+PUT     /support/singleTax/disable/:id			      @com.clicktable.support.controllers.SingleTaxController.disableSingleTax(id:Integer)
+
+#Aggregate Tax
+GET   /support/aggregateTax 					     @com.clicktable.support.controllers.AggregateTaxController.getAggregateTaxes
+POST  /support/aggregateTax						     @com.clicktable.support.controllers.AggregateTaxController.addAggregateTax
+PUT   /support/aggregateTax/disable/:id		         @com.clicktable.support.controllers.AggregateTaxController.disableAggregateTax(id:Integer)
+
+#state
+GET   /support/state 							    @com.clicktable.support.controllers.StateController.getState
+POST  /support/state							    @com.clicktable.support.controllers.StateController.addState
+PUT   /support/state/disable/:id				    @com.clicktable.support.controllers.StateController.disableState(id:Integer)
+
+
+#payment
+POST    /support/payment           			        @com.clicktable.support.controllers.PaymentController.startPayment()
+POST   /support/payment/callback        			@com.clicktable.support.controllers.PaymentController.updatePaymentDetail()
+
+#item
+POST	/support/item								@com.clicktable.support.controllers.ItemController.createItem()
+GET		/support/item								@com.clicktable.support.controllers.ItemController.getItems()
+PUT    /support/item/update							@com.clicktable.support.controllers.ItemController.updateItem()
+
+#plan
+POST	/support/plan								@com.clicktable.support.controllers.PlanController.createPlan()
+GET		/support/plan								@com.clicktable.support.controllers.PlanController.getPlans()
+PUT		/support/plan/disable/:id					@com.clicktable.support.controllers.PlanController.disablePlan(id:Integer)
+
+#restaurant plan
+POST	/support/restaurantPlan						@com.clicktable.support.controllers.RestaurantPlanController.createRestaurantPlan()
+GET		/support/restaurantPlan						@com.clicktable.support.controllers.RestaurantPlanController.getRestaurantPlan()
+GET		/support/restaurantPlan/plan				@com.clicktable.support.controllers.RestaurantPlanController.getRestaurantPlanByPlan()
+PUT		/support/restaurantPlan/disable/:id			@com.clicktable.support.controllers.RestaurantPlanController.disableRestaurantPlan(id:Integer)
+
+#Transaction History
+POST	/support/transactionHistory					@com.clicktable.support.controllers.TransactionHistoryController.addTransactionHistory
+GET		/support/transactionHistory					@com.clicktable.support.controllers.TransactionHistoryController.getTransactionHistory
+
+#Run Invoice Generation Scheduler
+GET     /support/invoiceGenScheduler                @com.clicktable.support.controllers.SchedulerController.runJob

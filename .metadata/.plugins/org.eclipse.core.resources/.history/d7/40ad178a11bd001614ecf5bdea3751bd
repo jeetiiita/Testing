@@ -1,0 +1,42 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PrintNEqualPart {
+
+
+	public static void main(String[] args) {
+		String[] output = PrintNEqualPart.getNEqualPartsOfString("this_is_my_name", 3);
+		for(int i = 0;i<output.length;i++) {
+			System.out.println(output[i] + "\n");
+		}
+	}
+	
+	static String[] getNEqualPartsOfString(String input,int parts) {
+		
+		String[] output = new String[parts];
+		
+		int size = input.length();
+		int j = parts;
+		int k = 0;
+		for(int i = 0;i<size;i=i+parts) {
+			j = i + parts;
+			if(j < size) {
+			String temp = input.substring(i,j);
+			output[k] = temp;
+			} else {
+				String temp = input.substring(i,size);
+				output[k] = temp;
+			}
+			k++;
+		}
+	
+		return output;
+	}
+	
+}

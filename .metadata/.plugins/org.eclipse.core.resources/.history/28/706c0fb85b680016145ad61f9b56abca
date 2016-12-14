@@ -1,0 +1,12 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PushNotificationServiceImpl {
+
+}

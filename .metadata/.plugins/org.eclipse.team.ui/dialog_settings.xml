@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="SynchronizeViewSettings">
+		<item value="1476098993738" key="lastactiveparticipant_sec_id"/>
+		<item value="org.eclipse.egit.ui.modelCompareParticipant" key="lastactiveparticipant_id"/>
+		<item value="false" key="linkWithEditor"/>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1469622626326">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1469622354932">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1470062382865">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1463578387970">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1454921141593">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1470041382721">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1450163239226">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1470131923830">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1476095300991">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1476098993738">
+			<item value="8" key="org.eclipse.team.ui.P_SYNCVIEWPAGE_MODE"/>
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1475060661798">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1476097973529">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1469622202970">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1473756406085">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1450079287225">
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1464257711981">
+			<item value="1" key="org.eclipse.team.ui.P_SYNCVIEWPAGE_MODE"/>
+		</section>
+		<section name="org.eclipse.egit.ui.modelCompareParticipant.1472542582286">
+		</section>
+	</section>
+	<section name="SynchronizeWizard">
+	</section>
+</section>

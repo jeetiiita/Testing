@@ -1,0 +1,44 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+	List<String> itrList = new CopyOnWriteArrayList<>();
+	
+	Map<String,String> map = new HashMap<>();
+	map.put("abc","abc");
+	itrList.add("abc");
+	itrList.add("bcd");
+	itrList.add("cde");
+	
+/*	itrList.forEach(i->{
+		itrList.add("ABDC");
+	});*/
+	
+	Iterator<String> itr = itrList.iterator();
+	Iterator<String> mapItr = map.keySet().iterator();
+	while(itr.hasNext()) {
+//		itrList.remove(itr.next());
+		itr.remove();
+	}
+	while(mapItr.hasNext()) {
+		map.remove("abc");
+	}
+	
+	System.out.println(map.size());
+	}
+}

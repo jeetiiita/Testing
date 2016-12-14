@@ -1,0 +1,49 @@
+package com.clicktable.service.impl;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.dao.intf.ConversationDao;
+import com.clicktable.dao.intf.InvoiceTxnDao;
+import com.clicktable.dao.intf.TaxCategoryDao;
+import com.clicktable.model.InvoiceTxn;
+import com.clicktable.model.Tax;
+import com.clicktable.service.intf.InvoiceTxnService;
+//import java.util.Calendar;
+
+@Component
+public class InvoiceTxnServiceImpl implements InvoiceTxnService{
+	
+	
+	@Autowired
+	InvoiceTxnDao invoiceTxnDao;
+	
+	@Autowired
+	ConversationDao conversationDao;
+	
+	@Autowired
+	TaxCategoryDao taxCategoryDao;
+	
+	public void addTxn(InvoiceTxn invoicetxn)
+	{
+		List<String> rest_guid = new ArrayList<String>();
+
+		rest_guid.add("3456765");
+		rest_guid.add("3456765");
+		
+		Integer sms_count = 0;
+		for(String guid : rest_guid) {
+		sms_count =(Integer) conversationDao.getConversationCount(guid);
+		
+		 Date currentDate = new Timestamp(new Date().getTime() - 1);
+		 TaxCategory taxObject = taxCategoryDao.getTaxCategory(currentDate);
+		 
+		}//return null;
+	}
+
+}

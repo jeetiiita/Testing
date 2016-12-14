@@ -1,0 +1,21 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class CheckRotation {
+
+	public static void main(String[] args) {
+		
+	}
+	
+	boolean checkRotation(String input1,String input2) {
+		boolean result = false;
+		
+		return result;
+	}
+}

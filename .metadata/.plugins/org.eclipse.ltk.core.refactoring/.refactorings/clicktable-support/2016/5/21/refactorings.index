@@ -1,0 +1,45 @@
+1463378672216	Move compilation units
+1463378692981	Delete element
+1463384954678	Rename type 'PlanItem'
+1463390531657	Rename type 'TaxService'
+1463391087180	Rename type 'TaxCodeService'
+1463391843380	Rename type 'AgrregateTax'
+1463393113328	Delete element
+1463393137093	Delete element
+1463393144564	Delete element
+1463395174927	Delete element
+1463395179704	Delete element
+1463395235199	Delete element
+1463395245577	Delete element
+1463395310419	Delete element
+1463395314580	Delete element
+1463395323021	Delete element
+1463395329940	Delete element
+1463395333187	Delete element
+1463395492396	Delete element
+1463395518136	Rename type 'PlanBillableItem'
+1463396523320	Rename type 'PlanBillableItemService'
+1463396553017	Rename type 'BillableItemService'
+1463397590176	Delete element
+1463397611139	Rename type 'TaxCode'
+1463405235272	Move compilation unit
+1463408206867	Rename field 'guid'
+1463409001956	Rename field 'palnGuid'
+1463409021556	Rename field 'restGuid'
+1463409437574	Delete element
+1463412393763	Rename field 'aggregateTaxCodeGuid'
+1463412755356	Rename field 'itemGuid'
+1463412767311	Rename field 'itemid'
+1463412782110	Rename field 'planid'
+1463412787112	Rename field 'planIUd'
+1463416354506	Rename field 'PENDING'
+1463418045999	Delete element
+1463418168257	Delete element
+1463418245835	Delete element
+1463418560528	Delete element
+1463418626292	Delete element
+1463556012639	Rename type 'AggregateController'
+1463556782753	Delete element
+1463557503278	Move compilation unit
+1463562177614	Move compilation unit
+1463572737924	Rename type 'Tax'

@@ -1,0 +1,31 @@
+@(projectId: Long, assignmentId: Long, assignmentForm: Form[ProjectAssignment])
+
+@import helper._
+@import helper.twitterBootstrap._
+
+@main("Edit an assignment", sidemenu = menus.adminMenu()) {
+	
+	@if(assignmentForm.hasGlobalErrors()) {
+    	<div class="alert-message error">
+            <strong>Oops!</strong> @assignmentForm.globalError().message
+        </div>
+    }
+	
+	@form(routes.ProjectAssignments.update(projectId, assignmentId)) {
+    	
+    	@select(assignmentForm("user.id"), options(User.options), '_label -> "Project member")
+    	
+    	@inputDate(assignmentForm("beginDate"), '_label -> "Begin date")
+    	
+    	@inputDate(assignmentForm("endDate"), '_label -> "End date")
+    	
+    	@inputText(assignmentForm("hourlyRate"), '_label -> "Hourly rate")
+
+    	@checkbox(assignmentForm("active"), '_label -> "Active")
+	
+		<input class="btn btn-primary" type="submit" value="Submit">
+		<a class="btn btn-danger" href="@routes.Projects.all()">Cancel</a>
+	  	
+	}
+
+}

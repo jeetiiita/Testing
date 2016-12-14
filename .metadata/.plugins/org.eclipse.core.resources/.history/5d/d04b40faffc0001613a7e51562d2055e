@@ -1,0 +1,17 @@
+/**
+ * 
+ */
+package string;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+		
+
+	}
+}

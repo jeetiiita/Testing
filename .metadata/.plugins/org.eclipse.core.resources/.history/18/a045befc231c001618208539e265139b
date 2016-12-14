@@ -1,0 +1,24 @@
+/**
+ * 
+ */
+package com.clicktable.support.service;
+
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.service.intf.AggregateTaxService;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class AggregateTaxServiceImpl implements AggregateTaxService {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.AggregateTaxService#create(com.clicktable.support.model.AggregateTax)
+	 */
+	@Override
+	public AggregateTax create(AggregateTax aggregateTax) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

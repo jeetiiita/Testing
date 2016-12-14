@@ -1,0 +1,21 @@
+/**
+ * 
+ */
+package String;
+
+import java.util.Scanner;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class StringPermutation {
+	
+	static public void main(String[] args) {
+		
+		Scanner input = new Scanner(System.in);
+		
+		
+	}
+
+}

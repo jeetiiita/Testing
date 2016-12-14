@@ -1,0 +1,34 @@
+/**
+ * 
+ */
+package String;
+
+import java.util.Scanner;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class CheckRotation {
+
+	public static void main(String[] args) {
+		Scanner input = new Scanner(System.in);
+		
+		checkRotation(input.nextLine(),input.nextLine());
+		System.out.println();
+	}
+	
+	static boolean checkRotation(String input1,String input2) {
+		boolean result = false;
+		// input1 = ABCD, input2 = CDAB  return true
+		// concatenate input1.input1 = ABCDABCD 
+		// now input2 must be the substring of the concatenated input string
+		
+		String input3 = input1.concat(input1);
+		if(input3.contains(input2)) {
+			result  = true;
+		} 
+		
+		return result;
+	}
+}

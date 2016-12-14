@@ -1,0 +1,353 @@
+/*  ###########################################################################
+    Author:     Lunatech Research
+    ########################################################################### */
+
+//  This LESS file is only used for this project. Each project would require
+//  its own 'app.less' file or whatever you will call it. 
+//  The 'main.less' file is where you can add as many files you want.
+
+ 
+/*  Layout */
+    
+    // YOUR MAIN PROJECT STYLES
+    
+    body {
+    	background-color:  @grey0;
+    	color: @text-color;
+    }
+      
+    .site {
+    	margin: 2em auto;
+    	max-width: @max-width;    	
+    }
+	
+	.site > header, .site > footer {
+    	clear:both;
+    }
+    
+	.site > section {
+		margin-bottom: 1em;
+		padding: 1em 0 1em 1em;
+   		float: left;
+    	width: 66.66%;
+    	overflow: hidden;
+    	background-color: @light-color;
+    	border: 1px solid @grey1;
+    	.box-shadow(2px, 2px, 2px);
+		.rounded-corners-top();    	
+    }
+    
+	.site > aside {
+		margin-bottom: 1em;
+		padding: 1em 0 1em 1em;
+    	float: right;
+    	width: 30%;
+    	overflow: hidden;
+    	.gradient(@grey1,@grey2);
+       	border: 1px solid @grey1;
+    	.rounded-corners-top();    	  	
+    }
+    
+    .site > footer {
+       	text-align: right;
+       	color: @grey5;
+    }
+    
+    // HEADER
+    
+    header > hgroup {
+    	padding: 0;
+    }
+    
+    header > hgroup > h1 a, h1 a:visited {
+    	color: @text-color;
+    }   
+    
+    header > hgroup > h5 {
+    	color: @grey5;
+    }
+    
+    header > nav {
+    	width: 100%;
+    	height: 20px;
+    	margin-bottom: 1em;
+    }    
+    
+    header > nav ul {
+        float: right;
+    }
+
+    header > nav ul li {
+    	float: left;
+    	padding: 0 5px 0 5px;
+        margin: 0 5px 0 5px;
+        border: 1px solid @grey1;
+    }
+    
+    header > nav ul li a, header > nav ul li a:visited {
+		color: @grey5;
+    }
+    
+    header > nav ul li:hover {
+		background-color: @grey1;
+    }
+    
+    // SECTION
+    
+    a.btn, a.btn:hover, a.btn:visited {
+    	color: #333;
+    	text-shadow: none;
+    }
+    
+    a.btn-danger, a.btn-danger:hover, a.btn-danger:visited, a.btn-primary, a.btn-primary:hover, a.btn-primary:visited {
+    	color: #FFF;
+    }
+    
+    ul li {
+    	list-style-type: none;
+    }
+    
+    aside > nav ul {
+    	float: left;
+    }
+    
+    aside > nav ul li a {
+    	padding-top: 6px;
+  		font-size: 13px;
+  		line-height: 18px;
+  		float: left;
+  		width: 300px;
+    }
+    
+    aside > nav ul li form {
+    	margin-bottom: 0;
+    }    
+    
+    .alert-message {
+    	width: 400px;
+    	margin: 1em;
+    	padding: 3px 0 3px 1em;
+    	.rounded-corners();
+    }
+    
+    .alert-message.warning {    	
+    	background-color: @yellow1;
+    }
+    
+    .alert-message.error {    	
+    	background-color: @red2;
+    	color: @light-color;
+    }
+    
+    .button.add, button.add:visited {
+       	background-color: @blue2;
+    	color: @light-color;
+    	padding: 3px 1em 3px 1em;
+    	.rounded-corners();
+    }
+    
+    .calendarOverview .week .day {
+    	min-width: 70px;
+    	height: 30px;
+    	background-color: @grey1;
+    	border: 1px solid @light-color;   	
+    	.rounded-corners();    		
+    }
+    
+    .calendarOverview .week .day .dayNumber {
+    	width: 100%;
+    	text-align: right;
+    	font-size:  0.6em;    	
+    	border-bottom: 1px solid @blue1;
+    	margin-bottom: 6px
+    }
+    
+    .calendarOverview .week .day .entry {
+    	width: 100%;
+    	text-align: right;
+    	font-size:  0.9em;
+    	border: none;
+    	margin: 1px;
+    }
+    
+    #weekOverview tr td {
+    	background-color: @grey1;
+    	border: 1px solid @light-color;
+    	vertical-align: middle;
+    	width: 65px;
+    }
+    
+    #weekOverview .entry {
+    	border: none;
+    	font-size:  0.6em;
+    }
+
+    #weekOverview tr.hidden {
+        display: none;
+    }
+    
+    #weekOverview .entry input {
+    	width: 15px;
+    }
+    
+    #weekOverview .entry.error input {
+    	color: @red2;
+    }
+    
+    #weekOverview tfoot tr td, #weekOverview tbody tr td.total {
+    	background-color: @grey2;
+    }
+    
+    #weekOverview tfoot tr td.total {
+    	background-color: @grey3;
+    }
+
+    #weekOverview .addEntry {
+        float: right;
+    }
+
+    #hours-not-saved-warning {
+        display: none;
+    }
+
+    .entry {
+    	margin-bottom: 5px;
+    	border-bottom: 1px solid @grey2;
+    }
+    
+    .manager_template, .entry_template, .customer-template, .project-template, .user-template, .tag-template, .role-template {
+    	display: none;
+    }
+    
+    #entriesForm input.ui-corner-left, #entryForm input.ui-corner-left, {
+    	border-radius: 0;
+    	border-top-left-radius: @rad;
+        border-bottom-left-radius: @rad;  
+        .background-clip;
+    }
+    
+    #entriesForm button, #entryForm button {
+    	padding-bottom: 1px;
+    }
+    
+    .inline-entry-form .entry {
+    	border: none;
+    }
+    
+    .inline-entry-form .assignment, #entryForm .hours, #entryForm .minutes {
+    	float: left;
+    	margin: 5px;
+    }
+    
+    .inline-entry-form .assignment input {
+    	width: 400px;
+    }
+    
+    .inline-entry-form .hours input, #entryForm .minutes input {
+    	width: 20px;
+    }
+    
+    .inline-entry-form .tags {
+    	width: 700px;
+    	margin: 5px;
+    }
+    
+    .inline-entry-form .tags input {
+    	width: 500px;
+    }
+    
+    .inline-entry-form .input {
+    	margin-left: 0;
+    }
+    
+    span.star a {
+		display: block;
+		height: 17px;
+		width: 25px;
+		background: url(../images/icons/star.png) no-repeat left 0px;
+		float: left;
+	}
+	
+	span.star a:hover, span.star a.starred:hover {
+		display: block;
+		height: 17px;
+		width: 25px;
+		background: url(../images/icons/star.png) no-repeat left -19px;
+		float: left;
+	}
+	
+	span.star a.starred {
+		display: block;
+		height: 17px;
+		width: 25px;
+		background: url(../images/icons/star.png) no-repeat left -38px;
+		float: left;
+	}
+
+	.next-week {
+		float: right;
+		margin-right: 10px;
+	}
+
+	#label-hide-days-too-few-hours {
+		float: none;
+		margin-left: 5px;
+	}
+
+	.report {
+		border: 1px solid @grey2;
+		margin-right: 13px;
+		overflow-x: scroll;
+	}
+
+	.report div {
+		margin: 15px 0 5px 5px;
+	}
+
+	.report div div {
+		margin: 0 0 5px 15px;
+	}
+   
+    .report div div div {
+    	margin: 15px 0 0 30px;
+	}
+
+	.report .no-entries {
+		margin-left: 40px;
+	}
+
+	.report .entries-table {
+		margin-left: 40px;
+	}
+
+	.report .entries-table tr td {
+	   	background-color: @grey1;
+    	border: 1px solid @light-color;
+    	vertical-align: middle;
+    	.rounded-corners();
+	}
+
+	.report .entries-table tfoot tr td, .report .entries-table tbody tr td.total {
+		background-color: @grey2;
+	}
+	
+	.report .entries-table tfoot tr td.total {
+		background-color: @grey3;
+	}
+
+	#options-form .customers, #options-form .projects, #options-form .users {
+		border: 1px solid @grey1;
+		padding-top: 18px;
+		margin: 5px 13px 0 0;
+	}
+
+	.entries-table-per-project-per-day {
+		margin: 20px 0 20px 0;
+	}
+	.entries-table-per-project-per-day tr td {
+		min-width: 60px;
+	}
+    // SIDEBAR
+    .sidebar ul li {
+    	list-style-type: none;
+    }

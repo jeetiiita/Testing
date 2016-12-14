@@ -1,0 +1,28 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.InvoiceLine;
+import com.clicktable.support.model.PlanItem;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface InvoiceLineService {
+	
+	InvoiceLine create(InvoiceLine invoiceLine); 
+	
+	List<InvoiceLine> createMultiple(List<InvoiceLine> listInvoiceLine);
+
+	InvoiceLine generateInvoiceLine(
+			Restaurant restaurant, PlanItem planItem);
+
+}

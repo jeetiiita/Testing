@@ -1,0 +1,116 @@
+package com.clicktable.support.model;
+
+import java.util.List;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Max;
+import play.data.validation.Constraints.Min;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+/**
+ * @author j.yadav
+ *
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Table(name = "aggregate_tax")
+@Entity
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class AggregateTax extends BaseEntity {
+
+	private static final long serialVersionUID = -6843409529472873032L;
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	@Required(message = ErrorCodes.AGGREGATE_TAX_CODE_ID_REQUIRED)
+	@Column(name = "aggregate_tax_code_id")
+	private Integer aggregateTaxCodeId;
+
+	@Required(message = ErrorCodes.AGGREGATE_SINGLE_TAX_CODE_ID_REQUIRED)
+	@Column(name = "single_tax_code_id")
+	private Integer singleTaxCodeId;
+
+	@Max(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_MAX_VALUE, value = 9)
+	@Min(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_MIN_VALUE, value = 1)
+	@Required(message = ErrorCodes.AGGREGATE_LAYER_NUMBER_REQUIRED_)
+	@Column(name = "layer_number")
+	private Integer layerNumber;
+
+	@Column(name = "tax_rate")
+	private double taxRate;
+
+	@JoinTable(name = "aggregate_tax_layers",joinColumns =@JoinColumn(name = "aggregate_id"))
+	@Column(name="applied_layer")
+	@ElementCollection
+	private List<Boolean> appliedLayers; 
+	
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public Integer getAggregateTaxCodeId() {
+		return aggregateTaxCodeId;
+	}
+
+	public void setAggregateTaxCodeId(Integer aggregateTaxCodeId) {
+		this.aggregateTaxCodeId = aggregateTaxCodeId;
+	}
+
+	public Integer getSingleTaxCodeId() {
+		return singleTaxCodeId;
+	}
+
+	public void setSingleTaxCodeId(Integer singleTaxCodeId) {
+		this.singleTaxCodeId = singleTaxCodeId;
+	}
+
+	public Integer getLayerNumber() {
+		return layerNumber;
+	}
+
+	public void setLayerNumber(Integer layerNumber) {
+		this.layerNumber = layerNumber;
+	}
+
+	public double getTaxRate() {
+		return taxRate;
+	}
+
+	public void setTaxRate(double taxRate) {
+		this.taxRate = taxRate;
+	}
+
+	public List<Boolean> getAppliedLayers() {
+		return appliedLayers;
+	}
+
+	public void setAppliedLayers(List<Boolean> appliedLayers) {
+		this.appliedLayers = appliedLayers;
+	}
+
+}

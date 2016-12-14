@@ -1,0 +1,21 @@
+1479115459067	Delete element
+1479121352028	Delete element
+1479123011618	Rename type 'GuestFeedbackConfig'
+1479189784880	Delete elements
+1479213198684	Rename method 'switchOffGuestFeedbackConfig'
+1479213219130	Rename method 'switchOffFeedback'
+1479213241478	Rename method 'switchOffFeedback'
+1479214203695	Extract constant 'IS_FEEDBACK_ON'
+1479214330727	Extract constant 'FEEDBACK_CONFIG'
+1479368066536	Extract method 'sendNotificationToRestConfig'
+1479368093530	Rename local variable 'guid'
+1479374697878	Rename method 'sendSmsToCustomerForGuestFeedback'
+1479377020601	Rename field 'date'
+1479381394331	Copy compilation unit
+1479382012933	Delete element
+1479467213376	Convert local variable 'streamService' to field
+1479467883816	Rename field 'EMAIL_GUEST_FEEDBACK_SUCCESSFULL'
+1479467896349	Rename field 'SMS_GUEST_FEEDBACK_SUCCESSFULL'
+1479468016832	Rename method 'notifyGuestOnWaitListUpdate'
+1479469916031	Rename local variable 's'
+1479469953285	Rename local variable 'smiley'

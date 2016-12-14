@@ -1,0 +1,16 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.support.model.InvoiceTax;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface InvoiceTaxService {
+	
+	InvoiceTax create(InvoiceTax invoiceTax);
+
+}

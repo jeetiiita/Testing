@@ -1,0 +1,15 @@
+/**
+ * 
+ */
+package com.clicktable.support.validate;
+
+import org.springframework.stereotype.Service;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public class SingleTaxValidator {
+
+}

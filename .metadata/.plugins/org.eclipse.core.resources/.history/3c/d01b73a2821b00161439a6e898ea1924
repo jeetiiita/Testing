@@ -1,0 +1,116 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import java.util.UUID;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@Entity
+@Table(name = "invoice_tax")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_dt")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_dt")) })
+public class InvoiceTax extends BaseEntity {
+
+	private static final long serialVersionUID = -2884088203967324384L;
+	
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	public InvoiceTax() {
+		super();
+	}
+
+	public InvoiceTax(Tax tax, Invoice invoice, float subtotal) {
+
+		/*String taxCode = tax.getTaxCode();
+		Float taxRate = tax.getTaxRate();*/
+
+		float taxAmount = (subtotal * taxRate) / 100.0f;
+
+	//	this.setId(UUID.randomUUID().toString());
+		this.setInvoice(invoice);
+		this.setTaxCode(taxCode);
+		this.setTaxRate(taxRate);
+		this.setAmount(taxAmount);
+
+	}
+
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "invoice_guid")
+	@JsonBackReference
+	private Invoice invoice;
+
+	@Column(name = "tax_code")
+	private String taxCode;
+
+	@Column(name = "tax_rate")
+	private Float taxRate;
+
+	@Column(name = "amount")
+	private Float amount;
+
+	public String getTaxCode() {
+		return taxCode;
+	}
+
+	public void setTaxCode(String taxCode) {
+		this.taxCode = taxCode;
+	}
+
+	public Float getTaxRate() {
+		return taxRate;
+	}
+
+	public void setTaxRate(Float taxRate) {
+		this.taxRate = taxRate;
+	}
+
+	public Float getAmount() {
+		return amount;
+	}
+
+	public void setAmount(Float amount) {
+		this.amount = amount;
+	}
+
+	public Invoice getInvoice() {
+		return invoice;
+	}
+
+	public void setInvoice(Invoice invoice) {
+		this.invoice = invoice;
+	}
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	
+	
+
+}

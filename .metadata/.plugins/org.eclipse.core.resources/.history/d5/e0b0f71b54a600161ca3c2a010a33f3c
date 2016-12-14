@@ -1,0 +1,56 @@
+/**
+ * 
+ */
+package com.clicktable.dao.impl;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+import org.springframework.data.neo4j.conversion.Result;
+
+import com.clicktable.dao.intf.GuestFeedbackDao;
+import com.clicktable.model.GuestFeedback;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.UtilityMethods;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class GuestFeedBackDaoImpl extends GraphDBDao<GuestFeedback> implements GuestFeedbackDao {
+
+	
+	//PROP_MAP = GuestFeedback properties
+	@Override
+	public String addGuestFeedback(GuestFeedback guestFeedback,String reservationGuid) {
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<String, Object>();
+		Map<String, Object> dbProperty = getGraphProperty(UtilityMethods.introspect(guestFeedback));
+		params.put(EmpowerConstants.PROP_MAP, dbProperty);
+		params.put(EmpowerConstants.RESERVATION_GUID, reservationGuid);
+		
+		query.append("UNWIND {"+ EmpowerConstants.PROP_MAP +"} as properties")
+			 .append("CREATE (feedback:GuestFeedback:_GuestFeedback) set feedback = properties with feedback ")
+			 .append("MATCH (resv:Reservation {guid:{"+ EmpowerConstants.RESERVATION_GUID +"}}) ")
+			 .append("MERGE (resv)-[hf:HAS_FEEDBACK]->(feedback) return feedback.guid as guid");
+		
+		Result<Map<String, Object>> result = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = result.iterator();
+
+		String guid = null;
+		if (itr.hasNext()) {
+			Map<String,Object> map  = itr.next();
+			guid = (String)map.get("guid");
+		}
+		return guid;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GuestFeedbackDao#getRestaurantFeedbackConfig(java.util.Map)
+	 */
+	@Override
+	public Map<String, Object> getRestaurantFeedbackConfig(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		return null;
+	}}

@@ -1,0 +1,110 @@
+package com.clicktable.support.model;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "item")
+@AttributeOverrides({
+		@AttributeOverride(name = "guid", column = @Column(name = "guid")),
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+
+public class Item extends BaseEntity{
+
+
+	/**
+	 * 
+	 */
+	
+	@Id
+	@GeneratedValue
+	protected Short id;
+	private static final long serialVersionUID = 8407806599912860689L;
+
+	@Required(message = ErrorCodes.ITEM_NAME_REQUIRED)
+	@Column(name = "name")
+	private String name;
+	
+	@Required(message = ErrorCodes.ITEM_DESCRIPTION_REQUIRED)
+	@Column(name = "description")
+	private String description;
+	
+	@Required(message = ErrorCodes.ITEM_DEFAULT_PRICE_REQUIRED)
+	@Column(name = "defaultUnitPrice")
+	private double defaultUnitPrice;
+	
+	@Required(message = ErrorCodes.ITEM_STATUS_REQUIRED)
+	@Column(name = "status")
+	private String status;
+		
+	@OneToMany(mappedBy = "item", cascade = CascadeType.ALL)
+	@JoinColumn(name = "tax_guid")
+	private Set<Tax> itemTax;
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public double getDefaultUnitPrice() {
+		return defaultUnitPrice;
+	}
+
+	public void setDefaultUnitPrice(double defaultUnitPrice) {
+		this.defaultUnitPrice = defaultUnitPrice;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	@OneToMany(fetch = FetchType.EAGER, mappedBy = "invoice", cascade = CascadeType.ALL)
+	@JoinTable(name = "item_tax", joinColumns = { @JoinColumn(name = "item_guid") }, inverseJoinColumns = { @JoinColumn(name = "tax_guid") })
+	public Set<Tax> getItemTax() {
+		return itemTax;
+	}
+
+	public void setItemTax(Set<Tax> itemTax) {
+		this.itemTax = itemTax;
+	}
+	
+	
+}

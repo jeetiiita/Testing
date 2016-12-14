@@ -1,0 +1,93 @@
+package test;
+
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
+
+public class Test implements testi {
+	static String revString = null;
+
+	public static void main(String[] args) {
+
+		List<String> reviewList = new ArrayList<>();
+
+		E e = null;
+		String element;
+
+		Vector<String> enumVector = new Vector<String>();
+		enumVector.add("Jeet is about to start a huge business");
+
+		reviewList.add("This is a nice restaurant");
+		reviewList.add("this is a bad restaurant");
+		reviewList.add("great service and staffing");
+		reviewList.add("humble service");
+		
+		System.out.println(Math.scalb(4.555f, 2));
+		Map<Integer,Integer> ints = new HashMap<>();
+		
+		ints.put(1, 1);
+		
+		int     a = 1;
+		Integer b = 1;   
+
+		 double  c = (double) a;   
+		 Double  d = (double) b;   
+		 
+		Map<Double,Integer> dp = new HashMap<>();
+		
+		Map<String, String> dict = new HashMap<String, String>();
+
+		Set<String> set = new HashSet<>();
+		Iterator<String> itr = reviewList.iterator();
+		
+		while (itr.hasNext()) {
+			element = itr.next();
+			System.out.println(itr.next());
+			itr.remove();
+		}
+
+		Enumeration<String> enums = enumVector.elements();
+
+		while (enums.hasMoreElements()) {
+			System.out.println(enums.nextElement());
+
+		}
+
+		System.out.println();
+
+		while (itr.hasNext()) {
+			element = itr.next();
+			System.out.println(itr.next());
+		}
+
+		set.add(null);
+
+		InputStreamReader s = new InputStreamReader(System.in);
+
+		dict.put(null, null);
+		dict.put("ss", null);
+		dict.put("as", "Asas");
+
+		System.out.println(set);
+		
+	}
+	
+	static String reverse(String word) {
+		
+		if(word=="")
+		{
+			return word;
+		} else {
+			word = word[1];
+			revString =
+		}
+		return null;
+	}
+	}

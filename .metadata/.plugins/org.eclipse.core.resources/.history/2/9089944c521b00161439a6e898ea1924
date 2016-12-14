@@ -1,0 +1,82 @@
+package com.clicktable.support.controllers;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.SupportResponse;
+import com.clicktable.support.service.intf.InvoiceService;
+import com.clicktable.support.util.Constants;
+import com.clicktable.util.ErrorCodes;
+import com.clicktable.util.ResponseCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+/**
+ */
+@org.springframework.stereotype.Controller
+public class InvoiceController extends Controller {
+
+
+	/**
+	 * Field invoiceService.
+	 */
+	@Autowired
+	InvoiceService invoiceService;
+
+
+
+	/**
+	 * Method getInvoice.
+	 * @return Result
+	 */
+	public Result getInvoice() {
+		Map<String, Object> params = UtilityMethods
+				.convertQueryStringToMap(request().queryString());
+		BaseResponse result = invoiceService.getInvoice(params);
+		return ok(Json.toJson(result));
+	}
+
+	/**
+	 * Method getPdf.
+	 * @return Result
+	 */
+	public Result getPdf() {
+		Map<String, Object> params = UtilityMethods.convertQueryStringToMap(request().queryString());
+		String path = Constants.PATH;
+		String guid = (String) params.get("guid");
+		String month = (String) params.get("month");
+		File file = new File(path + "//" + Constants.INVOICE_FOLDER + "//" + month + "//" + guid + ".Pdf");
+		
+		if (file.exists()) {
+			SupportResponse<File> fileResponse = new SupportResponse<File>(ResponseCodes.INVOICE_FILE_FETCH_SUCCESS, file);
+			//response().setHeader("Content-disposition", "attachment; filename=" + guid + ".Pdf");
+			response().setContentType("application/x-download");
+			return ok(fileResponse.getObj());
+		}
+		else{
+			List<ValidationError> errorList = new ArrayList<ValidationError>();
+			errorList.add(new ValidationError(Constants.FILE_NOT_FOUND, UtilityMethods.getErrorMsg(ErrorCodes.FILE_NOT_GNRTD), ErrorCodes.FILE_NOT_GNRTD));
+			JsonNode result = Json.toJson(new ErrorResponse(ResponseCodes.INVOICE_FILE_FETCH_FAILURE, errorList));
+			//Logger.debug(result.get("responseCode").toString());
+			return ok(result);
+		}
+			
+	}
+	
+/*	public Result getInvoiceTax(){
+		Map<String, Object> params = UtilityMethods.convertQueryStringToMap(request().queryString());
+		BaseResponse result = invoiceService.getInvoiceTax(params);
+		return ok(Json.toJson(result));
+	}*/
+}

@@ -1,0 +1,62 @@
+1470657764895	Delete element
+1470658873442	Rename type 'ReferalHistory'
+1470659266300	Delete elements
+1470659268884	Delete element
+1470659325309	Rename type 'RewardsTransaction'
+1470659421946	Rename type 'ReferralHistory'
+1470659428248	Rename type 'RewardPoint'
+1470659437155	Rename type 'RewardTransaction'
+1470659487868	Rename type 'ReservationHistory'
+1470659803468	Rename type 'RewardCode'
+1470660291843	Rename type 'RewardPointServiceImpl'
+1470660813457	Rename type 'ReservationHistoryDao'
+1470666678539	Delete element
+1470729465861	Delete element
+1470733322116	Rename type 'ReservationHistory'
+1470741881320	Rename type 'RewardTransaction'
+1470742459929	Delete element
+1470742467742	Delete element
+1470742472383	Delete element
+1470742477004	Delete element
+1470742493052	Delete element
+1470742504475	Delete element
+1470742558668	Rename field 'openingAmount'
+1470742572804	Rename field 'closingAmount'
+1470742592079	Rename field 'deltaAmount'
+1470748244856	Delete elements
+1470748320364	Delete elements
+1470748323347	Delete element
+1470748349954	Delete element
+1470748368876	Delete elements
+1470748372038	Delete element
+1470748380409	Delete elements
+1470748390916	Delete element
+1470748975673	Rename method 'create'
+1470837225235	Delete element
+1470837305303	Rename type 'RewardTransactionDao'
+1470837389233	Rename type 'RewardTransactionDaoImpl'
+1470837438028	Rename type 'RewardTxnType'
+1470837482296	Rename type 'RewardTxnType'
+1470903226413	Rename type 'RewardController'
+1470906762711	Rename field 'REWARD_TXN_CRATED'
+1470906781442	Rename field 'REWARD_TXN_TYPE_CRATED'
+1470908794517	Rename local variable 'dbrewardTxn'
+1470914221928	Rename method 'getBalance'
+1470916627633	Rename local variable 'rewardTxn'
+1470917305997	Rename local variable 'rewardTxn'
+1470917679640	Rename method 'calculateRefGuestReferralPoints'
+1470917737834	Rename method 'getLastUpdatedRewardTxn'
+1470918581780	Rename method 'calculateGuestPoints'
+1470920066054	Rename method 'setRewardTxn'
+1470920932166	Rename method 'createRewardTxn'
+1470923477849	Delete elements
+1470994259181	Rename field 'REFERRAL_TYPE_MISSING'
+1470998115141	Rename method 'updateRewardTxnTypeStatus'
+1470998687584	Rename field 'REWARD_TXN_TYPE_DISABLE_FAILURE'
+1470998706131	Rename field 'REWARD_TXN_TYPE_DISABLE_SUCCESSFULLY'
+1471009784296	Delete element
+1471009820794	Delete element
+1471009833916	Delete element
+1471009847060	Delete element
+1471009947306	Delete element
+1471009955182	Delete element

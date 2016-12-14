@@ -1,0 +1,52 @@
+
+
+import java.util.Calendar;
+
+import com.ning.billing.recurly.RecurlyClient;
+import com.ning.billing.recurly.model.Account;
+
+
+public class RecurlyIntegration {
+    
+    private static String API_KEY = "cc05476af9064906afe93e929ba6d4e1";
+    private static String DOMAIN_RECURLY = "clicktable";
+
+    public static void main(String[] args) {
+        
+        RecurlyClient recurlyClient = new RecurlyClient (API_KEY, DOMAIN_RECURLY);
+       
+        String uniqueId = String.valueOf (Calendar.getInstance().getTimeInMillis());
+        
+        Account customerAccount = new Account();
+        
+        customerAccount.setAccountCode(uniqueId);
+        
+        customerAccount.setCompanyName("Barbeque nation");
+        
+        customerAccount.setEmail("bbqnation@dummy.com");
+       
+     
+        if (recurlyClient != null && customerAccount != null){
+        	
+            recurlyClient.createAccount(customerAccount) ;
+            System.out.println ("client not  null");
+           
+        }
+        else System.out.println ("client null");
+        
+        
+        
+        
+        
+        
+    
+   /* 
+    private static void addNewCustomer ( RecurlyClient recurlyClient ){
+        
+       
+        
+    }*/
+
+}
+}
+

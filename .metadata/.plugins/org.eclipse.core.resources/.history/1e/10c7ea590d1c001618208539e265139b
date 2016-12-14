@@ -1,0 +1,16 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.support.model.AggregateTax;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface AggregateTaxService {
+	
+	AggregateTax create(AggregateTax aggregateTax);
+
+}

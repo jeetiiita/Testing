@@ -1,0 +1,8 @@
+1467874756090	Rename local variable 'sms_response'
+1467877652435	Rename resource 'InviteDescription.java'
+1467879124407	Rename field 'gupshpUrl'
+1467885330454	Rename method 'sendEmail'
+1467887607384	Rename type 'ConversationController'
+1467898569911	Rename method 'send'
+1467970678771	Rename method 'getTinyReservationURL'
+1467987643427	Rename method 'getTemplateContent'

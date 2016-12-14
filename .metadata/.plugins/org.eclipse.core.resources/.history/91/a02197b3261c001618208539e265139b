@@ -1,0 +1,110 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.model.AggregateTax;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class AggregateTaxDaoImpl implements AggregateTaxDao {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#create(java.lang.Object)
+	 */
+	@Override
+	public AggregateTax create(AggregateTax t) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#update(java.lang.Object)
+	 */
+	@Override
+	public AggregateTax update(AggregateTax t) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#delete(java.lang.Class, java.lang.Object)
+	 */
+	@Override
+	public void delete(Class type, Object id) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#findAll(java.lang.Class)
+	 */
+	@Override
+	public List<AggregateTax> findAll(Class type) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#findByFields(java.lang.Class, java.util.Map)
+	 */
+	@Override
+	public List<AggregateTax> findByFields(Class type,
+			Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#find(java.lang.Object)
+	 */
+	@Override
+	public AggregateTax find(Object id) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#createMultiple(java.util.List)
+	 */
+	@Override
+	public List<AggregateTax> createMultiple(List<AggregateTax> list) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#updateMultiple(java.util.List, java.util.Map)
+	 */
+	@Override
+	public List<AggregateTax> updateMultiple(List<String> guidList,
+			Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#delete(java.lang.String)
+	 */
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#getCountWithParams(java.util.Map)
+	 */
+	@Override
+	public int getCountWithParams(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+}

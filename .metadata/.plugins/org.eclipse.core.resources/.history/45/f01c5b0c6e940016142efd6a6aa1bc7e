@@ -1,0 +1,271 @@
+/**
+ * 
+ */
+package com.clicktable.dao.impl;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.springframework.data.neo4j.conversion.Result;
+
+import com.clicktable.dao.intf.DashBoardDao;
+import com.clicktable.model.BarEntry;
+import com.clicktable.model.Reservation;
+import com.clicktable.model.ReservationReview;
+import com.clicktable.util.EmpowerConstants;
+
+/**
+ * @author j.yadav
+ *
+ */
+@org.springframework.stereotype.Service
+public class DashBoardDaoImpl extends GraphDBDao<ReservationReview> implements DashBoardDao{
+
+	 @Override
+		public List<ReservationReview> getReservationsForDashboard(Map<String, Object> params) {
+
+			List<ReservationReview> resvReviewList = new ArrayList<>();
+			StringBuilder query = new StringBuilder();
+
+			query.append("MATCH (t:Reservation)")
+				 .append("WHERE  toInt(t.est_start_time) > toInt({"+params.get(EmpowerConstants.EST_START_AFTER)+"}) AND (t.est_start_time) < ("+params.get(EmpowerConstants.EST_START_BEFORE)+") ")
+				 .append("AND (t.est_end_time) > ("+params.get(EmpowerConstants.EST_END_AFTER)+") ")
+				 .append("AND t.rest_guid ={"+params.get(EmpowerConstants.REST_GUID)+"} ")
+				 .append(" MATCH (t)<-[:GUEST_HAS_RESV]-(guest:GuestProfile) with t,guest ")
+				 .append("OPTIONAL MATCH (guest)-[:GUEST_HAS_REVIEW]->(review:ReviewRating {resv_guid:t.guid}) with t,guest,review ")
+				 .append("RETURN toInt(t.est_start_time)  as estStartTime,toInt(t.est_end_time) as estEndTime,toInt(t.act_start_time) as actStartTime,")
+				 .append("toInt(t.act_end_time) as actEndTime,toInt(t.created_dt) as createdDate,t.cancelled_by as cancelledBy,toInt(t.num_covers) as covers,t.booking_mode as bookingMode,")
+				 .append("t.source_guid as sourceGuid,t.queued as queued,t.reservation_status as resvStatus,review.rating as reviewRating,review.updated_dt as reviewDate,")
+				 .append("t.guest_guid as guestGuid");
+			
+			Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+			ReservationReview resvReview = null;
+
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+				resvReview = new ReservationReview();
+				resvReview.setActStartTime(map.get("startTime") == null ? null : new Date((long) map.get("actStartTime")));
+				resvReview.setActEndTime(map.get("endTime") == null ? null : new Date((long) map.get("actEndTime")));
+				resvReview.setCreatedDate(map.get("createdDate") == null ? null : new Date((long) map.get("createdDate")));
+				resvReview.setEstStartTime(map.get("estStartTime") == null ? null : new Date((long) map.get("estStartTime")));
+				resvReview.setEstEndTime(map.get("estEndTime") == null ? null : new Date((long) map.get("estEndTime")));
+				resvReview.setNumCovers((Integer) map.get("covers"));
+				resvReview.setBookingMode(map.get("bookingMode").toString());
+				resvReview.setQueued(map.get("queued") == null ? false : (Boolean) map.get("queued"));
+				resvReview.setSourceGuid(map.get("sourceGuid") == null ? null : map.get("sourceGuid").toString());
+				resvReview.setReservationStatus(map.get("resvStatus").toString());
+				resvReview.setCancelledBy(map.get("cancelledBy") == null ? null : map.get("cancelledBy").toString());
+				resvReview.setGuestGuid(map.get("guestGuid") == null ? null : map.get("guestGuid").toString());
+				resvReview.setReviewDate(map.get("reviewDate") == null ? null : new Date((long) map.get("reviewDate")));
+				resvReview.setReviewRating(map.get("reviewRating") == null ? null : (Integer)map.get("reviewRating"));
+				resvReviewList.add(resvReview);
+			}
+
+			return resvReviewList;
+
+		}
+		
+		@Override
+		public List<Map<String, Object>> lastDateResvList(Map<String, Object> params) {
+
+			StringBuilder query = new StringBuilder();
+			query.append("MATCH (t:Reservation)")
+				 .append("WHERE  toInt(t.est_start_time) > toInt({"+params.get(EmpowerConstants.EST_START_AFTER)+"}) AND (t.est_start_time) < ("+params.get(EmpowerConstants.EST_START_BEFORE)+") ")
+				 .append("AND (t.est_end_time) > ("+params.get(EmpowerConstants.EST_END_AFTER)+") ")
+				 .append("AND t.rest_guid ={"+params.get(EmpowerConstants.REST_GUID)+"} ")
+				 .append(" with collect(t) as resv ")
+				 .append("RETURN size(resv) as resvCount,")
+				 .append("REDUCE(total=0,n IN resv | toInt(total)+toInt(n.num_covers)) as covers,")
+				 .append("SIZE(filter(ctResv in resv where (ctResv.reservation_status='CANCELLED' and ctResv.source_guid={")
+				 .append(EmpowerConstants.CLICKTABLE_SOURCE)
+				 .append("} and ctResv.cancelled_by='RESTAURANT') ")
+				 .append("OR (ctResv.reservation_status='CREATED' and ctResv.source_guid={")
+				 .append(EmpowerConstants.CLICKTABLE_SOURCE)
+				 .append("}))) as ctConfirmRejectTotal,")
+				 .append("SIZE(filter(walkin in resv where walkin.booking_mode='WALKIN' and walkin.queued=true)) as queuedWalkin");
+
+			params.put(EmpowerConstants.CLICKTABLE_SOURCE, EmpowerConstants.CLICKTABLE_SOURCE_GUID);
+			Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+
+			List<Map<String, Object>> resultMapList = new ArrayList<>();
+
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+				Map<String, Object> resultMap = new HashMap<>();
+				resultMap.put("ctTotal", map.get("ctConfirmRejectTotal"));
+				resultMap.put("covers", map.get("covers"));
+				resultMap.put("resvCount", map.get("resvCount"));
+				resultMap.put("queuedWalkinTotal", map.get("queuedWalkin"));
+				resultMapList.add(resultMap);
+			}
+
+			return resultMapList;
+
+		}
+		
+		@Override
+		public List<Map<String, Object>> resvAndCoversBySource(Map<String, Object> params) {
+
+			StringBuilder query = new StringBuilder();
+			   query.append("MATCH (t:Reservation)")
+					.append("WHERE  toInt(t.est_start_time) > toInt({"+params.get(EmpowerConstants.EST_START_AFTER)+"}) AND (t.est_start_time) < ("+params.get(EmpowerConstants.EST_START_BEFORE)+") ")
+					.append("AND (t.est_end_time) > ("+params.get(EmpowerConstants.EST_END_AFTER)+") ")
+					.append("AND t.rest_guid ={"+params.get(EmpowerConstants.REST_GUID)+"} ")
+					.append(" MATCH (source:Source{guid:t.source_guid})")
+					.append(" RETURN sum(t.num_covers) as covers,source.name as source,count(t) as resvCount");
+			Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+
+			List<Map<String, Object>> resultMapList = new ArrayList<>();
+
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+				Map<String, Object> resultMap = new HashMap<>();
+				resultMap.put("source", map.get("source"));
+				resultMap.put("covers", map.get("covers"));
+				resultMap.put("resvCount", map.get("resvCount"));
+				resultMapList.add(resultMap);
+			}
+
+			return resultMapList;
+
+		}
+		
+		
+		@Override
+		public Map<String, Object> getReservationGuestCounts(Map<String, Object> params) {
+
+			params.put(EmpowerConstants.RESERVATION_STATUS, EmpowerConstants.FINISHED);
+			StringBuilder query = new StringBuilder("Match (t:Reservation)<-[:GUEST_HAS_RESV]-(g:GuestProfile)");
+			query.append(getWhereClause(params));
+			query.append(
+					" RETURN CASE (g.dummy) WHEN true THEN [count(*)] ELSE [count(DISTINCT(g.guid)), count(*)] END as count");
+			
+			Long time = new Date().getTime();
+			Result<Map<String, Object>> result = template.query(query.toString(), params);
+			System.out.println("2.5-----------------------" + (time - new Date().getTime()));
+
+			Map<String, Object> guestMap = new HashMap<String, Object>();
+			Integer repeatCount = 0;
+			Integer newCount = 0;
+
+			guestMap.put("anonymous", 0);
+			guestMap.put("repeat", repeatCount);
+			guestMap.put("new", newCount);
+
+			Iterator itr = result.iterator();
+
+			while (itr.hasNext()) {
+				Map<String, Object> map = (Map<String, Object>) itr.next();
+				List<Integer> resultList = (List<Integer>) map.get("count");
+				int size = resultList.size();
+
+				if (size == 1) {
+					guestMap.put("anonymous", resultList.get(0));
+				} else if (size == 2) {
+					guestMap.put("new", resultList.get(0));
+					guestMap.put("repeat", resultList.get(1) - resultList.get(0));
+				}
+			}
+
+			return guestMap;
+		}
+		
+		
+		@Override
+		public List<BarEntry> getBarEntryForDashBoard(Map<String, Object> params, Integer barEntryFinishedCount,
+				Map<String, Object> distributionMap) {
+
+			StringBuilder query = new StringBuilder();
+					query.append("MATCH (t:" + EmpowerConstants.BAR_ENTRY +") ")
+						 .append("WHERE toInt(t.start_time) > toInt({estStartAfter}) AND toInt(t.start_time) < toInt({estStartBefore}) ")
+						 .append("AND toInt(t.end_time) > toInt({estEndAfter}) AND t.rest_guid ={restaurantGuid} ")
+						 .append("return t.status as status,t.start_time as startTime,t.end_time as endTime,t.num_covers as covers");
+
+			params.put(EmpowerConstants.DASHBOARD, true);
+			Result<Map<String, Object>> result = template.query(query.toString(), params);
+			Iterator<Map<String, Object>> itr = result.iterator();
+			List<BarEntry> barList = new ArrayList<>();
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+
+				String status = (String) map.get("status");
+				long startTime = (long) map.get("startTime");
+				long endTime = (long) map.get("endTime");
+				Integer numCovers = (Integer) map.get("covers");
+
+				if (status.equalsIgnoreCase(EmpowerConstants.FINISHED)) {
+					barEntryFinishedCount = barEntryFinishedCount + 1;
+				}
+				BarEntry bar = new BarEntry();
+				bar.setNumCovers(numCovers);
+				Date start = new Date(startTime);
+				bar.setStartTime(start);
+				bar.setEndTime(new Date(endTime));
+				barList.add(bar);
+			}
+
+			Map<String, Object> bookingModeMap = (Map<String, Object>) distributionMap
+					.get(EmpowerConstants.MODE_DISTRIBUTION);
+			bookingModeMap.put(EmpowerConstants.BAR_ENTRY, barEntryFinishedCount);
+			distributionMap.put(EmpowerConstants.MODE_DISTRIBUTION, bookingModeMap);
+			return barList;
+		}
+		
+		
+		@Override
+		protected StringBuilder getWhereClause(Map<String, Object> params) {
+			Map<String, Object> customParams = new HashMap<String, Object>();
+			for (String customParam : Reservation.getCustomFinderParams()) {
+				if (params.containsKey(customParam)) {
+					customParams.put(customParam, params.get(customParam));
+					params.remove(customParam);
+				}
+			}
+			StringBuilder query = super.getWhereClause(params);
+			if (!customParams.isEmpty())
+				query = appendCustomWhereClause(query, customParams);
+			params.putAll(customParams);
+			return query;
+		}
+
+		private StringBuilder appendCustomWhereClause(StringBuilder query, Map<String, Object> customParams) {
+			for (Entry<String, Object> entry : customParams.entrySet()) {
+				if (query.toString().contains(EmpowerConstants.WHERE))
+					query.append(" AND ");
+				else
+					query.append(" WHERE ");
+
+				switch (entry.getKey()) {
+
+				case EmpowerConstants.RESERVED_BEFORE:
+					query.append("toInt(t." + getPropertyName("reservationTime") + ")<toInt({" + entry.getKey() + "})");
+					break;
+				case EmpowerConstants.RESERVED_AFTER:
+					query.append("toInt(t." + getPropertyName("reservationTime") + ")>toInt({" + entry.getKey() + "})");
+					break;
+				case EmpowerConstants.EST_START_BEFORE:
+					query.append("toInt(t." + getPropertyName("estStartTime") + ")<toInt({" + entry.getKey() + "})");
+					break;
+
+				case EmpowerConstants.COVERS_LESS_THAN:
+					query.append("toInt(t." + getPropertyName("numCovers") + ")<toInt({" + entry.getKey() + "})");
+					break;
+				case EmpowerConstants.COVERS_MORE_THAN:
+					query.append("toInt(t." + getPropertyName("numCovers") + ")>toInt({" + entry.getKey() + "})");
+					break;
+				case EmpowerConstants.NUM_COVERS:
+					query.append("toInt(t." + getPropertyName("numCovers") + ")>" + entry.getKey());
+					break;
+				default:
+
+					break;
+				}
+			}
+			return query;
+		}
+}

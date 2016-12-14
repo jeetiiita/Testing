@@ -1,0 +1,198 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import java.util.Date;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.MaxLength;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.Constants;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "invoice_line")
+@AttributeOverrides({
+		@AttributeOverride(name = "guid", column = @Column(name = "guid")),
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class InvoiceLine extends BaseEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3326536006832909059L;
+	
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	@MaxLength(message = ErrorCodes.INVOICE_GUID_MAXLENGTH, value = 50)
+	@Column(name = "inv_guid")
+	private String invGuid;
+
+	@Required(message = ErrorCodes.INVOICE_REST_GUID_REQUIRED)
+	@MaxLength(message = ErrorCodes.INVOICE_GUID_MAXLENGTH, value = 50)
+	@Column(name = "restaurant_guid")
+	private String restaurantGuid;
+
+	@Column(name = "line_number")
+	private Integer lineNumber;
+
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	@Column(name = "order_date")
+	private Date orderDate;
+
+	@Column(name = "item_guid")
+	private String itemGuid;
+
+	@Column(name = "item_name")
+	private String itemName;
+
+	@Column(name = "item_desc")
+	private String itemDesc;
+
+	@Column(name = "item_qty")
+	private Integer itemQty;
+
+	@Column(name = "item_plan_price")
+	private double itemPlanPrice;
+
+	@Column(name = "fin_month")
+	private Integer finMonth;
+
+	@Column(name = "fin_year")
+	private Integer finYear;
+
+	@Column(name = "line_basic_amount")
+	private double lineBasicAmount;
+
+	
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	
+	public String getInvGuid() {
+		return invGuid;
+	}
+
+	
+	public void setInvGuid(String invGuid) {
+		this.invGuid = invGuid;
+	}
+
+	public String getRestaurantGuid() {
+		return restaurantGuid;
+	}
+
+	public void setRestaurantGuid(String restaurantGuid) {
+		this.restaurantGuid = restaurantGuid;
+	}
+
+	public Integer getLineNumber() {
+		return lineNumber;
+	}
+
+	public void setLineNumber(Integer lineNumber) {
+		this.lineNumber = lineNumber;
+	}
+
+	public Date getOrderDate() {
+		return orderDate == null ? null : (Date) orderDate.clone();
+	}
+
+	public void setOrderDate(Date orderDate) {
+		this.orderDate = orderDate == null ? null : (Date) orderDate.clone();
+	}
+
+	public String getItemGuid() {
+		return itemGuid;
+	}
+
+	public void setItemGuid(String itemGuid) {
+		this.itemGuid = itemGuid;
+	}
+
+	public String getItemName() {
+		return itemName;
+	}
+
+	public void setItemName(String itemName) {
+		this.itemName = itemName;
+	}
+
+	public String getItemDesc() {
+		return itemDesc;
+	}
+
+	public void setItemDesc(String itemDesc) {
+		this.itemDesc = itemDesc;
+	}
+
+	public Integer getItemQty() {
+		return itemQty;
+	}
+
+	public void setItemQty(Integer itemQty) {
+		this.itemQty = itemQty;
+	}
+
+	public double getItemPlanPrice() {
+		return itemPlanPrice;
+	}
+
+	public void setItemPlanPrice(double itemPlanPrice) {
+		this.itemPlanPrice = itemPlanPrice;
+	}
+
+	public Integer getFinMonth() {
+		return finMonth;
+	}
+
+	public void setFinMonth(Integer finMonth) {
+		this.finMonth = finMonth;
+	}
+
+	public Integer getFinYear() {
+		return finYear;
+	}
+
+	public void setFinYear(Integer finYear) {
+		this.finYear = finYear;
+	}
+
+	public double getLineBasicAmount() {
+		return lineBasicAmount;
+	}
+
+	public void setLineBasicAmount(double lineBasicAmount) {
+		this.lineBasicAmount = lineBasicAmount;
+	}
+
+}

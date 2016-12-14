@@ -1,0 +1,15 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import org.springframework.stereotype.Service;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface PushNotificationService {
+
+}

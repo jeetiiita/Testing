@@ -1,0 +1,12 @@
+/**
+ * 
+ */
+package com.clicktable.support.validate;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class SingleTaxValidator {
+
+}

@@ -1,0 +1,77 @@
+/**
+ * 
+ */
+package com.clicktable.support.validate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.AggregateTax;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.EntityValidator;
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public class AggregateTaxValidator extends EntityValidator<AggregateTax> {	
+	
+	@Autowired
+	AggregateTaxDao aggregateTaxDao;
+	
+	@Autowired
+	TaxDao taxDao;
+	
+	public List<ValidationError> validateTaxOnAdd(AggregateTax aggregateTax) {
+
+	
+	List<ValidationError> errorList = validateOnAdd(aggregateTax);
+	
+	Map<String,Object> params = new HashMap<String, Object>();
+	
+	params.put(Constants.ID,aggregateTax.getSingleTaxCodeId());
+	
+	List<Tax> taxList = taxDao.findByFields(Tax.class, params);
+	
+	if(taxList.isEmpty())
+		errorList = CustomValidations.populateErrorList(errorList, "singleTaxCodeId", 
+				UtilityMethods.getErrorMsg(ErrorCodes.ID_DOES_NOT_EXIST), ErrorCodes.ID_DOES_NOT_EXIST);
+	
+	
+	params.put(Constants.ID, tax.getCountry());
+	params.put(Constants.NAME, tax.getName());
+	params.put(Constants.STATUS, Constants.ACTIVE);
+	
+	List<Tax> taxList = taxDao.findByFields(Tax.class, params);
+	
+	if(!taxList.isEmpty())
+		errorList = CustomValidations.populateErrorList(errorList, Constants.NAME, UtilityMethods.getErrorMsg(ErrorCodes.DUPLICATE_TAX_NAME), ErrorCodes.DUPLICATE_TAX_NAME);
+	
+	return errorList;
+	}
+	
+	@Override
+	public String getMissingGuidErrorCode() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getInvalidGuidErrorCode() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

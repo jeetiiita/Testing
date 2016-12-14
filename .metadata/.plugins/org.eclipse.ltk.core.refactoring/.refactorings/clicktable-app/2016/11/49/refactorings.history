@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;erroList&apos; in &apos;com.clicktable.controllers.GuestFeedbackController.getFeedbackWithResvAndGuestDetails()&apos; to &apos;errorList&apos;&#x0D;&#x0A;- Original project: &apos;clicktable-app&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.controllers.GuestFeedbackController.getFeedbackWithResvAndGuestDetails().erroList&apos;&#x0D;&#x0A;- Renamed element: &apos;erroList&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;erroList&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/app&lt;com.clicktable.controllers{GuestFeedbackController.java[GuestFeedbackController~getFeedbackWithResvAndGuestDetails@erroList!4993!5043!5015!5022!QList\&lt;QValidationError;&gt;;!0!false" name="errorList" references="true" stamp="1480338882121" version="1.0"/>
+</session>

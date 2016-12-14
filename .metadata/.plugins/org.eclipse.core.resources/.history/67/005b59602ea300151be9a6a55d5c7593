@@ -1,0 +1,262 @@
+package com.clicktable.service.impl;
+
+import java.sql.Time;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.Logger;
+import play.libs.Json;
+
+import com.clicktable.dao.intf.CustomerDao;
+import com.clicktable.dao.intf.StaffDao;
+import com.clicktable.model.GuestProfile;
+import com.clicktable.model.Role;
+import com.clicktable.model.Staff;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.model.UserToken;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.LoginResponse;
+import com.clicktable.service.intf.AuthorizationService;
+import com.clicktable.service.intf.StaffService;
+import com.clicktable.service.intf.UserTokenService;
+import com.clicktable.util.Constants;
+import com.clicktable.util.UtilityMethods;
+
+@Service
+@Configurable
+public class AuthorizationServiceImpl implements AuthorizationService 
+{
+    @Autowired
+    UserTokenService userTokenService;
+    @Autowired
+    CustomerDao customerDao;
+    @Autowired
+    StaffDao staffDao;
+    @Autowired
+    StaffService staffService;
+
+	Map<String, UserInfoModel> loggedInUsersMap;
+	
+	String sysadminToken;
+	
+
+	public AuthorizationServiceImpl() {
+		loggedInUsersMap = new HashMap<String, UserInfoModel>();
+		LoggedInUsersManagingThreadService loginScheduler = new LoggedInUsersManagingThreadService();
+		loginScheduler.setDaemon(true);
+		loginScheduler.start();
+	}
+
+	@Override
+	public Long getRoleByToken(String token) {
+		try {
+			return loggedInUsersMap.get(token).getRoleId();
+		} catch (Exception ex) {
+			Logger.error(ex.getMessage());
+			Logger.error("Error while getting RoleId by access-token", ex);
+			return null;
+		}
+
+	}
+
+	@Override
+	public String getLoggedInUser(String token) {
+		try {
+			return loggedInUsersMap.get(token).getGuid();
+		} catch (Exception ex) {
+			Logger.error(ex.getMessage());
+			Logger.error("Error while getting User Guid by access-token", ex);
+			return null;
+		}
+		
+	}
+
+	@Override
+	public boolean isRecentToken(String token) {
+		return loggedInUsersMap.containsKey(token);
+	}
+	
+	@Override
+	public boolean hasAccess(Long roleId, List<Role> roles) 
+	{
+		if (roleId != 0) 
+		{
+			for (Role permittedRole : roles) 
+			{
+				Long permittedId =permittedRole.getRoleId();
+				Logger.debug("permitted id is "+permittedId+" role id is "+roleId);
+				if (permittedId.intValue() == roleId.intValue()) 
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public boolean addNewSession(String token, UserInfoModel userInfo) {
+		loggedInUsersMap.put(token, userInfo);
+		return true;
+	}
+
+	@Override
+	public boolean removeSession(String token) {
+		if (loggedInUsersMap.containsKey(token)) {
+			loggedInUsersMap.remove(token);
+		}
+		return true;
+	}
+
+	public Map<String, UserInfoModel> getLoggedInUsersMap() {
+		return loggedInUsersMap;
+	}
+	
+	@Override
+	public String loginAsInternal(){
+		if(sysadminToken==null || getUserInfoByToken(sysadminToken)==null){
+			String password = UtilityMethods.getConfString("sysadmin.secret");
+			String userName = UtilityMethods.getConfString("sysadmin.user");
+			LoginResponse response = (LoginResponse)staffService.staffLogin(userName, password);
+			sysadminToken= response.getToken();
+		}
+		return sysadminToken;
+	}
+	
+	@Override
+	//@Transactional(readOnly =true)
+	public UserInfoModel getUserInfoByToken(String token)
+	{
+		if(token == null )
+		{
+			return null;
+		}
+	    Map<String,UserInfoModel> loggedInUsers = getLoggedInUsersMap();
+		Logger.debug("loggedinusers are "+loggedInUsers);
+		UserInfoModel userInfo = loggedInUsers.get(token);
+		
+		Logger.debug("user info from logged in user map is "+userInfo);
+		
+		Long roleId = 0L;
+		//if user exists in map then update update time and get role id
+		if(userInfo != null){
+		    Logger.debug("user info is  "+userInfo.getUpdateTime());
+		    userInfo.setUpdateTime(new Time(new Date().getTime()));
+		    loggedInUsers.put(token, userInfo);
+		}
+		else
+		{
+		    userInfo = null;
+		    Logger.debug("Searching token in database");
+		    UserToken userToken = userTokenService.findToken(token);
+		    Logger.debug("user token is "+userToken);
+		    if(userToken != null)
+		    {
+			//without role id
+			String userId = userToken.getUserId();
+			String [] userIdSubStrArr = userId.split("_"); 
+			String userType = userIdSubStrArr[0];   //user type
+			String userGuid = userIdSubStrArr[1];   //user guid
+			Logger.debug("user type is "+userType+" user guid is "+userGuid);
+			Map<String,Object> params = new HashMap<String, Object>();
+			params.put(Constants.GUID, userGuid);
+			
+			if(userType.equals(Constants.CUSTOMER_STRING))
+			{
+			    List<GuestProfile> customerList = customerDao.findByFields(GuestProfile.class, params);
+			    
+			    if(customerList.size()>0)
+			    {
+			    userInfo = new UserInfoModel(customerList.get(0));
+			    userInfo.setUpdateTime(new Time(new Date().getTime()));
+			     
+			    }
+			   
+			    
+			}
+			if(userType.equals(Constants.STAFF_STRING))
+			{
+			    List<Staff> staffList = staffDao.findByFields(Staff.class, params);
+			    if(staffList.size()>0)
+			    {
+			    userInfo = new UserInfoModel(staffList.get(0));
+			    Logger.debug("staff is "+staffList.get(0).getRoleId()+" name is "+staffList.get(0).getFirstName());
+			    Logger.debug("staff user info is "+userInfo);
+			    userInfo.setUpdateTime(new Time(new Date().getTime()));
+		            Logger.debug("role id is "+roleId);
+			   }
+			    
+			}
+			if(userType.equals(Constants.CT_ADMIN_STRING))
+			{
+			   
+			    userInfo = new UserInfoModel();
+			    userInfo.setRoleId(Constants.CT_ADMIN_ROLE_ID);
+			}
+			
+			 loggedInUsers.put(token, userInfo);
+			    
+		    }
+		}
+	    return userInfo;
+	}
+
+	/**
+	 * inner class for scheduler that checks for inactive logged in users and
+	 * removes them from LoggedInUsersMap
+	 * 
+	 * @author p.singh
+	 *
+	 */
+	public class LoggedInUsersManagingThreadService extends Thread {
+
+
+		// public LoggedInUsersManagingThreadService singleThread = null;
+		Long currentTime;
+		Long updateTime;
+		Long sessionLimit;
+		Long threadScheduleTime;
+
+		@Override
+		public void run() {
+
+		   	try {
+		        	Map<String, UserInfoModel> loggedInUsers = getLoggedInUsersMap();
+		        	Logger.debug("thread started");
+
+				currentTime = new Time(new Date().getTime()).getTime();
+				sessionLimit = Long.parseLong(UtilityMethods.getProperty(Constants.SESSION_CONFIG, Constants.SESSION_MODULE, Constants.SESSION_LIMIT));
+				threadScheduleTime = Long.parseLong(UtilityMethods.getProperty(Constants.SESSION_CONFIG, Constants.SESSION_MODULE, Constants.THREAD_RUNNIG_INTERVAL));
+				Logger.debug("logged in users are "+loggedInUsers);
+				Logger.debug("current time is "+currentTime);
+				for (Map.Entry<String, UserInfoModel> entry : loggedInUsers.entrySet()) 
+				{
+					updateTime = entry.getValue().getUpdateTime().getTime();
+                                         Logger.debug("user is "+entry.getKey()+" update time is "+entry.getValue().getUpdateTime());
+					if ((currentTime - updateTime) > sessionLimit) 
+					{
+					    Logger.debug("Session time out");
+					    loggedInUsers.remove(entry.getKey());
+					}
+				}
+				Thread.sleep(threadScheduleTime);
+				run();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+		}
+
+	}
+
+	
+
+}

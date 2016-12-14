@@ -1,0 +1,6 @@
+1471876129037	Delete elements
+1472217193911	Rename method 'populateDistributionMap'
+1472220291900	Rename local variable 'reservationCancelCount'
+1472220300933	Rename local variable 'reservationNoShowCount'
+1472220311305	Rename local variable 'reservationConfirmCount'
+1472220321326	Rename local variable 'reservationUnConfirmCount'

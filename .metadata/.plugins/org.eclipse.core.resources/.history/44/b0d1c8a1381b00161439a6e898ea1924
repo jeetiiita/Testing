@@ -1,0 +1,33 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.BillableItem;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface BillableItemService {
+	
+	//From Admin console only
+	
+	/**
+	 * 
+	 */
+	BillableItem create();
+	
+	/**
+	 * 
+	 */
+	void deactivate();
+	
+	/**
+	 * 
+	 */
+	void activate();
+	
+
+}

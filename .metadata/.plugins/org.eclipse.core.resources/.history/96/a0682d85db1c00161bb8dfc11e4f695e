@@ -1,0 +1,26 @@
+/**
+ * 
+ */
+package com.clicktable.support.Exception;
+
+import java.util.List;
+
+import com.clicktable.validate.ValidationError;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class ValidationServiceException extends RuntimeException {
+
+	private static final long serialVersionUID = 1L;
+
+	public ValidationServiceException(List<ValidationError> errorList) {
+		super(errorList.toString());
+	}
+	
+	public ValidationServiceException(String Message, Throwable cause) {
+		super(message,cause);
+	}
+
+}

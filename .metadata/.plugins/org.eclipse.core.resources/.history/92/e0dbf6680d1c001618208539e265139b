@@ -1,0 +1,24 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+
+import com.clicktable.support.model.InvoiceLine;
+import com.clicktable.support.model.Item;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface InvoiceLineService {
+	
+	InvoiceLine create(InvoiceLine invoiceLine); 
+	
+	List<InvoiceLine> createMultiple(List<InvoiceLine> listInvoiceLine);
+
+	InvoiceLine generateInvoiceLine(
+			Item item, int itemPrice);
+
+}

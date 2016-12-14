@@ -1,0 +1,15 @@
+1463578348542	Rename type 'SingleTaDao'
+1463578631817	Delete element
+1463578712790	Rename type 'Tax'
+1463578877829	Rename type 'TaxService'
+1463579579374	Delete element
+1463579643446	Delete element
+1463580014683	Delete element
+1463580354734	Delete element
+1463580372731	Delete element
+1463725262454	Rename type 'ItemTaxController'
+1463725362882	Rename type 'ItemAggregatTaxValidator'
+1463725719453	Rename type 'ItemTax'
+1463726523495	Rename type 'ItemTaxServiceImpl'
+1463726545412	Rename type 'ItemTaxService'
+1463742507462	Delete element

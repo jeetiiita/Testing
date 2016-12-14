@@ -1,0 +1,48 @@
+package com.clicktable.support.response;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import play.i18n.Messages;
+
+import com.clicktable.response.BaseResponse;
+
+public class SqlResponse extends BaseResponse{
+
+	List<String> guidList = new ArrayList<String>();
+	List<Map<String,Object>> mapList = new ArrayList<Map<String,Object>>();
+	
+	public SqlResponse(String responseCode) {
+		this.setResponseStatus(true);
+		this.setResponseCode(responseCode);
+		this.setResponseMessage(Messages.get(responseCode));
+	}
+	
+	public SqlResponse(String responseCode, List<String> list){
+		this.setResponseStatus(true);
+		this.setResponseCode(responseCode);
+		this.setResponseMessage(Messages.get(responseCode));
+		this.setGuidList(list);
+	}
+	
+	public SqlResponse(String responseCode,String restGuid,List<Map<String,Object>> list){
+		this.setResponseStatus(true);
+		this.setResponseCode(responseCode);
+		this.setResponseMessage(Messages.get(responseCode));
+		this.setMapList(list);
+	}
+
+	public void setGuidList(List<String> guidList) {
+		this.guidList = guidList;
+	}
+
+	public List<Map<String, Object>> getMapList() {
+		return mapList;
+	}
+
+	public void setMapList(List<Map<String, Object>> mapList) {
+		this.mapList = mapList;
+	}
+}
+

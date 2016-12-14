@@ -1,0 +1,20 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.Arrays;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+		int[] arr = new int[3]{4,3,4};
+		Arrays.sort();
+	
+	}
+}

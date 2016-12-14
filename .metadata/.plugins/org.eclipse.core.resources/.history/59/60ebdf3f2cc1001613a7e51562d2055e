@@ -1,0 +1,272 @@
+package com.clicktable.support.controllers;
+
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.exception.ServiceValidationException;
+import com.clicktable.support.model.Invoice;
+import com.clicktable.support.model.Payment;
+import com.clicktable.support.service.intf.InvoiceService;
+import com.clicktable.support.service.intf.PaymentService;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.support.util.SupportConstants;
+import com.clicktable.support.util.SupportResponseCodes;
+import com.clicktable.support.validate.CustomValidations;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import play.Logger;
+import play.libs.Json;
+import play.mvc.Controller;
+import play.mvc.Result;
+
+@org.springframework.stereotype.Controller
+public class PaymentController extends Controller {
+
+    public static final String ID = "id";
+    private static final Logger.ALogger log = Logger.of(PaymentController.class);
+    @Autowired
+    private PaymentService paymentService;
+    @Autowired
+    private InvoiceService invoiceService;
+
+    public Result updatePaymentDetail() {
+        log.info("Updating payment");
+        JsonNode jsonNode = request().body().asJson();
+        Map<String, List<String>> params = Json.fromJson(jsonNode, Map.class);
+        BaseResponse response;
+        JsonNode json = paymentService.decryptResponse(params.get("encResp").get(0));
+        Payment payment = Json.fromJson(json, Payment.class);
+        try {
+            payment = paymentService.update(payment);
+            if (null != payment && SupportConstants.PAYMENT_SUCCESS.equalsIgnoreCase(payment.getOrderStatus())) {
+                invoiceService.updateInvoice(payment);
+                response = new UpdateResponse<Payment>(SupportResponseCodes.PAYMENT_SUCCESSFULL, payment.getId().toString());
+            } else {
+                response = new UpdateResponse<Payment>(SupportResponseCodes.PAYMENT_FAILED, "");
+            }
+        } catch (ServiceValidationException se) {
+            log.warn("Validation exception in update invoice", se);
+            response = new ErrorResponse(SupportResponseCodes.INVOICE_UPDATION_FAILURE, se.getErrorList());
+        }
+
+        JsonNode result = Json.toJson(response);
+        return ok(result);
+    }
+
+    public Result startPayment() {
+        log.info("Starting payment");
+        JsonNode jsonNode = request().body().asJson();
+        Map<String, List<String>> params = Json.fromJson(jsonNode, Map.class);
+        BaseResponse response;
+        if (params.get(ID) == null || params.get(ID).get(0) == null) {
+            List<ValidationError> listOfError = new ArrayList<>();
+            listOfError = CustomValidations.populateErrorList(listOfError, "id",
+                    UtilityMethods.getErrorMsg(ErrorCodes.ID_MISSING), ErrorCodes.ID_MISSING);
+            response = new ErrorResponse(SupportResponseCodes.USER_DETAILS_ENCRYPTION_FAILURE, listOfError);
+        } else {
+            Long id = Long.parseLong(String.valueOf(params.get(ID).get(0)));
+            Invoice invoice = invoiceService.getInvoiceById(id);
+            Payment payment = paymentService.create(makePaymentObject(invoice, params));
+            payment.setOrderId(String.valueOf(payment.getId()));
+            response = paymentService.encryptPaymentData(invoice, payment);
+        }
+        JsonNode result = Json.toJson(response);
+        if (log.isDebugEnabled()) {
+            log.debug(Json.stringify(result));
+        }
+        return ok(result);
+    }
+
+    private Payment makePaymentObject(Invoice invoice, Map<String, List<String>> params) {
+        Payment payment = new Payment();
+        payment.setInvoice(invoice);
+        payment.setCreatedBy(String.valueOf(params.get("createdBy")));
+        payment.setUpdatedBy(String.valueOf(params.get("updatedBy")));
+        payment.setOrderStatus(Payment.STATUS_PROCESSING);
+        return payment;
+    }
+    
+/*	public Result getRSAPublicKey() throws IOException {
+		StringBuffer vRequest = new StringBuffer("");
+		Map<String, Object> vReqParam = UtilityMethods.convertQueryStringToMap(request().queryString());
+		vReqParam.remove(SupportConstants.REST_GUID);
+		Iterator<String> keySetIterator = vReqParam.keySet().iterator();
+		while (keySetIterator.hasNext()) {
+			String key = keySetIterator.next();
+				vRequest.append(key + "=" + vReqParam.get(key));
+				if (keySetIterator.hasNext()) {
+					vRequest.append("&");
+			}
+		}
+		log.debug("Request Params ,"+vRequest);
+		BaseResponse response = null;
+		URL vUrl = null;
+		URLConnection vHttpUrlConnection = null;
+		DataOutputStream vPrintout = null;
+		DataInputStream vInput = null;
+		StringBuffer vStringBuffer = null;
+		try {
+			System.setProperty("https.protocols", "TLSv1");
+			vUrl = new URL(UtilityMethods.getConfString(SupportConstants.CCAVENUE_HOST) + "/transaction/getRSAKey");
+			if (vUrl.openConnection() instanceof HttpsURLConnection) {
+				vHttpUrlConnection = (HttpsURLConnection) vUrl.openConnection();
+			} else if (vUrl.openConnection() instanceof com.sun.net.ssl.HttpsURLConnection) {
+				vHttpUrlConnection = (com.sun.net.ssl.HttpsURLConnection) vUrl.openConnection();
+			} else {
+				vHttpUrlConnection = (URLConnection) vUrl.openConnection();
+			}
+			vHttpUrlConnection.setDoInput(true);
+			vHttpUrlConnection.setDoOutput(true);
+			vHttpUrlConnection.setUseCaches(false);
+			vHttpUrlConnection.connect();
+			vPrintout = new DataOutputStream(vHttpUrlConnection.getOutputStream());
+			vPrintout.writeBytes(vRequest.toString());
+			BufferedReader bufferedreader = new BufferedReader(
+					new InputStreamReader(vHttpUrlConnection.getInputStream()));
+			vPrintout.flush();
+			vPrintout.close();
+			vStringBuffer = new StringBuffer();
+			String vRespData;
+			while ((vRespData = bufferedreader.readLine()) != null) {
+				if (vRespData.length() != 0)
+					vStringBuffer.append(vRespData.trim() + "\n");
+			}
+			String RSA = vStringBuffer.substring(0, vStringBuffer.length() - 1);
+			response = new GetResponse<>(SupportResponseCodes.RSA_KEY_FETCH_SUCCESSFULL, Arrays.asList(RSA));
+			bufferedreader.close();
+			bufferedreader = null;
+		}
+		catch (IOException e) {
+			log.error("IO Exception",e);
+			List<ValidationError> listOfError = new ArrayList<>();
+			listOfError.add(new ValidationError("io Exception", ErrorCodes.IO_ERROR));
+			response = new ErrorResponse(SupportResponseCodes.RSA_KEY_FETCH_FAILURE, listOfError);
+		}
+		catch (Exception e) {
+			log.error("Bank gateway down",e);
+			List<ValidationError> listOfError = new ArrayList<>();
+			listOfError.add(new ValidationError("Bank gateway", ErrorCodes.BANK_GATEWAY_DOWN));
+			response = new ErrorResponse(SupportResponseCodes.RSA_KEY_FETCH_FAILURE, listOfError);
+		} finally {
+			if (vInput != null)
+				vInput.close();
+			if (vHttpUrlConnection != null)
+				vHttpUrlConnection = null;
+		}
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+	}
+*/
+    
+	public Result getRSAPublicKey() throws IOException {
+        log.info("Starting payment");
+        JsonNode jsonNode = request().body().asJson();
+        Map<String, List<String>> params = Json.fromJson(jsonNode, HashMap.class);
+        Map<String, Object> vReqParam = new HashMap<String, Object>();
+        BaseResponse response;
+        if (params.get(ID) == null || params.get(ID).get(0) == null) {
+            List<ValidationError> listOfError = new ArrayList<>();
+            listOfError.add(new ValidationError(SupportConstants.ID,ErrorCodes.ID_MISSING));
+            response = new ErrorResponse(SupportResponseCodes.USER_DETAILS_ENCRYPTION_FAILURE, listOfError);
+        } else {
+            Long id = Long.parseLong(String.valueOf(params.get(ID).get(0)));
+            Invoice invoice = invoiceService.getInvoiceById(id);
+            Payment payment = paymentService.create(makePaymentObject(invoice, params));
+            payment.setOrderId(String.valueOf(payment.getId()));		
+		
+		StringBuffer vRequest = new StringBuffer("");
+		vReqParam.put("order_id", payment.getOrderId());
+		vReqParam.put("merchant_id", UtilityMethods.getConfString("ccAvenue.merchantId"));
+		vReqParam.put("access_code", UtilityMethods.getConfString("ccAvenue.accessCode"));
+		
+		Iterator<String> keySetIterator = vReqParam.keySet().iterator();
+		while (keySetIterator.hasNext()) {
+			String key = keySetIterator.next();
+				vRequest.append(key + "=" + vReqParam.get(key));
+				if (keySetIterator.hasNext()) {
+					vRequest.append("&");
+			}
+		}
+		log.debug("Request Params ,"+vRequest);
+		URL vUrl = null;
+		URLConnection vHttpUrlConnection = null;
+		DataOutputStream vPrintout = null;
+		DataInputStream vInput = null;
+		StringBuffer vStringBuffer = null;
+		try {
+			System.setProperty("https.protocols", "TLSv1");
+			vUrl = new URL(UtilityMethods.getConfString(SupportConstants.CCAVENUE_HOST) + "/transaction/getRSAKey");
+			if (vUrl.openConnection() instanceof HttpsURLConnection) {
+				vHttpUrlConnection = (HttpsURLConnection) vUrl.openConnection();
+			} else if (vUrl.openConnection() instanceof com.sun.net.ssl.HttpsURLConnection) {
+				vHttpUrlConnection = (com.sun.net.ssl.HttpsURLConnection) vUrl.openConnection();
+			} else {
+				vHttpUrlConnection = (URLConnection) vUrl.openConnection();
+			}
+			vHttpUrlConnection.setDoInput(true);
+			vHttpUrlConnection.setDoOutput(true);
+			vHttpUrlConnection.setUseCaches(false);
+			vHttpUrlConnection.connect();
+			vPrintout = new DataOutputStream(vHttpUrlConnection.getOutputStream());
+			vPrintout.writeBytes(vRequest.toString());
+			BufferedReader bufferedreader = new BufferedReader(
+					new InputStreamReader(vHttpUrlConnection.getInputStream()));
+			vPrintout.flush();
+			vPrintout.close();
+			vStringBuffer = new StringBuffer();
+			String vRespData;
+			while ((vRespData = bufferedreader.readLine()) != null) {
+				if (vRespData.length() != 0)
+					vStringBuffer.append(vRespData.trim() + "\n");
+			}
+			String RSA = vStringBuffer.substring(0, vStringBuffer.length() - 1);
+			response = new GetResponse<>(SupportResponseCodes.RSA_KEY_FETCH_SUCCESSFULL, Arrays.asList(RSA));
+			bufferedreader.close();
+			bufferedreader = null;
+		}
+		catch (IOException e) {
+			log.error("IO Exception",e);
+			List<ValidationError> listOfError = new ArrayList<>();
+			listOfError.add(new ValidationError("io Exception", ErrorCodes.IO_ERROR));
+			response = new ErrorResponse(SupportResponseCodes.RSA_KEY_FETCH_FAILURE, listOfError);
+		}
+		catch (Exception e) {
+			log.error("Bank gateway down",e);
+			List<ValidationError> listOfError = new ArrayList<>();
+			listOfError.add(new ValidationError("Bank gateway", ErrorCodes.BANK_GATEWAY_DOWN));
+			response = new ErrorResponse(SupportResponseCodes.RSA_KEY_FETCH_FAILURE, listOfError);
+		} finally {
+			if (vInput != null)
+				vInput.close();
+			if (vHttpUrlConnection != null)
+				vHttpUrlConnection = null;
+		}
+		JsonNode result = Json.toJson(response);
+		return ok(result);
+	}
+
+  
+
+   
+}

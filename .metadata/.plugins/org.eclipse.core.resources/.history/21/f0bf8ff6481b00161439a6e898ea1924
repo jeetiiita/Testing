@@ -1,0 +1,91 @@
+package com.clicktable.support.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.TaxCodeService;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.TaxValidator;
+import com.clicktable.validate.ValidationError;
+
+@Component
+public class TaxServiceImpl implements TaxCodeService {
+	
+	
+	@Autowired
+	TaxDao taxDao;
+
+	@Autowired
+	TaxValidator taxValidator;
+
+	@Override
+	@Transactional
+	public BaseResponse addTaxMasterData(Tax tax) {
+
+		BaseResponse response;
+		List<ValidationError> errorList = taxValidator.validateTaxOnAdd(tax);
+
+		if (errorList.isEmpty()) {
+			
+			taxDao.create(tax);
+			
+			response = new UpdateResponse<>(
+					ResponseCodes.TAX_ADDED_SUCCESSFULLY, tax.getGuid());
+		} else {
+			response = new ErrorResponse(ResponseCodes.TAX_ADDITION_FAILURE,
+					errorList);
+			return response;
+		}
+		return response;
+	}
+
+	@Override
+	public BaseResponse getTax(Map<String, Object> params) {
+
+		Map<String, Object> validParams = taxValidator.validateFinderParams(
+				params, Tax.class);
+		List<Tax> list = taxDao.findByFields(Tax.class, validParams);
+
+		BaseResponse response = new GetResponse<Tax>(
+				ResponseCodes.TAX_FETCHED_SUCCESSFULLY, list);
+		return response;
+	}
+
+	@Override
+	public BaseResponse updateTax(Tax tax) {
+
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		BaseResponse response;
+		Tax existing = taxValidator.validateGuid(tax.getGuid(), errorList);
+
+		if (errorList.isEmpty()) {
+			tax.copyExistingValues(existing);
+			errorList.addAll(taxValidator.validateOnUpdate(tax));
+		}
+
+		if (!errorList.isEmpty()) {
+			response = new ErrorResponse(ResponseCodes.TAX_UPDATION_FAILURE,
+					errorList);
+			return response;
+		} else {
+			Tax updatedValue = taxDao.update(tax);
+			response = new UpdateResponse<Tax>(
+					ResponseCodes.TAX_UPDATED_SUCCESSFULLY,
+					updatedValue.getGuid());
+		}
+		return response;
+
+	}
+
+}

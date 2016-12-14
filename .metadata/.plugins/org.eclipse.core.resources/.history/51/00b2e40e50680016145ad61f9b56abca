@@ -1,0 +1,139 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import javax.persistence.Column;
+
+import org.springframework.data.neo4j.annotation.GraphProperty;
+
+import com.clicktable.util.Constants;
+import com.clicktable.util.EntityErrorCodes;
+
+import play.data.validation.Constraints.MaxLength;
+import play.data.validation.Constraints.Required;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class Notification extends BaseEntity{
+
+	public Notification() {
+		super();
+	}
+
+	
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_REST_GUID)
+	private String restaurantGuid;
+	
+	@Required(message = EntityErrorCodes.RESERVATION_GUID_REQUIRED)
+	private String reservationGuid;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_MESSAGE_REQUIRED)
+	@MaxLength(message = EntityErrorCodes.GUESTCONVERSATION_MESSAGE_MAXLENGTH, value = 300)
+	private String message;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_GUEST_GUID)
+	private String guestGuid;
+
+	private String guestMobileNum;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_SENTBY)
+	private String sentBy;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_ORIGIN)
+	private String origin;
+
+	private String originGuid;
+
+	private String smsStatus = Constants.WAITING;
+
+	private String smsId;
+
+	private String smsStatusCause = Constants.WAITING;
+
+	public String getGuestMobileNum() {
+		return guestMobileNum;
+	}
+
+	public void setGuestMobileNum(String guestMobileNum) {
+		this.guestMobileNum = guestMobileNum;
+	}
+
+	public String getSmsStatusCause() {
+		return smsStatusCause;
+	}
+
+	public void setSmsStatusCause(String smsStatusCause) {
+		this.smsStatusCause = smsStatusCause;
+	}
+
+	
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+	public String getSentBy() {
+		return sentBy;
+	}
+
+	public void setSentBy(String sentBy) {
+		this.sentBy = sentBy;
+	}
+
+	public String getOrigin() {
+		return origin;
+	}
+
+	public void setOrigin(String origin) {
+		this.origin = origin;
+	}
+
+	public String getRestaurantGuid() {
+		return restaurantGuid;
+	}
+
+	public void setRestaurantGuid(String restaurantGuid) {
+		this.restaurantGuid = restaurantGuid;
+	}
+
+	public String getGuestGuid() {
+		return guestGuid;
+	}
+
+	public void setGuestGuid(String guestGuid) {
+		this.guestGuid = guestGuid;
+	}
+
+	public String getOriginGuid() {
+		return originGuid;
+	}
+
+	public void setOriginGuid(String originGuid) {
+		this.originGuid = originGuid;
+	}
+
+	public String getSmsStatus() {
+		return smsStatus;
+	}
+
+	public void setSmsStatus(String smsStatus) {
+		this.smsStatus = smsStatus;
+	}
+
+	public String getSmsId() {
+		return smsId;
+	}
+
+	public void setSmsId(String smsId) {
+		this.smsId = smsId;
+	}
+
+
+
+}

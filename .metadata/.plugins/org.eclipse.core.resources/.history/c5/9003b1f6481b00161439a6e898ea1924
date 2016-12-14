@@ -1,0 +1,21 @@
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.TaxCode;
+
+@Service
+public interface TaxCodeService {
+	
+
+	TaxCode create(TaxCode taxCode);
+	
+	List<TaxCode> getTax(Map<String, Object> params);
+	
+	boolean disable(TaxCode taxCode);
+
+
+}

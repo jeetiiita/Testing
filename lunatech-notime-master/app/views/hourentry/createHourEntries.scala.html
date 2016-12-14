@@ -1,0 +1,61 @@
+@(entriesForm: Form[beans.MultipleHourEntries])
+
+@import helper._
+@import helper.twitterBootstrap._
+
+@entryField(form: Form[beans.MultipleHourEntries], field: Field, className: String = "entry") = {
+	<div class="@className">
+		@select(form(field.name + ".assignment.id"), options(ProjectAssignments.optionsForCurrentUser()), '_label -> "Project", '_default -> "Choose a Project")
+
+		@inputDate(form(field("date").name), '_label -> "Date")
+		
+		@inputText(form(field("hours").name), '_label -> "Hours")
+		
+		@inputText(form(field("minutes").name), '_label -> "Minutes")
+		
+		<div class="clearfix" id="tags_string_field">
+			<label for="tags_string">Tags</label>
+			<div class="input">
+				<input type="text" class="autocomplete" name="@form(field("tagsString").name).name" value="@form(field("tagsString").name).value" data-url="@routes.Tags.find">
+				<span class="help-block">Please use the same tags for the same type of work. So do not use 'test' and 'testing'</span>
+			</div>
+		</div>
+		<div class="input">
+			<a class="removeEntry btn btn-danger">Remove</a>
+		</div>
+    </div>
+}
+
+@script = {
+	<script type="text/javascript" src="@routes.Assets.at("javascripts/multiple-hour-entries.js")"></script>
+}
+
+@main("Enter hours", script, menus.userMenu()) {
+	
+	@if(entriesForm.hasGlobalErrors()) {
+    	<div class="alert-message error">
+            <strong>Oops!</strong> @entriesForm.globalError().message
+        </div>
+    }   
+        
+    @form(routes.HourEntries.createMultiple(), 'id -> "entriesForm") {
+    
+    	<div class="entries">
+    	    
+    	    @repeat(entriesForm("hourEntryForms"), min = 1) { entry =>
+				@entryField(entriesForm, entry)
+			}
+    	    
+			@entryField(entriesForm, entriesForm("hourEntryForms[x]"), "entry_template")
+	    	    
+    	    <div class="input">
+    	    	<a class="addEntry btn">Add another entry</a>
+    	    </div>
+    	        	    
+    	    <input class="btn btn-primary" type="submit" value="Submit">
+			<a class="btn" href="@routes.Users.home()">Cancel</a>
+    	</div>
+
+	}
+
+}

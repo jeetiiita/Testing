@@ -1,0 +1,26 @@
+package com.clicktable.support.service.intf;
+
+import java.util.Map;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.support.model.Invoice;
+
+@org.springframework.stereotype.Service
+public interface InvoiceService {
+
+	BaseResponse getInvoice(Map<String, Object> params);
+
+
+	/**
+	 * @param userInfoModel
+	 * @param token
+	 * @param invoiceTxnList
+	 * @param restGuidList
+	 */
+	Invoice create(Invoice invoice);
+	
+	Invoice generateInvoice(Restaurant restaurant);
+
+	public BaseResponse getInvoiceTax(Map<String, Object> params);
+}

@@ -1,0 +1,29 @@
+@(totals: List[datastructures.TotalsDay])
+
+@import utils.DateUtil
+
+@main("Days with too few hours entered", sidemenu = menus.userMenu()) {
+	
+	@if(totals.isEmpty) {
+	    <div class="alert-message warning">
+            You have entered enough hours on all days!
+        </div>
+	} else {
+		<table id="days-too-few-hours">
+			<thead>
+				<tr>
+					<th>Date</th>
+					<th>Entered hours</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for(total <- totals) {
+		  		<tr>
+		  			<td class="day" data-daynumber="@total.date.getDayOfWeek"><a href="@routes.HourEntries.addForDay(total.date)">@DateUtil.formatDate(total.date, "E d-M")</a></td><td>@total.hoursMinutes</td>
+		  		</tr>
+	  			}
+			</tbody>
+		</table>
+	}
+	
+}

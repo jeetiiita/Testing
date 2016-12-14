@@ -1,0 +1,332 @@
+package com.clicktable.support.model;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "payment")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_dt")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_dt")) })
+public class Payment extends BaseEntity {
+
+	private static final long serialVersionUID = 6962249179926116478L;
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+	/**
+	 * Field invoiceGuid.
+	 */
+	@Required(message = ErrorCodes.INVOICE_GUID_REQUIRED)
+	@Column(name = "order_id")
+	@JsonProperty("order_id")
+	private String orderId;
+
+	/**
+	 * Field trackingId.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_TRACKING_ID_REQUIRED)
+	@JsonProperty("tracking_id")
+	@Column(name = "tracking_id")
+	private String trackingId;
+
+	/**
+	 * Field bankRefNo.
+	 */
+	@Required(message = ErrorCodes.INVOICE_PAYMENT_BANK_REF_NO_REQUIRED)
+	@JsonProperty("bank_ref_no")
+	@Column(name = "bank_ref_no")
+	private String bankRefNo;
+
+	/**
+	 * Field orderStatus.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_ORDER_STATUS_REQUIRED)
+	@JsonProperty("order_status")
+	@Column(name = "order_status")
+	private String orderStatus;
+
+	/**
+	 * Field failureMessage.
+	 */
+	// @Required(message = ErrorCodes.PAYMENT_FAILURE_MESSAGE_REQUIRED)
+	@Column(name = "failure_message")
+	@JsonProperty("failure_message")
+	private String failureMessage;
+
+	/**
+	 * Field paymentMode.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_MODE_REQUIRED)
+	@Column(name = "payment_mode")
+	@JsonProperty("payment_mode")
+	private String paymentMode;
+
+	/**
+	 * Field cardName.
+	 */
+	@Column(name = "card_name")
+	@JsonProperty("card_name")
+	private String cardName;
+
+	/**
+	 * Field statusCode.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_STATUS_CODE_REQUIRED)
+	@Column(name = "status_code")
+	@JsonProperty("status_code")
+	private int statusCode;
+
+	/**
+	 * Field statusMessage.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_STATUS_MESSAGE_REQUIRD)
+	@Column(name = "status_message")
+	@JsonProperty("status_message")
+	private String statusMessage;
+
+	/**
+	 * Field currency.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_CURRENCY_REQUIRED)
+	@Column(name = "currency")
+	@JsonProperty("currency")
+	private String currency;
+
+	/**
+	 * Field amount.
+	 */
+	@Required(message = ErrorCodes.PAYMENT_AMOUNT_REQUIRED)
+	@Column(name = "amount")
+	@JsonProperty("amount")
+	private float amount;
+
+	
+	
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getOrderId() {
+		return orderId;
+	}
+
+	public void setOrderId(String orderId) {
+		this.orderId = orderId;
+	}
+
+	/**
+	 * Method getTrackingId.
+	 * 
+	 * @return String
+	 */
+	public String getTrackingId() {
+		return trackingId;
+	}
+
+	/**
+	 * Method setTrackingId.
+	 * 
+	 * @param trackingId
+	 *            String
+	 */
+	public void setTrackingId(String trackingId) {
+		this.trackingId = trackingId;
+	}
+
+	/**
+	 * Method getBankRefNo.
+	 * 
+	 * @return String
+	 */
+	public String getBankRefNo() {
+		return bankRefNo;
+	}
+
+	/**
+	 * Method setBankRefNo.
+	 * 
+	 * @param bankRefNo
+	 *            String
+	 */
+	public void setBankRefNo(String bankRefNo) {
+		this.bankRefNo = bankRefNo;
+	}
+
+	/**
+	 * Method getOrderStatus.
+	 * 
+	 * @return String
+	 */
+	public String getOrderStatus() {
+		return orderStatus;
+	}
+
+	/**
+	 * Method setOrderStatus.
+	 * 
+	 * @param orderStatus
+	 *            String
+	 */
+	public void setOrderStatus(String orderStatus) {
+		this.orderStatus = orderStatus;
+	}
+
+	/**
+	 * Method getFailureMessage.
+	 * 
+	 * @return String
+	 */
+	public String getFailureMessage() {
+		return failureMessage;
+	}
+
+	/**
+	 * Method setFailureMessage.
+	 * 
+	 * @param failureMessage
+	 *            String
+	 */
+	public void setFailureMessage(String failureMessage) {
+		this.failureMessage = failureMessage;
+	}
+
+	/**
+	 * Method getPaymentMode.
+	 * 
+	 * @return String
+	 */
+	public String getPaymentMode() {
+		return paymentMode;
+	}
+
+	/**
+	 * Method setPaymentMode.
+	 * 
+	 * @param paymentMode
+	 *            String
+	 */
+	public void setPaymentMode(String paymentMode) {
+		this.paymentMode = paymentMode;
+	}
+
+	/**
+	 * Method getCardName.
+	 * 
+	 * @return String
+	 */
+	public String getCardName() {
+		return cardName;
+	}
+
+	/**
+	 * Method setCardName.
+	 * 
+	 * @param cardName
+	 *            String
+	 */
+	public void setCardName(String cardName) {
+		this.cardName = cardName;
+	}
+
+	/**
+	 * Method getStatusCode.
+	 * 
+	 * @return int
+	 */
+	public int getStatusCode() {
+		return statusCode;
+	}
+
+	/**
+	 * Method setStatusCode.
+	 * 
+	 * @param statusCode
+	 *            int
+	 */
+	public void setStatusCode(int statusCode) {
+		this.statusCode = statusCode;
+	}
+
+	/**
+	 * Method getStatusMessage.
+	 * 
+	 * @return String
+	 */
+	public String getStatusMessage() {
+		return statusMessage;
+	}
+
+	/**
+	 * Method setStatusMessage.
+	 * 
+	 * @param statusMessage
+	 *            String
+	 */
+	public void setStatusMessage(String statusMessage) {
+		this.statusMessage = statusMessage;
+	}
+
+	/**
+	 * Method getCurrency.
+	 * 
+	 * @return String
+	 */
+	public String getCurrency() {
+		return currency;
+	}
+
+	/**
+	 * Method setCurrency.
+	 * 
+	 * @param currency
+	 *            String
+	 */
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+
+	/**
+	 * Method getAmount.
+	 * 
+	 * @return float
+	 */
+	public float getAmount() {
+		return amount;
+	}
+
+	/**
+	 * Method setAmount.
+	 * 
+	 * @param amount
+	 *            float
+	 */
+	public void setAmount(float amount) {
+		this.amount = amount;
+	}
+
+}

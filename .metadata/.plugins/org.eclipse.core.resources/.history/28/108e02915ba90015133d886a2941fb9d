@@ -1,0 +1,25 @@
+import com.ning.billing.recurly.RecurlyClient;
+
+
+
+
+public class ClientTesting {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		final String apiKey = "3daa12db9a5e4bfd8afe6d73deb0ebdb";
+        String subDomainTemp = "clicktable";
+        
+        final String subDomain = subDomainTemp;
+
+        RecurlyClient recurlyClient = new RecurlyClient(apiKey, subDomain);
+        recurlyClient.open();
+        
+        System.out.println("******  recurlyClient.getAccounts().size()  ******   "+recurlyClient.getAccounts().size());
+        System.out.println("******  recurlyClient.getAccounts().  ******   "+recurlyClient.getAccount("p.bhakt@clicktable.com").getFirstName());
+        
+        
+
+	}
+
+}

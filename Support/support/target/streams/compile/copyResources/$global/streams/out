@@ -1,0 +1,13 @@
+[0m[[0mdebug[0m] [0mCopy resource mappings: [0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\application-logger.xml,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\application-logger.xml)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\application.conf,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\application.conf)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\calibri.ttf,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\calibri.ttf)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\conf.properties,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\conf.properties)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\enum.properties,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\enum.properties)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\error.properties,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\error.properties)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\MainTemplate.pdf,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\MainTemplate.pdf)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\messages,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\messages)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\META-INF,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\META-INF)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\routes,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\routes)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\support.enum.properties,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\support.enum.properties)[0m
+[0m[[0mdebug[0m] [0m	(C:\Users\j.yadav\R4\clicktable-app\support\conf\META-INF\persistence.xml,C:\Users\j.yadav\R4\clicktable-app\support\target\scala-2.11\classes\META-INF\persistence.xml)[0m

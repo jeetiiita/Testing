@@ -1,0 +1,238 @@
+package com.clicktable.support.service.impl;
+
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.StringTokenizer;
+
+import javax.transaction.Transactional;
+
+import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.ccavenue.security.AesCryptUtil;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.PaymentDao;
+import com.clicktable.support.model.Invoice;
+import com.clicktable.support.model.Payment;
+import com.clicktable.support.service.intf.PaymentService;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.InvoiceValidator;
+import com.clicktable.support.validate.PaymentValidator;
+import com.clicktable.support.util.Constants;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+@Component
+public class PaymentServiceImpl implements PaymentService {
+
+	@Autowired
+	PaymentValidator paymentValidator;
+
+	@Autowired
+	PaymentDao paymentDao;
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Autowired
+	InvoiceValidator invoiceValidator;
+
+	@Transactional
+	@Override
+	public BaseResponse insertIntoPayment(Payment payment) {
+		BaseResponse response = null;
+
+		List<ValidationError> errorList = paymentValidator
+				.validatePaymentOnAdd(payment);
+
+		if (errorList.isEmpty()) {
+			paymentDao.create(payment);
+			response = new UpdateResponse<>(
+					ResponseCodes.PAYMENT_INSERTED_SUCCESSFULLY, payment);
+		} else
+			response = new ErrorResponse(
+					ResponseCodes.PAYMENT_INSERTION_FAILURE, errorList);
+
+		return response;
+	}
+
+	@Transactional
+	@Override
+	public BaseResponse updateInvoice(Payment payment) {
+
+		BaseResponse response = null;
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		DateTime currentDate = new DateTime().withTimeAtStartOfDay();
+		params.put(Constants.ORDER_ID, payment.getOrderId());
+
+		List<Invoice> existingInvoice = invoiceDao.findByFields(Invoice.class,
+				params);
+
+		if ((!existingInvoice.isEmpty())
+				&& payment.getStatusMessage().equals("Y")) {
+			existingInvoice.get(0).setStatus(Constants.PAID);
+			existingInvoice.get(0).setPaymentDate(currentDate.toDate());
+			invoiceDao.update(existingInvoice.get(0));
+
+			response = new UpdateResponse<>(
+					ResponseCodes.INVOICE_UPDATED_SUCCESSFULLY, existingInvoice
+							.get(0).getId());
+		} else {
+
+			errorList = CustomValidations
+					.populateErrorList(
+							errorList,
+							"statusMessage",
+							UtilityMethods
+									.getErrorMsg(ErrorCodes.PAYMENT_STATUS_MESSAGE_REQUIRD),
+							ErrorCodes.PAYMENT_STATUS_MESSAGE_REQUIRD);
+			response = new ErrorResponse(
+					ResponseCodes.INVOICE_UPDATION_FAILURE, errorList);
+		}
+
+		return response;
+
+	}
+
+	@Override
+	public BaseResponse encryptPaymentData(Map<String, Object> stringParams) {
+		BaseResponse response = null;
+
+		List<ValidationError> listOfError = new ArrayList<ValidationError>();
+
+		List<Invoice> invoiceList = invoiceDao.findByFields(Invoice.class,
+				stringParams);
+
+		if (!invoiceList.isEmpty()) {
+
+			if (!invoiceList.get(0).getStatus().equals(Constants.GENERATED)) {
+				listOfError.add(new ValidationError(Constants.STATUS,
+						ErrorCodes.INVOICE_NOT_VALID_FOR_PAYMENT));
+			} else {
+				Map<String, Object> propMap = convertParams(UtilityMethods
+						.introspect(invoiceList.get(0)));
+
+				Map<String, Object> params = new HashMap<String, Object>();
+				params.put("encRequest", getEncryptedData(propMap));
+				params.put("accessCode",
+						UtilityMethods.getConfString("ccavenue.accessCode"));
+
+				response = new BaseResponse(
+						ResponseCodes.USER_DETAILS_ENCRYPTED_SUCCESSFULLY,
+						true, params);
+			}
+		} else {
+			response = new ErrorResponse(
+					ResponseCodes.USER_DETAILS_ENCRYPTION_FAILURE, null);
+		}
+		return response;
+	}
+
+	private Map<String, Object> convertParams(Map<String, Object> map) {
+
+		if (map.containsKey("orderId")) {
+			map.put("order_id", map.get("orderId"));
+			map.remove("orderId");
+		}
+		if (map.containsKey("zipCode")) {
+			map.put("billing_zip", map.get("zipCode"));
+			map.remove("zipCode");
+		}
+		if (map.containsKey("restaurantName")) {
+			map.put("billing_name", map.get("restaurantName"));
+			map.remove("restaurantName");
+		}
+		if (map.containsKey("roundAmount")) {
+			map.put("amount", map.get("roundAmount"));
+			map.remove("roundAmount");
+		}
+		if (map.containsKey("invToState")) {
+			map.put("billing_state", map.get("invToState"));
+			map.remove("invToState");
+		}
+		if (map.containsKey("invToCity")) {
+			map.put("billing_city", map.get("invToCity"));
+			map.remove("invToCity");
+		}
+		if (map.containsKey("invToCountry")) {
+			map.put("billing_country", map.get("invToCountry"));
+			map.remove("invToCountry");
+		}
+		if (map.containsKey("ownerPhone")) {
+			map.put("billing_tel", map.get("ownerPhone"));
+			map.remove("ownerPhone");
+		}
+		if (map.containsKey("ownerEmail")) {
+			map.put("billing_email", map.get("ownerEmail"));
+			map.remove("ownerEmail");
+		}
+		if (map.containsKey("ownerAddressLine1") && map.containsKey("ownerAddressLine2")) {
+			map.put("billing_address", map.get("ownerAddressLine1").toString() + " " +  map.get("ownerAddressLine2").toString());
+			map.remove("ownerAddressLine1");
+			map.remove("ownerAddressLine2");
+		}
+		else if (map.containsKey("ownerAddressLine1")) {
+				map.put("billing_address", map.get("ownerAddressLine1").toString());
+				map.remove("ownerAddressLine1");
+			}
+		map.put("merchant_id",
+				UtilityMethods.getConfString("ccavenue.merchantId"));
+		return map;
+	}
+
+	private String getEncryptedData(Map<String, Object> propMap) {
+		StringBuilder params = new StringBuilder();
+
+		for (Entry<String, Object> entry : propMap.entrySet()) {
+			params.append(entry.getKey() + "=" + entry.getValue() + "&");
+		}
+		AesCryptUtil aesUtil = new AesCryptUtil(
+				UtilityMethods.getConfString("ccavenue.workingKey"));
+		String encRequest = aesUtil.encrypt(params.toString());
+		return encRequest;
+	}
+
+	@Override
+	public JsonNode decryptResponse(String encResponse) {
+		AesCryptUtil aesUtil = new AesCryptUtil(
+				UtilityMethods.getConfString("ccavenue.workingKey"));
+		String decResp = aesUtil.decrypt(encResponse);
+		System.out.println(decResp);
+		StringTokenizer tokenizer = new StringTokenizer(decResp, "&");
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode jNode = mapper.createObjectNode();
+
+		String pair = null, pname = null, pvalue = null;
+		while (tokenizer.hasMoreTokens()) {
+			pair = (String) tokenizer.nextToken();
+			if (pair != null) {
+				StringTokenizer strTok = new StringTokenizer(pair, "=");
+				pname = "";
+				pvalue = "";
+				if (strTok.hasMoreTokens()) {
+					pname = (String) strTok.nextToken();
+					if (strTok.hasMoreTokens())
+						pvalue = (String) strTok.nextToken();
+					jNode.put(pname, URLDecoder.decode(pvalue));
+				}
+			}
+		}
+
+		return jNode;
+	}
+}

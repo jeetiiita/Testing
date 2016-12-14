@@ -1,0 +1,20 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.Notification;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public interface PushNotificationService {
+	void create(Notification notification);
+	
+	void updateStatus(Notitification notification);
+
+}

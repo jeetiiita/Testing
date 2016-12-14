@@ -1,0 +1,161 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Max;
+import play.data.validation.Constraints.Min;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+/**
+ * @author j.yadav
+ *
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Table(name = "tax")
+@Entity
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_date")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_date")) })
+public class Tax extends BaseEntity {
+
+
+	private static final long serialVersionUID = -6734159618086006278L;
+	
+	@Id
+	@GeneratedValue
+	private Short id;
+
+	@Required(message = ErrorCodes.TAX_TYPE_REQUIRED)
+	@Column(name = "type")
+	private String type;
+
+	@Required(message = ErrorCodes.TAX_NAME_REQUIRED)
+	@Column(name = "name")
+	private String name;
+
+	@Required(message = ErrorCodes.TAX_DESCRIPTION_REQUIRED)
+	@Column(name = "description")
+	private String description;
+	
+	@Required(message = ErrorCodes.TAX_RATE_REQUIRED)
+	@Max(message = ErrorCodes.TAX_RATE_MAX_VALUE, value = 100)
+	@Min(message = ErrorCodes.TAX_RATE_MIN_VALUE, value = 0)
+	@Column(name = "rate")
+	private double rate;
+	
+	@Required(message = ErrorCodes.TAX_STATE_TAX_REQUIRED)
+	@Column(name = "state_tax")
+	private Boolean stateTax;
+
+	@Required(message = ErrorCodes.TAX_COUNTRY_REQUIRED)
+	@Column(name = "country")
+	private String country;
+
+	@Required(message = ErrorCodes.TAX_STATE_REQUIRED)
+	@Column(name = "state")
+	private String state;
+
+	@Required(message = ErrorCodes.TAX_STATUS_REQUIRED)
+	@Column(name = "status")
+	private String status = Constants.ACTIVE;
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public double getRate() {
+		return rate;
+	}
+
+	public void setRate(double rate) {
+		this.rate = rate;
+	}
+
+	public String getCountry() {
+		return country;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public Date getStartDate() {
+		return startDate;
+	}
+
+	public void setStartDate(Date startDate) {
+		this.startDate = startDate;
+	}
+
+	public Date getEndDate() {
+		return endDate;
+	}
+
+	public void setEndDate(Date endDate) {
+		this.endDate = endDate;
+	}
+
+}

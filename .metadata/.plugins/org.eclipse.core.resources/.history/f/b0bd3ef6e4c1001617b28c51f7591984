@@ -1,0 +1,892 @@
+/**
+ * 
+ */
+package com.clicktable.service.impl;
+
+import com.clicktable.dao.intf.GuestFeedbackDao;
+import com.clicktable.dao.intf.RestaurantDao;
+import com.clicktable.model.*;
+import com.clicktable.response.SMSResponse;
+import com.clicktable.service.intf.*;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import play.Logger;
+import play.api.libs.Crypto;
+import play.libs.F.Promise;
+import play.libs.Json;
+import play.libs.ws.WS;
+import play.libs.ws.WSRequestHolder;
+import play.libs.ws.WSResponse;
+
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+
+
+/**
+ * @author j.yadav
+ *
+ *
+ */
+@Service
+
+public class CommunicationServiceImpl implements CommunicationService {
+
+	private static final String UPCOMING = "UPCOMING";
+	private static final String REJECTED = "REJECTED";
+	private static final String GRAB = "GRAB";
+	private static final String QUEUE = "QUEUE";
+	private static final String RESTAURANT = "RESTAURANT";
+	private static final String GUEST = "GUEST";
+	private static final String CANCELLED_DISP_VAL = "Cancelled";
+	private static final String NOT_ACCEPTED_DISP_VAL = "Not Accepted";
+
+	private static Logger.ALogger log = Logger.of(CommunicationServiceImpl.class);
+
+	private static final String SMS_RESERVATION_CONFIRM_PENDING = "sms.reservation_confirmation_pending";
+	private static final String SMS_RESERVATION_CONFIRM = "sms.reservation_confirmation";
+	private static final String SMS_RESERVATION_CANCELLED = "sms.reservation_cancelled";
+	private static final String SMS_RESERVATION_AUTO_CANCELLED = "sms.reservation_auto_cancelled";
+	private static final String SMS_RESERVATION_NOSHOW = "sms.reservation_noshow";
+	private static final String SMS_RESERVATION_REMINDER = "sms.reservation_reminder";
+	private static final String SMS_RESERVATION_UNSUCCESSFUL = "sms.reservation_unsuccessful";
+	private static final String SMS_RESERVATION_AND_WALKIN_FINISHED = "sms.reservation_walkin_finished";
+	private static final String SMS_WAITLIST_CREATE = "sms.waitlist_create";
+	private static final String SMS_WAITLIST_EXIT = "sms.waitlist_exit";
+	private static final String SMS_ADDED_TO_BAR = "sms.added_to_bar";
+	private static final String SMS_TABLE_READY = "sms.table_ready";
+	private static final String SMS_GRAB_TABLE = "sms.grab_table";
+	private static final String SMS_RESERVATION_QUEUED = "sms.reservation_queued";
+
+	private static final String SMS_REST_RESV_RECEIVED = "sms.restaurant_reservation_received";
+	private static final String SMS_REST_RESV_ACCEPTED = "sms.restaurant_reservation_accepted";
+	private static final String SMS_REST_RESV_REJECTED = "sms.restaurant_reservation_rejected";
+	private static final String SMS_REST_RESV_CANCELLED_BY_GUEST = "sms.restaurant_reservation_cancelled_by_guest";
+	private static final String SMS_GUEST_FEEDBACK = "sms.guest_feedback";
+
+	private static final String EMAIL_REST_RESV_RECEIVED = "restaurant_reservation_received";
+	private static final String EMAIL_REST_RESV_ACCEPTED = "restaurant_reservation_accepted";
+	private static final String EMAIL_REST_RESV_REJECTED = "restaurant_reservation_rejected";
+	private static final String EMAIL_REST_RESV_CANCELLED_BY_GUEST = "restaurant_reservation_cancelled_by_guest";
+
+	private static final String EMAIL_RESERVATION_CONFIRM = "reservation_confirm";
+	private static final String EMAIL_RESERVATION_CANCEL = "reservation_cancel";
+	private static final String EMAIL_RESERVATION_AUTO_CANCEL = "reservation_auto_cancel";
+	private static final String EMAIL_RESERVATION_NO_SHOW = "reservation_no_show";
+	private static final String EMAIL_RESERVATION_FINISHED = "reservation_finished";
+
+	private static final String EMAIL_RESERVATION_CONFIRM_PENDING = "reservation_confirm_pending";
+	private static final String EMAIL_RESERVATION_REMINDER = "reservation_reminder";
+	private static final String EMAIL_RESERVATION_UNSUCCESSFUL = "reservation_unsuccessful";
+	private static final String EMAIL_GUEST_FEEDBACK = "guest_feedback";
+
+	private static final String STREAM_RESERVATION_FINISHED = "stream.reservation_finished";
+	private static final String STREAM_RESERVATION_CONFIRMATION_PENDING = "stream.reservation_confirmation_pending";
+	private static final String STREAM_RESERVATION_CONFIRMATION = "stream.reservation_confirmation";
+	private static final String STREAM_RESERVATION_CANCELLED = "stream.reservation_cancelled";
+	private static final String STREAM_RESERVATION_AUTO_CANCELLED = "stream.reservation_auto_cancelled";
+	private static final String STREAM_RESERVATION_NOSHOW = "stream.reservation_noshow";
+	private static final String STREAM_RESERVATION_REMINDER = "stream.reservation_reminder";
+	private static final String STREAM_RESERVATION_UNSUCCESSFUL = "stream.reservation_unsuccessful";
+	private static final String STREAM_WAITLIST_CREATE = "stream.waitlist_create";
+	private static final String STREAM_WAITLIST_EXIT = "stream.waitlist_exit";
+	
+	private static final String STREAM_RESERVATION_WALKIN_COMPLETED = "stream.reservation_walkin_completed";
+	private static final String STREAM_RESERVATION_SHARE_FEEDBACK = "stream.reservation_share_feedback";
+	private static final String STREAM_RESTAURANT_INFO = "stream.restaurant_info";
+	private static final String STREAM_RESERVATION_INFO = "stream.reservation_info";
+
+	private static final String STREAM_REST_RATING = "stream.rest_rating_info";
+	private static final String STREAM_REST_GUEST_INFO = "stream.guest_info";
+
+	private static final String STREAM_GUEST_RESV_RECEIVED = "stream.restaurant_reservation_received";
+	private static final String STREAM_GUEST_RESV_ACCEPTED = "stream.restaurant_reservation_approved";
+	private static final String STREAM_GUEST_RESV_REJECTED = "stream.restaurant_reservation_rejected";
+	private static final String STREAM_RESV_CANCELLED_BY_GUEST = "stream.restaurant_reservation_cancelled";
+	private static final String STREAM_TABLE_READY = "stream.table_ready";
+	private static final String STREAM_RESERVATION_QUEUED = "stream.reservation_queued";
+	private static final String STREAM_RESERVATION_GRAB_TABLE = "stream.reservation_grab_table";
+
+	@Autowired
+	EmailService emailService;
+
+	@Autowired
+	SmsService smsService;
+
+	@Autowired
+	RestaurantDao restDao;
+
+	@Autowired
+	StreamService streamService;
+	
+	@Autowired
+	GuestFeedbackDao guestFeedbackDao;
+
+	@Autowired
+	PushNotificationService pushNotificationService;
+
+	@Override
+	public void notifyGuestOnResvConfirmationPending(ReservationDetail reservationDetail) {
+		log.info("Start notifyGuestOnResvConfirmationPending");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		String branchKey = UtilityMethods.getConsumerBranchIOKey();
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST),branchKey);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_CONFIRM_PENDING);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_RESERVATION_CONFIRM_PENDING, url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_CONFIRMATION_PENDING, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,reservationDetail.getStatus());
+		log.info("End notifyGuestOnResvConfirmationPending");
+	}
+
+	@Override
+	public void notifyGuestOnResvReject(ReservationDetail reservationDetail) {
+		log.info("Start notifyGuestOnResvReject");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		String branchKey = UtilityMethods.getConsumerBranchIOKey();
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST),branchKey);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_UNSUCCESSFUL);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_UNSUCCESSFUL,
+					url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_UNSUCCESSFUL, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,REJECTED);
+		log.info("End notifyGuestOnResvReject");
+	}
+
+	@Override
+	public void notifyGuestOnResvConfirm(ReservationDetail reservationDetail) {
+		log.info("Start notifyGuestOnResvConfirm");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_CONFIRM);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_CONFIRM, url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_CONFIRMATION, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,reservationDetail.getStatus());
+		log.info("End notifyGuestOnResvConfirm");
+	}
+
+	@Override
+	public void notifyGuestOnResvCancel(ReservationDetail reservationDetail) {
+		log.info("Start notifyGuestOnResvCancel");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_CANCEL);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_CANCELLED,
+					url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_CANCELLED, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,reservationDetail.getStatus());
+		log.info("End notifyGuestOnResvCancel");
+	}
+	
+	@Override
+	public void notifyGuestOnResvAutoCancel(ReservationDetail reservationDetail) {
+		log.info("Start notifyGuestOnResvAutoCancel");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_AUTO_CANCEL);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_AUTO_CANCELLED,
+					url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_AUTO_CANCELLED, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,reservationDetail.getStatus());
+		log.info("End notifyGuestOnResvAutoCancel");
+	}
+	
+	@Override
+	public void notifyGuestOnResvFinished(ReservationDetail reservationDetail) {
+		log.info("Begin notifyGuestOnResvFinished");
+		String fullUrl = getReviewUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), "REVIEW"));
+		response.onRedeem(shortUrl -> {
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_FINISHED);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_RESERVATION_AND_WALKIN_FINISHED, url);
+
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_FINISHED, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_SHARE_FEEDBACK,reservationDetail.getStatus());
+		log.info("End notifyGuestOnResvFinished");
+	}
+
+	@Override
+	public void notifyGuestOnResvNoShow(ReservationDetail reservationDetail) {
+		log.info("Start sendReservationNoShowNotification");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_NO_SHOW);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_NOSHOW, url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_NOSHOW, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,reservationDetail.getStatus());
+		log.info("End sendReservationNoShowNotification");
+	}
+
+	@Override
+	public void notifyGuestOnWaitListCreation(ReservationDetail reservationDetail) {
+		log.info("Start sendWaitlistCreateNotification");
+		String smsTemplateName = SMS_WAITLIST_CREATE;
+		String[] params={reservationDetail.getQueuePosition()};
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, smsTemplateName,
+					parseShortUrl(shortUrl));
+		});
+		sendStreamNotification(reservationDetail, STREAM_WAITLIST_CREATE, params, STREAM_RESTAURANT_INFO,STREAM_RESERVATION_INFO,EmpowerConstants.WAITLIST);
+		log.info("End sendWaitlistCreateNotification");
+	}
+
+	@Override
+	public void notifyGuestOnWaitListExit(ReservationDetail reservationDetail) {
+		log.info("Start sendWaitlistExitNotification");
+		String smsTemplateName = SMS_WAITLIST_EXIT;
+		sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, smsTemplateName, null);
+		sendStreamNotification(reservationDetail, smsTemplateName, null, STREAM_RESTAURANT_INFO,STREAM_RESERVATION_INFO,EmpowerConstants.WAITLIST);
+		log.info("End sendWaitlistExitNotification");
+	}
+	
+	@Override
+	public void updateRealTimeQueuePosition(List<ReservationDetail> resvDetailList, Date createdDate) {
+		log.info("Start updateRealTimeQueuePosition");
+		for(ReservationDetail reservationDetail:resvDetailList) {
+			streamService.deleteQueueNotificationByForeignId(reservationDetail.getReservationGuid(), reservationDetail.getGuestGuid());
+			String[] params={reservationDetail.getQueuePosition()};
+			reservationDetail.setStatus(EmpowerConstants.WAITLIST);
+			sendStreamNotification(reservationDetail, STREAM_WAITLIST_CREATE, params, STREAM_RESTAURANT_INFO,STREAM_RESERVATION_INFO,EmpowerConstants.WAITLIST);
+		}
+		log.info("End updateRealTimeQueuePosition");
+	}
+
+	@Override
+	public void notifyGuestForUpcomingResv(ReservationDetail reservationDetail) {
+		log.info("Begin notifyGuestOnResvNoShow");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToCustomer(reservationDetail, url, EMAIL_RESERVATION_REMINDER);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_REMINDER,
+					url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_REMINDER, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,UPCOMING);
+		log.info("End notifyGuestOnResvNoShow");
+	}
+
+	private PushNotification getNotificationObject(ReservationDetail reservationDetail, String templateName) {
+		PushNotification notification = new PushNotification();
+		Object smsParams[] = { reservationDetail.getCovers(), reservationDetail.getRestaurantName(),
+				reservationDetail.getGuestName(), reservationDetail.getStatus(), reservationDetail.getDate(),
+				reservationDetail.getTime(), };
+		String message = UtilityMethods.sendSMSFormat(smsParams, templateName);
+		notification.setMessage(message);
+
+		return notification;
+	}
+
+	// Notification for Restaurant
+	@Override
+	public void notifyRestOnResvReceived(ReservationDetail reservationDetail) {
+		log.info("Start notifyRestOnResvReceived");
+		String fullUrl = getReservationUrlForRest(reservationDetail.getReservationGuid());
+		String androidUrl = getAndroidUrlForRest(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrlWithDeepLink(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), RESTAURANT), androidUrl);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToRestaurant(reservationDetail, url, EMAIL_REST_RESV_RECEIVED);
+			sendSmsToRestaurant(reservationDetail, url, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_REST_RESV_RECEIVED);
+		});
+		sendPushNotification(reservationDetail, STREAM_GUEST_RESV_RECEIVED, STREAM_RESERVATION_INFO);
+		sendStreamNotificationForRest(reservationDetail, STREAM_GUEST_RESV_RECEIVED, STREAM_RESERVATION_INFO,
+				STREAM_REST_RATING);
+		log.info("End sendReservationRequestReceived");
+	}
+
+	// Notification for Restaurant
+	@Override
+	public void notifyRestOnResvApproved(ReservationDetail reservationDetail) {
+		log.info("Start sendReservationRequestApproved");
+		String fullUrl = getReservationUrlForRest(reservationDetail.getReservationGuid());
+		String androidUrl = getAndroidUrlForRest(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrlWithDeepLink(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), RESTAURANT), androidUrl);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToRestaurant(reservationDetail, url, EMAIL_REST_RESV_ACCEPTED);
+			sendSmsToRestaurant(reservationDetail, url, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_REST_RESV_ACCEPTED);
+		});
+		sendPushNotification(reservationDetail, STREAM_GUEST_RESV_ACCEPTED, STREAM_RESERVATION_INFO);
+		sendStreamNotificationForRest(reservationDetail, STREAM_GUEST_RESV_ACCEPTED, STREAM_RESERVATION_INFO,
+				STREAM_REST_GUEST_INFO);
+		log.info("End sendReservationRequestApproved");
+	}
+
+	// Notification for Restaurant
+	@Override
+	public void notifyRestOnResvReject(ReservationDetail reservationDetail) {
+		log.info("Start sendReservationRequestRejected");
+		String fullUrl = getReservationUrlForRest(reservationDetail.getReservationGuid());
+		String androidUrl = getAndroidUrlForRest(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrlWithDeepLink(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), RESTAURANT), androidUrl);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToRestaurant(reservationDetail, url, EMAIL_REST_RESV_REJECTED);
+			sendSmsToRestaurant(reservationDetail, url, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_REST_RESV_REJECTED);
+		});
+		sendPushNotification(reservationDetail, STREAM_GUEST_RESV_REJECTED, STREAM_RESERVATION_INFO);
+		sendStreamNotificationForRest(reservationDetail, STREAM_GUEST_RESV_REJECTED, STREAM_RESERVATION_INFO,
+				STREAM_REST_RATING);
+		log.info("End notifyRestOnResvReceived");
+	}
+	
+	//notification to restaurant
+	@Override
+	public void notifyRestOnResvCancelledByGuest(ReservationDetail reservationDetail) {
+		log.info("Start notifyRestOnResvCancelledByGuest");
+		String fullUrl = getReservationUrlForRest(reservationDetail.getReservationGuid());
+		String androidUrl = getAndroidUrlForRest(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrlWithDeepLink(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), RESTAURANT), androidUrl);
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			notifyByEmailToRestaurant(reservationDetail, url, EMAIL_REST_RESV_CANCELLED_BY_GUEST);
+			sendSmsToRestaurant(reservationDetail, url, EmpowerConstants.RESERVATION_ENUM_VALUE,
+					SMS_REST_RESV_CANCELLED_BY_GUEST);
+		});
+		sendPushNotification(reservationDetail, STREAM_RESV_CANCELLED_BY_GUEST, STREAM_RESERVATION_INFO);
+		sendStreamNotificationForRest(reservationDetail, STREAM_RESV_CANCELLED_BY_GUEST, STREAM_RESERVATION_INFO,
+				STREAM_REST_RATING);
+		log.info("End notifyRestOnResvCancelledByGuest");
+	}
+
+	@Override
+	public void notifyRestOnFeedbackRecieved(GuestFeedbackNotification feedbackNotification) {
+		log.info("Begin notifyRestOnFeedbackRecieved");
+		notifyByEmailToCustomerForGuestFeedback(feedbackNotification, EMAIL_GUEST_FEEDBACK);
+		sendSmsToRestForGuestFeedback(feedbackNotification, SMS_GUEST_FEEDBACK);
+		log.info("End notifyRestOnFeedbackRecieved");
+	}
+
+	private void sendPushNotification(ReservationDetail reservationDetail, String headingKey, String line1Key) {
+		PushNotification pushNotification = new PushNotification();
+		pushNotification.setCustomerIds(Arrays.asList(reservationDetail.getRestaurantGuid()));
+		pushNotification.setMessage(UtilityMethods.formatStreamMessage(headingKey, null) + "::"
+				+ UtilityMethods.formatStreamMessage(line1Key, getReservationInfoArray(reservationDetail)));
+		pushNotification.setAttributes(getAttributesForPushNotification(reservationDetail));
+		pushNotification.setTargetType(PushNotification.TARGET_TYPE_CUSTOMER);
+		pushNotificationService.send(pushNotification);
+	}
+
+	private String getAndroidUrlForRest(String reservationGuid) {
+		return "open?guid=" + reservationGuid;
+	}
+
+	private Map<String, String> getAttributesForPushNotification(ReservationDetail reservationDetail) {
+		Map<String, String> attributes = new HashMap<>();
+		attributes.put("action", EmpowerConstants.RESERVATION);
+		attributes.put(EmpowerConstants.REST_GUID, reservationDetail.getRestaurantGuid());
+		attributes.put(EmpowerConstants.RESERVATION_GUID, reservationDetail.getReservationGuid());
+		attributes.put(EmpowerConstants.GUEST_GUID, reservationDetail.getGuestGuid());
+		return attributes;
+	}
+
+	private JsonNode conversationJsonNode(ReservationDetail rd, String smsText, WSResponse resp, String origin) {
+		GuestConversation guestConversation = new GuestConversation();
+		guestConversation.setGuestGuid(rd.getGuestGuid());
+		guestConversation.setGuestMobileNum(rd.getMobiles().get(0));
+		guestConversation.setGuid(UtilityMethods.generateCtId());
+		guestConversation.setMessage(smsText);
+		guestConversation.setOrigin(origin);
+		guestConversation.setOriginGuid(rd.getReservationGuid());
+		guestConversation.setSentBy(EmpowerConstants.RESTAURANT_ENUM);
+		guestConversation.setRestaurantGuid(rd.getRestaurantGuid());
+		SMSResponse smsResponse = Json.fromJson(resp.asJson().get("response"), SMSResponse.class);
+		if (smsResponse.getStatus() != null) {
+			if (smsResponse.getStatus().equals("success"))
+				guestConversation.setSmsStatus(EmpowerConstants.MSG_SENT);
+			else
+				guestConversation.setSmsStatus(smsResponse.getStatus().toUpperCase());
+		}
+		guestConversation.setSmsId(smsResponse.getId());
+		guestConversation.setSmsStatusCause(smsResponse.getDetails());
+		JsonNode jsonNode = Json.toJson(guestConversation);
+		((ObjectNode) jsonNode).put(EmpowerConstants.CREATED_BY, rd.getCreatedBy());
+		((ObjectNode) jsonNode).put(EmpowerConstants.UPDATED_BY, rd.getCreatedBy());
+		return jsonNode;
+	}
+
+	private JsonNode conversationJsonNode(GuestConversation conversation, WSResponse resp) {
+		SMSResponse smsResponse = Json.fromJson(resp.asJson().get("response"), SMSResponse.class);
+		if (smsResponse.getStatus() != null) {
+			if (smsResponse.getStatus().equals("success"))
+				conversation.setSmsStatus(EmpowerConstants.MSG_SENT);
+			else
+				conversation.setSmsStatus(smsResponse.getStatus().toUpperCase());
+		}
+		conversation.setSmsId(smsResponse.getId());
+		conversation.setSmsStatusCause(smsResponse.getDetails());
+		JsonNode jsonNode = Json.toJson(conversation);
+		((ObjectNode) jsonNode).put(EmpowerConstants.CREATED_BY, conversation.getCreatedBy());
+		((ObjectNode) jsonNode).put(EmpowerConstants.UPDATED_BY, conversation.getCreatedBy());
+		return jsonNode;
+	}
+
+	private void callSupport(ReservationDetail rd, String message, WSResponse resp, String origin) {
+		WSRequestHolder requestHolder = WS
+				.url(UtilityMethods.getConfString(EmpowerConstants.CT_SUPPORT_URL) + EmpowerConstants.CONVERSATION_URI);
+		requestHolder.post(conversationJsonNode(rd, message, resp, origin));
+	}
+
+	private void callSupport(GuestConversation guestConversation, WSResponse resp) {
+		WSRequestHolder requestHolder = WS
+				.url(UtilityMethods.getConfString(EmpowerConstants.CT_SUPPORT_URL) + EmpowerConstants.CONVERSATION_URI);
+		requestHolder.post(conversationJsonNode(guestConversation, resp));
+	}
+
+	@Override
+	public void sendBarEntryNotification(ReservationDetail reservationDetail) {
+		sendSmsToCustomer(reservationDetail, EmpowerConstants.BAR_ENTRY_ENUM_VALUE, SMS_ADDED_TO_BAR, null);
+	}
+
+	private void notifyByEmailToCustomer(ReservationDetail reservationDetail, String shorturl,
+			String emailTemplateName) {
+		if (reservationDetail.getEmailIds() != null && !reservationDetail.getEmailIds().isEmpty()) {
+			Map<String, String> templateContent = introspect(reservationDetail);
+			templateContent.put("status", getStatusDisplayValue(reservationDetail.getStatus()));
+			templateContent.put("url", getHrefUrl(shorturl, reservationDetail.getReservationShortId()));
+			List<String> tags = Arrays.asList(emailTemplateName);
+			Email email = emailService.getEmailObject(templateContent, reservationDetail.getEmailIds(), emailTemplateName, tags,
+					null);
+			emailService.send(email);
+		}
+	}
+	private void notifyByEmailToCustomerForGuestFeedback(GuestFeedbackNotification feedbackNotification,String emailTemplateName) {
+		if (feedbackNotification.getEmailIds() != null && !feedbackNotification.getEmailIds().isEmpty()) {
+			Map<String, String> templateContent = introspect(feedbackNotification);
+			List<String> tags = Arrays.asList(emailTemplateName);
+			Email email = emailService.getEmailObject(templateContent,feedbackNotification.getEmailIds(), emailTemplateName, tags,null);
+			emailService.send(email);
+		}
+	}
+	
+	private void sendSmsToRestForGuestFeedback(GuestFeedbackNotification feedbackNotification,String smsTemplateName) {
+		if (feedbackNotification.getMobiles() != null && !feedbackNotification.getMobiles().isEmpty()) {
+			SmsInfo sms = smsService.getSmsInfoObject(feedbackNotification.getMobiles(), smsTemplateName,
+					getSMSParmsForFeedback(feedbackNotification), false,feedbackNotification.getSmsMask());
+			smsService.sendAsync(sms);
+		}
+	}
+	
+	private Object[] getSMSParmsForFeedback(GuestFeedbackNotification feedbackNotification) {
+		Object smsParams[] = {
+				feedbackNotification.getGuestName(), 
+				feedbackNotification.getTime(),
+				feedbackNotification.getDate(),
+				feedbackNotification.getTableName(),
+				feedbackNotification.getServerName(),
+				feedbackNotification.getOverAllRating(),
+				feedbackNotification.getRatingText()
+				};
+		return smsParams;
+	}
+
+	private String getStatusDisplayValue(String status) {
+		switch (status) {
+			case REJECTED: return NOT_ACCEPTED_DISP_VAL;
+			case EmpowerConstants.CANCELLED: return CANCELLED_DISP_VAL;
+			default: return status;
+		}
+	}
+
+	private void notifyByEmailToRestaurant(ReservationDetail reservationDetail, String url, String emailTemplateName) {
+		if (reservationDetail.getRestaurantEmail() != null) {
+			Map<String, String> templateContent = introspect(reservationDetail);
+			if (!reservationDetail.getMobiles().isEmpty()) {
+				templateContent.put("guestMobile", String.format("+%s-%s", reservationDetail.getGuestIsdCode(),reservationDetail.getMobiles().get(0)));
+			} else {
+				templateContent.put("guestMobile", "-");
+			}
+			templateContent.put("url", getHrefUrl(url, reservationDetail.getReservationShortId()));
+			List<String> tags = Arrays.asList(emailTemplateName);
+			Email email = emailService.getEmailObjectForRest(templateContent, Arrays.asList(reservationDetail.getRestaurantEmail()), emailTemplateName,
+					tags, reservationDetail.getEmailSubject());
+			emailService.send(email);
+		}
+	}
+
+	private void sendSmsToCustomer(ReservationDetail reservationDetail, String reservationEnumValue,
+			String smsTemplateName, String url) {
+		
+		if (reservationDetail.getMobiles() != null && !reservationDetail.getMobiles().isEmpty()) {
+			SmsInfo sms = smsService.getSmsInfoObject(reservationDetail.getMobiles(), smsTemplateName,
+					getSmsParams(reservationDetail, smsTemplateName, url), false,reservationDetail.getSmsMask());
+			
+			sendAsyncSmsAndAddToConversation(reservationDetail, sms, reservationEnumValue);
+		}
+	}
+
+	private void sendSmsToRestaurant(ReservationDetail reservationDetail, String url, String reservationEnumValue,
+			String smsTemplateName) {
+		if (reservationDetail.getRestaurantMobile() != null) {
+			SmsInfo sms = smsService.getSmsInfoObjectForRest(Arrays.asList(reservationDetail.getRestaurantMobile()), smsTemplateName,
+					getRestSmsParams(reservationDetail, smsTemplateName, url), false,reservationDetail.getSmsMask());
+			smsService.sendAsync(sms);
+		}
+	}
+
+	private void sendAsyncSmsAndAddToConversation(ReservationDetail rd, SmsInfo sms, String origin) {
+		Promise<WSResponse> response = smsService.sendAsync(sms);
+		response.onRedeem(resp -> callSupport(rd, sms.getMessage(), resp, origin));
+	}
+
+	@Override
+	public void sendRestaurantConversation(GuestConversation guestConversation) {
+		log.info("Start sendRestaurantConversation");
+		Restaurant restaurant = restDao.find(guestConversation.getRestaurantGuid());
+		if(EmpowerConstants.CLICKTABLE.equals(restaurant.getType())) {
+			SmsInfo sms = smsService.getSmsInfoObject(guestConversation, false, restaurant.getSmsMask());
+			Promise<WSResponse> response = smsService.sendAsync(sms);
+			response.onRedeem(resp -> callSupport(guestConversation, resp));
+		}
+		log.info("End sendRestaurantConversation");
+	}
+
+	private void sendStreamNotification(ReservationDetail reservationDetail, String headingKey, String[] headerParams,
+			String line1Key, String line2Key, String status) {
+		if (reservationDetail.getLoginDate() != null) {
+			NotificationActivity activity = new NotificationActivity();
+			activity.setActor(EmpowerConstants.GUEST_ENUM + ":" + reservationDetail.getGuestGuid());
+			activity.setVerb(status);
+			activity.setObject(EmpowerConstants.RESERVATION_ENUM_VALUE + ":" + reservationDetail.getReservationGuid());
+			activity.setTarget(EmpowerConstants.RESTAURANT_ENUM + ":" + reservationDetail.getRestaurantGuid());
+			activity.setHeading(UtilityMethods.formatStreamMessage(headingKey, headerParams));
+			activity.setLine1(UtilityMethods.formatStreamMessage(line1Key, getRestaurantInfoArray(reservationDetail)));
+			if (line2Key != null)
+				activity.setLine2(
+						UtilityMethods.formatStreamMessage(line2Key, getReservationInfoArray(reservationDetail)));
+			activity.setStatus(reservationDetail.getStatus());
+			activity.setQueuePosition(reservationDetail.getQueuePosition());
+			activity.setForeignId(reservationDetail.getReservationGuid());
+			activity.setEstStartTime(reservationDetail.getReservationTime().getTime());
+			if (status.equals(EmpowerConstants.WAITLIST))
+				streamService.sendQueueNotification(activity, reservationDetail.getGuestGuid());
+			else
+				streamService.sendNotification(activity, reservationDetail.getGuestGuid());
+		}
+	}
+
+	private String[] getReservationInfoArray(ReservationDetail reservationDetail) {
+		return new String[] { String.valueOf(reservationDetail.getCovers()), reservationDetail.getDate(),
+				reservationDetail.getTime() };
+	}
+
+	private String[] getRestaurantInfoArray(ReservationDetail reservationDetail) {
+		return new String[] { reservationDetail.getRestaurantName(), reservationDetail.getRestaurantLocality(),
+				reservationDetail.getRestaurantRegion() };
+	}
+
+	private Integer sendStreamNotificationForRest(ReservationDetail reservationDetail, String headingKey,
+			String line1Key, String line2Key) {
+		NotificationActivity activity = new NotificationActivity();
+		activity.setActor(reservationDetail.getGuestGuid());
+		activity.setVerb(reservationDetail.getStatus());
+		activity.setObject(EmpowerConstants.RESERVATION_ENUM_VALUE + ":" + reservationDetail.getReservationGuid());
+		activity.setTarget(reservationDetail.getRestaurantGuid());
+		activity.setHeading(UtilityMethods.formatStreamMessage(headingKey, null));
+		activity.setLine1(UtilityMethods.formatStreamMessage(line1Key, getReservationInfoArray(reservationDetail)));
+
+		// line 2
+		if (STREAM_GUEST_RESV_RECEIVED.equalsIgnoreCase(headingKey) || STREAM_GUEST_RESV_REJECTED.equals(headingKey) || STREAM_RESV_CANCELLED_BY_GUEST.equals(headingKey)) {
+			activity.setLine2(UtilityMethods.formatStreamMessage(line2Key, getGuestRatingDetails(reservationDetail)));
+		} else if (STREAM_GUEST_RESV_ACCEPTED.equalsIgnoreCase(headingKey)) {
+			activity.setLine2(UtilityMethods.formatStreamMessage(line2Key, getGuestDetailParams(reservationDetail)));
+		}
+		streamService.sendNotification(activity, reservationDetail.getRestaurantGuid());
+		return 0;
+	}
+
+	private String[] getGuestRatingDetails(ReservationDetail reservationDetail) {
+		return new String[] { reservationDetail.getSpendRating(), reservationDetail.getReservationCompletion(),
+				reservationDetail.getNoShow() };
+	}
+
+	private String[] getGuestDetailParams(ReservationDetail reservationDetail) {
+		return new String[] {
+				reservationDetail.getGuestName(),
+				String.format("+%s-%s", reservationDetail.getGuestIsdCode(), reservationDetail.getMobiles().get(0))
+		};
+	}
+
+	private static Map<String, String> introspect(Object obj) {
+		Map<String, String> result = new HashMap<>();
+		BeanInfo info;
+		try {
+			info = Introspector.getBeanInfo(obj.getClass());
+			for (PropertyDescriptor pd : info.getPropertyDescriptors()) {
+				Method reader = pd.getReadMethod();
+				if (reader != null) {
+					if (reader.invoke(obj) != null)
+						result.put(pd.getName(), reader.invoke(obj).toString());
+				}
+			}
+		} catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
+			log.error("Error reading property :", e);
+		}
+		result.remove("class");
+		return result;
+	}
+
+	private String getReservationUrlForRest(String reservationGuid) {
+		String encryptedResvGuid = Crypto.encryptAES(reservationGuid);
+		return UtilityMethods.getConfString(EmpowerConstants.CONSUMER_URI) + EmpowerConstants.RESTAURANT_RESERVATION_PATH
+				+ encryptedResvGuid;
+	}
+
+	private String getReservationUrl(String reservationGuid) {
+		String encryptedResvGuid = Crypto.encryptAES(reservationGuid);
+		return UtilityMethods.getConfString(EmpowerConstants.CONSUMER_URI) + EmpowerConstants.CONSUMER_RESERVATION_PATH
+				+ encryptedResvGuid;
+	}
+
+	private String getReviewUrl(String reservationGuid) {
+		String encryptedResvGuid = Crypto.encryptAES(reservationGuid);
+		return UtilityMethods.getConfString(EmpowerConstants.CONSUMER_URI) + EmpowerConstants.CONSUMER_REVIEW_PATH
+				+ encryptedResvGuid;
+	}
+
+	private String parseShortUrl(String shortUrl) {
+		JsonNode jsonNode = Json.parse(shortUrl).get("url");
+		if (jsonNode != null) {
+			return jsonNode.asText();
+		}
+		return "";
+
+	}
+
+	private String getHrefUrl(String shortUrl, String reservationShortId) {
+
+		StringBuilder urlBuilder = new StringBuilder();
+		urlBuilder.append("<a href=\"");
+		if (null != shortUrl) {
+			urlBuilder.append(shortUrl);
+		}
+		urlBuilder.append("\" style=\"color:#5093e1;\">");
+		urlBuilder.append(reservationShortId).append("</a>");
+		return urlBuilder.toString();
+	}
+
+	private Object[] getSmsParams(ReservationDetail reservationDetail, String smsTemplateName, String url) {
+
+		switch (smsTemplateName) {
+			case SMS_RESERVATION_CONFIRM_PENDING: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getCovers(),
+						reservationDetail.getDate(), reservationDetail.getTime(),
+						getOfferCategoryText(reservationDetail.getOfferCategory()), reservationDetail.getConfirmationTime(),
+						reservationDetail.getReservationShortId(), url};
+				return smsParams;
+			}
+			case SMS_RESERVATION_CONFIRM:
+			case SMS_RESERVATION_CANCELLED:
+			case SMS_RESERVATION_REMINDER:
+			case SMS_RESERVATION_NOSHOW:
+			case SMS_RESERVATION_AUTO_CANCELLED:{
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getCovers(),
+						reservationDetail.getDate(), reservationDetail.getTime(),
+						getOfferCategoryText(reservationDetail.getOfferCategory()),
+						reservationDetail.getRestaurantMobile(), reservationDetail.getReservationShortId(), url};
+				return smsParams;
+			}
+			case SMS_ADDED_TO_BAR:
+			case SMS_RESERVATION_AND_WALKIN_FINISHED: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), url};
+				return smsParams;
+			}
+			case SMS_RESERVATION_UNSUCCESSFUL: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getCovers(),
+						reservationDetail.getDate(), reservationDetail.getTime(),
+						getOfferCategoryText(reservationDetail.getOfferCategory()),
+						reservationDetail.getReservationShortId(), url};
+				return smsParams;
+			}
+			case SMS_WAITLIST_EXIT:
+			case SMS_WAITLIST_CREATE: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getCovers(),
+						reservationDetail.getDate(), reservationDetail.getTime(), reservationDetail.getQueuePosition(),
+						reservationDetail.getRestaurantMobile(), url};
+				return smsParams;
+			}
+			case SMS_TABLE_READY: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getRestaurantMobile(),
+						reservationDetail.getReservationShortId()};
+				return smsParams;
+
+			}
+			case SMS_GRAB_TABLE:
+			case SMS_RESERVATION_QUEUED: {
+				Object smsParams[] = {reservationDetail.getGuestName(), reservationDetail.getRestaurantName(),
+						reservationDetail.getLocalityDisplayName(), reservationDetail.getRestaurantMobile(),
+						reservationDetail.getReservationShortId(), url};
+				return smsParams;
+
+			}
+			default:
+				return null;
+		}
+	}
+
+	private Object[] getRestSmsParams(ReservationDetail reservationDetail, String smsTemplateName, String url) {
+
+		switch (smsTemplateName) {
+			case SMS_REST_RESV_RECEIVED:
+			case SMS_REST_RESV_REJECTED:
+			case SMS_REST_RESV_CANCELLED_BY_GUEST: {
+				Object smsParams[] = {
+						reservationDetail.getCovers(),
+						reservationDetail.getTime(),
+						reservationDetail.getDate(),
+						getOfferCategoryText(reservationDetail.getOfferCategory()),
+						reservationDetail.getReservationShortId(),
+						url
+				};
+				return smsParams;
+			}
+			case SMS_REST_RESV_ACCEPTED: {
+				Object smsParams[] = {
+						reservationDetail.getCovers(),
+						reservationDetail.getTime(),
+						reservationDetail.getDate(),
+						getOfferCategoryText(reservationDetail.getOfferCategory()),
+						reservationDetail.getReservationShortId(),
+						reservationDetail.getGuestName(),
+						String.format("+%s-%s", reservationDetail.getGuestIsdCode(), reservationDetail.getMobiles().get(0)),
+						url
+				};
+				return smsParams;
+			}
+
+		}
+		return null;
+	}
+
+	private String getOfferCategoryText(String offerCategory) {
+		String offer = (offerCategory != null) && !offerCategory.equalsIgnoreCase("-") ? "Offer:" + offerCategory + ","
+				: "";
+		return offer;
+	}
+
+	private String getAlias(String shortId, String type) {
+		String alias = shortId;
+		if (type.equals(RESTAURANT)) {
+			alias = alias + "RV";
+		} else if (type.equals("REVIEW")) {
+			alias = alias + "RR";
+		}
+		return alias;
+	}
+
+	@Override
+	public void sendTableReadyNotification(ReservationDetail reservationDetail) {
+		log.info("Start sendTableReadyNotification");
+		String smsTemplateName = SMS_TABLE_READY;
+		
+		sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, smsTemplateName, null);
+
+		log.info("End sendTableReadyNotification");
+	}
+
+	@Override
+	public void sendAddedToQueueNotification(
+			ReservationDetail reservationDetail) {
+		log.info("Start sendAddedToQueueNotification");
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_RESERVATION_QUEUED, url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_QUEUED, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,QUEUE);
+		log.info("End sendAddedToQueueNotification");
+	}
+
+	@Override
+	public void sendGrabATableNotification(
+			ReservationDetail reservationDetail) {
+		log.info("Start grabATableNotification");
+
+		String fullUrl = getReservationUrl(reservationDetail.getReservationGuid());
+		Promise<String> response = UtilityMethods.getShortUrl(fullUrl,
+				getAlias(reservationDetail.getReservationShortId(), GUEST));
+		response.onRedeem(shortUrl -> {
+			log.debug("shortUrl--->{}", shortUrl);
+			String url = parseShortUrl(shortUrl);
+			sendSmsToCustomer(reservationDetail, EmpowerConstants.RESERVATION_ENUM_VALUE, SMS_GRAB_TABLE, url);
+		});
+		sendStreamNotification(reservationDetail, STREAM_RESERVATION_GRAB_TABLE, null, STREAM_RESTAURANT_INFO,
+				STREAM_RESERVATION_INFO,GRAB);
+		log.info("End grabATableNotification");
+	}
+	
+	private Promise<String> getShortUrl(String fullUrl,String alias,String branchKey) {
+		Promise<String> result = UtilityMethods.getShortUrl(fullUrl, alias, branchKey);
+		return result;
+	}
+}

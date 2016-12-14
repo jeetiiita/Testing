@@ -1,0 +1,20 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.support.model.Plan;
+import com.clicktable.support.model.RestaurantPlan;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface RestaurantPlanService {
+	
+	RestaurantPlan create(RestaurantPlan restPlan);
+	
+	Plan getRestaurantPlan(Restaurant restaurant);
+
+}

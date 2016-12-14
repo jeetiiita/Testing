@@ -1,0 +1,37 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import com.clicktable.support.dao.intf.AggregateTaxDao;
+import com.clicktable.support.model.AggregateTax;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class AggregateTaxDaoImpl extends JPADao<AggregateTax> implements AggregateTaxDao  {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#updateMultiple(java.util.List, java.util.Map)
+	 */
+	@Override
+	public List<AggregateTax> updateMultiple(List<String> guidList,
+			Map<String, Object> valuesToUpdate) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.dao.intf.GenericDao#delete(java.lang.String)
+	 */
+	@Override
+	public void delete(String guid) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+}

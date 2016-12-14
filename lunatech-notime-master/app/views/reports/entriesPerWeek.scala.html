@@ -1,0 +1,64 @@
+@(optionsForm: Form[beans.ReportOptions], report: datastructures.reports.Report)
+
+@import utils.DateUtil
+@import reports.forms.datesCustomerProjectForm
+
+@script = {
+	<script type="text/javascript" src="@routes.Assets.at("javascripts/report-options.js")"></script>
+}
+
+@main("Report: Entries per week", script, menus.reportMenu()) {
+
+	@datesCustomerProjectForm(optionsForm, routes.Reports.entriesPerWeek())
+
+	@if(!optionsForm.data.isEmpty) {
+		@if(report.getHourEntries.isEmpty) {
+			<div class="alert-message warning">
+		    	No information available
+		    </div>
+		} else {
+		<div class="report">
+			@for(weekNumber <- DateUtil.getWeekNumbers(optionsForm.get.beginDate, optionsForm.get.endDate)) {
+			<div class="week">
+				Week: <b>@weekNumber</b>
+				@if(report.getHourEntries(weekNumber).isEmpty) {
+				<div class="no-entries"><i>No hours entered in week @weekNumber</i></div>
+				} else {
+				<table class="entries-table">
+					<thead>
+						<tr>
+							<th>Hours</th>
+							<th>Rate (%)</th>
+							<th>Project</th>
+							<th>Date</th>
+							<th>User</th>
+							<th>Tags</th>
+						</tr>
+					</thead>
+					<tbody>
+					@for(entry <- report.getHourEntries(weekNumber)) {
+						<tr>
+							<td>@{entry.hours}h @{entry.minutes}m</td>
+							<td>@entry.rate</td>
+							<td>@entry.assignment.project.name</td>
+							<td>@DateUtil.formatDate(entry.date)</td>
+							<td>@entry.assignment.user.fullname</td>
+							<td>@entry.enteredTagsString</td>
+						</tr>
+					}
+					</tbody>
+					<tfoot>
+						<tr>
+							<td><b>@report.getTotalHours(weekNumber)</b></td>
+							<td colspan="5"></td>
+						</tr>
+					</tfoot>
+				</table>
+				}
+			</div>			
+			}
+		</div>
+		}
+	}
+	
+}

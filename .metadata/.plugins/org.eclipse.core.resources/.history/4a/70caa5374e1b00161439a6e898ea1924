@@ -1,0 +1,296 @@
+/*package com.clicktable.support.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.UUID;
+
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.Logger;
+import play.libs.Json;
+import play.libs.ws.WS;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.InvoiceTaxDao;
+import com.clicktable.support.model.Invoice;
+import com.clicktable.support.model.InvoiceTax;
+import com.clicktable.support.model.InvoiceTxn;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.service.intf.InvoiceService;
+import com.clicktable.support.service.intf.InvoiceTxnService;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.InvoiceTaxValidator;
+import com.clicktable.support.validate.InvoiceValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+@Component
+public class InvoiceServiceImpl implements InvoiceService {
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Autowired
+	InvoiceValidator invoiceValidator;
+
+	@Autowired
+	InvoiceTxnService invoiceTxnService;
+
+	@Autowired
+	InvoiceTaxDao invoiceTaxDao;
+
+	@Autowired
+	InvoiceTaxValidator invoiceTaxValidator;
+
+	
+	 * Update unbilledAmount daily
+	 
+
+	@Override
+	public BaseResponse getInvoice(Map<String, Object> params) {
+
+		Map<String, Object> validParams = invoiceValidator
+				.validateFinderParams(params, Invoice.class);
+		List<Invoice> list = invoiceDao
+				.findByFields(Invoice.class, validParams);
+		BaseResponse response = new GetResponse<Invoice>(
+				ResponseCodes.INVOICE_FETCHED_SUCCESSFULLY, list);
+		return response;
+	}
+
+	@Override
+	@Transactional
+	public void updateInvoiceUnbilledAmount(UserInfoModel userInfoModel,
+			InvoiceTxn invoiceTxn, List<Tax> taxList) {
+
+		DateTime currentDate = new DateTime(DateTimeZone.forTimeZone(TimeZone
+				.getTimeZone(Constants.IST))).withTimeAtStartOfDay();
+
+		DateTime previousDate = currentDate.minusDays(1);
+
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		params.put(Constants.RESTAURANTGUID, invoiceTxn.getRestaurantGuid());
+		params.put(Constants.MONTH, previousDate.getMonthOfYear());
+		params.put(Constants.YEAR, previousDate.getYear());
+
+		List<Invoice> existingInvoice = invoiceDao.findByFields(Invoice.class,
+				params);
+
+		// insert Invoice at 1st of the month as well as new entry in
+		// between the month
+
+		if (existingInvoice.isEmpty() || previousDate.getDayOfMonth() == 1) {
+
+			Invoice invoice = new Invoice(invoiceTxn);
+			invoice.setGuid(UUID.randomUUID().toString());
+			invoice.setInfoOnCreate(userInfoModel);
+
+			List<ValidationError> errorList = invoiceValidator
+					.validateInvoiceOnAdd(invoice);
+
+			if (errorList.isEmpty()) {
+				Invoice insertedInvoice = invoiceDao.create(invoice);
+
+				if (insertedInvoice != null)
+					setTax(userInfoModel, taxList, insertedInvoice,
+							invoiceTxn.getSubTotal());
+				else
+					Logger.error("Failure in unbilledAmount Insertion! guid = "
+							+ invoice.getGuid());
+			}
+		} else {
+
+			existingInvoice.get(0).setUnbilledAmount(
+					invoiceTxn.getSubTotal()
+							+ existingInvoice.get(0).getUnbilledAmount());
+
+			existingInvoice.get(0).setInfoOnUpdate(userInfoModel);
+
+			Invoice updatedInvoice = invoiceDao.update(existingInvoice.get(0));
+
+			if (updatedInvoice != null)
+				setTax(userInfoModel, taxList, updatedInvoice,
+						invoiceTxn.getSubTotal());
+			else
+				Logger.error("Failure in unbilledAmount Update! guid = "
+						+ existingInvoice.get(0).getGuid());
+
+		}
+	}
+
+	@Override
+	public void generateInvoice(UserInfoModel userInfoModel, String token,
+			List<Object[]> restGuidAndSubtotalList, StringBuilder restGuidList) {
+
+		WS.url(UtilityMethods.getConfString(Constants.CLICKTABLE_URL)
+				+ Constants.RESTAURANT_URI)
+				.setHeader(Constants.ACCESS_TOKEN, token)
+				.setQueryParameter(Constants.GUID, restGuidList.toString())
+				.setQueryParameter(Constants.ORDERBY, Constants.GUID)
+				.get()
+				.map(response -> {
+
+					JsonNode responseJson = response.asJson();
+
+					JsonNode restaurantJson = responseJson.get(Constants.LIST);
+
+					DateTime currentDate = new DateTime(DateTimeZone
+							.forTimeZone(TimeZone.getTimeZone(Constants.IST)))
+							.withTimeAtStartOfDay();
+					DateTime previousDate = currentDate.minus(1);
+
+					for (int i = 0; i < restGuidAndSubtotalList.size(); i++) {
+
+						Object[] subTotalArrayByRestGuid = restGuidAndSubtotalList
+								.get(i);
+						Restaurant restInfo = Json.fromJson(
+								restaurantJson.get(i), Restaurant.class);
+
+						String restGuid = (String) subTotalArrayByRestGuid[0];
+
+						Map<String, Object> params = new HashMap<String, Object>();
+
+						params.put(Constants.RESTAURANTGUID, restGuid);
+						params.put(Constants.MONTH,
+								previousDate.getMonthOfYear());
+						params.put(Constants.YEAR, previousDate.getYear());
+
+						Map<String, Object> validParams = invoiceValidator
+								.validateFinderParams(params, Invoice.class);
+
+						Invoice invoice = invoiceDao.findByFields(
+								Invoice.class, validParams).get(0);
+
+						// seems Unnecessary
+						Invoice existingInvoice = invoiceDao.find(invoice
+								.getGuid());
+
+						existingInvoice = setInvoice(existingInvoice, restInfo,
+								subTotalArrayByRestGuid);
+						existingInvoice.setInfoOnUpdate(userInfoModel);
+
+						List<ValidationError> errorList = invoiceValidator
+								.validateInvoiceOnAdd(existingInvoice);
+
+						if (errorList.isEmpty()) {
+							invoiceDao.update(existingInvoice);
+
+						} else
+							Logger.error("Failure in generate Invoice! guid = "
+									+ existingInvoice.getGuid());
+					}
+
+					return responseJson;
+				});
+
+	}
+
+	private Invoice setInvoice(Invoice invoice, Restaurant restaurantInfo,
+			Object[] subTotalArray) {
+
+		String restGuid = (String) subTotalArray[0];
+
+		double basicAmount = (double) subTotalArray[1];
+
+		float taxAmount = 0;
+
+		Map<String, Object> invoiceParams = new HashMap<String, Object>();
+
+		invoiceParams.put(Constants.INVOICEGUID, invoice.getGuid());
+
+		List<InvoiceTax> invoicetaxList = invoiceTaxDao.findByFields(
+				InvoiceTax.class, invoiceParams);
+
+		for (InvoiceTax invoiceTax : invoicetaxList) {
+			taxAmount = taxAmount + invoiceTax.getAmount();
+		}
+
+		double invoiceAmount = basicAmount + taxAmount;
+
+		DateTime currentDate = new DateTime(DateTimeZone.forTimeZone(TimeZone
+				.getTimeZone(Constants.IST))).withTimeAtStartOfDay();
+
+		DateTime previousDate = currentDate.minusDays(1);
+
+		DateTime dueDate = currentDate.plusDays(10);
+
+		invoice.setRestaurantGuid(restGuid);
+		invoice.setRestaurantName(restaurantInfo.getName());
+		invoice.setOwnerAddressLine1(restaurantInfo.getAddressLine1());
+		invoice.setOwnerAddressLine2(restaurantInfo.getAddressLine2());
+		invoice.setOwnerEmail(restaurantInfo.getEmail());
+		invoice.setOwnerPhone(restaurantInfo.getPhoneNo1());
+		invoice.setInvToState(restaurantInfo.getPhysicalState());
+		invoice.setInvToCity(restaurantInfo.getCity());
+		invoice.setZipCode(restaurantInfo.getZipcode());
+		invoice.setAccountId(restaurantInfo.getAccountId());
+
+		invoice.setBasicAmount((float) (basicAmount));
+		invoice.setDiscount(0);
+		invoice.setInvoiceAmount((float) invoiceAmount);
+		invoice.setStatus(Constants.GENERATED);
+		invoice.setDate(previousDate.toDate());
+		invoice.setCurrency(Constants.CURRENCY_IND);
+		invoice.setTaxYear(previousDate.getYear());
+		invoice.setDueDate(dueDate.toDate());
+		invoice.setInvToCountry(Constants.INDIA);
+		invoice.setRoundAmount((int) Math.round(invoiceAmount));
+		invoice.setUnbilledAmount(0);
+
+		return invoice;
+	}
+
+	private void setTax(UserInfoModel userInfoModel, List<Tax> taxList,
+			Invoice invoice, float subtotal) {
+		for (Tax tax : taxList) {
+
+			Map<String, Object> params = new HashMap<String, Object>();
+
+			params.put(Constants.INVOICEGUID, invoice.getGuid());
+			params.put(Constants.TAXCODE, tax.getTaxCode());
+
+			List<InvoiceTax> invoiceTaxList = invoiceTaxDao.findByFields(
+					InvoiceTax.class, params);
+
+			if (!invoiceTaxList.isEmpty()) {
+				InvoiceTax invoiceTax = invoiceTaxList.get(0);
+				Float taxRate = invoiceTax.getTaxRate();
+
+				float taxAmount = (subtotal * taxRate) / 100.0f;
+				invoiceTax.setAmount(invoiceTax.getAmount() + taxAmount);
+				invoiceTax.setInfoOnUpdate(userInfoModel);
+				invoiceTaxDao.update(invoiceTax);
+			} else {
+				InvoiceTax insertTax = new InvoiceTax(tax, invoice, subtotal);
+				insertTax.setInfoOnCreate(userInfoModel);
+				invoiceTaxDao.create(insertTax);
+			}
+		}
+
+	}
+
+	@Override
+	public BaseResponse getInvoiceTax(Map<String, Object> params) {
+		Map<String, Object> validParams = invoiceTaxValidator
+				.validateFinderParams(params, InvoiceTax.class);
+		List<InvoiceTax> incoiceTaxList = invoiceTaxDao.findByFields(
+				InvoiceTax.class, validParams);
+		BaseResponse response = new GetResponse<InvoiceTax>(
+				ResponseCodes.INVOICE_TAX_FETCHED_SUCCESSFULLY, incoiceTaxList);
+		return response;
+	}
+}
+*/

@@ -1,0 +1,646 @@
+package com.clicktable.support.model;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+
+import play.data.validation.Constraints.Max;
+import play.data.validation.Constraints.MaxLength;
+import play.data.validation.Constraints.Min;
+import play.data.validation.Constraints.Required;
+
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ErrorCodes;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+/*
+ * created by j.yadav
+ */
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(Include.NON_NULL)
+@Entity
+@Table(name = "invoice")
+@AttributeOverrides({
+		@AttributeOverride(name = "createdBy", column = @Column(name = "created_by")),
+		@AttributeOverride(name = "updatedBy", column = @Column(name = "updated_by")),
+		@AttributeOverride(name = "updatedDate", column = @Column(name = "updated_dt")),
+		@AttributeOverride(name = "createdDate", column = @Column(name = "created_dt")) })
+public class Invoice extends BaseEntity {
+
+	/**
+	 * Constructor for Invoice.
+	 */
+	public Invoice() {
+
+		super();
+	}
+
+
+	/**
+	 * Method toString.
+	 * 
+	 * @return String
+	 */
+	@Override
+	public String toString() {
+		return "Invoice [guid=" + id 
+				+ ", restaurantGuid=" + restaurantGuid + ", restaurantName="
+				+ restaurantName + ", ownerName=" + ownerName
+				+ ", ownerAddress=" + ownerAddressLine1 + ownerAddressLine2
+				+ ", ownerEmail=" + ownerEmail + ", ownerPhone=" + ownerPhone
+				+ ", date=" + date + ", basicAmount=" + basicAmount
+				+ ", discount=" + discount + ", invoiceAmount=" + invoiceAmount
+				+ ", paymentDt=" + paymentDate + ", status=" + status
+				+ ", currency=" + currency + ", taxYear=" + taxYear
+				+ ", remarks=" + remarks + ", roundAmount=" + roundAmount
+				+ ", dueDt=" + dueDate + ", invToCountry=" + invToCountry
+				+ ", invToState=" + invToState + ", unbilledAmount="
+				+ unbilledAmount + ", month=" + month + ", year=" + year + "]";
+	}
+
+	private static final long serialVersionUID = 9058605119475876333L;
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+	
+	@Required(message = ErrorCodes.INVOICE_REST_GUID_REQUIRED)
+	@MaxLength(message = ErrorCodes.INVOICE_REST_GUID_MAXLENGTH, value = 50)
+	@Column(name = "restaurant_guid")
+	private String restaurantGuid;
+
+	@Column(name = "date")
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date date;
+
+	@Column(name = "basic_amount")
+	private Float basicAmount;
+	
+
+
+	@Max(message = ErrorCodes.INVOICE_DISCOUNT_MAX_VALUE, value = (long) Float.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_DISCOUNT_MIN_VALUE, value = 0)
+	@Column(name = "discount")
+	private float discount;
+
+
+
+	@Column(name = "status")
+	private String status = Constants.CREATED;
+
+	@Column(name = "currency")
+	private String currency = Constants.CURRENCY_IND;
+
+	@Max(message = ErrorCodes.INVOICE_TAX_YEAR_MAX_VALUE, value = 2050)
+	@Min(message = ErrorCodes.INVOICE_TAX_YEAR_MIN_VALUE, value = 2014)
+	@Column(name = "fin_year")
+	private Integer finYear;
+
+	@Max(message = ErrorCodes.INVOICE_ROUND_AMOUNT_MAX_VALUE, value = Integer.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_ROUND_AMOUNT_MIN_VALUE, value = 0)
+	@Column(name = "round_off_amount")
+	private String roundOffAmount;
+	
+	@Max(message = ErrorCodes.INVOICE_AMOUNT_MAX_VALUE, value = (long) Float.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_AMOUNT_MIN_VALUE, value = 0)
+	@Column(name = "invoice_amount")
+	private float invoiceAmount;
+	
+	@Column(name = "tax_amount")
+	private Float taxAmount;
+
+	@Column(name = "due_date")
+	@JsonFormat(pattern = Constants.DATE_FORMAT, timezone = Constants.TIMEZONE)
+	private Date dueDate;
+
+	@Column(name = "inv_to_country")
+	private String invToCountry;
+
+	@Column(name = "inv_to_state")
+	private String invToState;
+
+	@Column(name = "inv_to_city")
+	private String invToCity;
+
+	@Column(name = "zipcode")
+	private int zipCode;
+
+	@Required(message = ErrorCodes.INVOICE_UNBILLED_AMOUNT_REQUIRED)
+	@Max(message = ErrorCodes.INVOICE_UNBILLED_MAX_VALUE, value = (long) Float.MAX_VALUE)
+	@Min(message = ErrorCodes.INVOICE_UNBILLED_MIN_VALUE, value = 0)
+	@Column(name = "unbilled_amount")
+	private float unbilledAmount;
+
+
+	@Required(message = ErrorCodes.INVOICE_MONTH_REQUIRED)
+	@Max(message = ErrorCodes.INVOICE_MONTH_MAX_VALUE, value = 12)
+	@Min(message = ErrorCodes.INVOICE_MONTH_MIN_VALUE, value = 1)
+	@Column(name = "month")
+	private Integer month;
+
+	@Required(message = ErrorCodes.INVOICE_YEAR_REQUIRED)
+	@Max(message = ErrorCodes.INVOICE_YEAR_MAX_VALUE, value = 2050)
+	@Min(message = ErrorCodes.INVOICE_YEAR_MIN_VALUE, value = 2014)
+	@Column(name = "year")
+	private Integer year;
+
+	@Column(name = "payment_mode")
+	private String paymentMode = Constants.NA;
+	
+	@Column(name = "account_id")
+	private String accountId;
+
+	@OneToMany(fetch = FetchType.EAGER, mappedBy = "invoice", cascade = CascadeType.ALL)
+	@JsonManagedReference
+	private List<InvoiceTax> totalTax;
+
+	public Integer getId() {
+		return id;
+	}
+
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+
+	public List<InvoiceTax> getTotalTax() {
+		return totalTax;
+	}
+
+	public void setTotalTax(List<InvoiceTax> totalTax) {
+		this.totalTax = totalTax;
+	}
+
+	/**
+	 * Method getUnbilledAmount.
+	 * 
+	 * @return float
+	 */
+	public float getUnbilledAmount() {
+		return unbilledAmount;
+	}
+
+	/**
+	 * Method setUnbilledAmount.
+	 * 
+	 * @param unbilledAmount
+	 *            float
+	 */
+	public void setUnbilledAmount(float unbilledAmount) {
+		this.unbilledAmount = unbilledAmount;
+	}
+
+
+	public String getRestaurantGuid() {
+		return restaurantGuid;
+	}
+
+	public void setRestaurantGuid(String restaurantGuid) {
+		this.restaurantGuid = restaurantGuid;
+	}
+
+	public String getRestaurantName() {
+		return restaurantName;
+	}
+
+	public void setRestaurantName(String restaurantName) {
+		this.restaurantName = restaurantName;
+	}
+
+	/**
+	 * Method getOwnerName.
+	 * 
+	 * @return String
+	 */
+	public String getOwnerName() {
+		return ownerName;
+	}
+
+	/**
+	 * Method setOwnerName.
+	 * 
+	 * @param ownerName
+	 *            String
+	 */
+	public void setOwnerName(String ownerName) {
+		this.ownerName = ownerName;
+	}
+
+	public String getOwnerAddressLine1() {
+		return ownerAddressLine1;
+	}
+
+	public void setOwnerAddressLine1(String ownerAddressLine1) {
+		this.ownerAddressLine1 = ownerAddressLine1;
+	}
+
+	public String getOwnerAddressLine2() {
+		return ownerAddressLine2;
+	}
+
+	public void setOwnerAddressLine2(String ownerAddressLine2) {
+		this.ownerAddressLine2 = ownerAddressLine2;
+	}
+
+	/**
+	 * Method getOwnerEmail.
+	 * 
+	 * @return String
+	 */
+	public String getOwnerEmail() {
+		return ownerEmail;
+	}
+
+	/**
+	 * Method setOwnerEmail.
+	 * 
+	 * @param ownerEmail
+	 *            String
+	 */
+	public void setOwnerEmail(String ownerEmail) {
+		this.ownerEmail = ownerEmail;
+	}
+
+	/**
+	 * Method getOwnerPhone.
+	 * 
+	 * @return String
+	 */
+	public String getOwnerPhone() {
+		return ownerPhone;
+	}
+
+	/**
+	 * Method setOwnerPhone.
+	 * 
+	 * @param ownerPhone
+	 *            String
+	 */
+	public void setOwnerPhone(String ownerPhone) {
+		this.ownerPhone = ownerPhone;
+	}
+
+	/**
+	 * Method getDate.
+	 * 
+	 * @return Date
+	 */
+	public Date getDate() {
+		return date == null ? null : (Date) date.clone();
+	}
+
+	/**
+	 * Method setDate.
+	 * 
+	 * @param date
+	 *            Date
+	 */
+	public void setDate(Date date) {
+		this.date = date == null ? null : (Date) date.clone();
+	}
+
+	/**
+	 * Method getBasicAmount.
+	 * 
+	 * @return float
+	 */
+	public float getBasicAmount() {
+		return basicAmount;
+	}
+
+	/**
+	 * Method setBasicAmount.
+	 * 
+	 * @param basicAmount
+	 *            float
+	 */
+	public void setBasicAmount(float basicAmount) {
+		this.basicAmount = basicAmount;
+	}
+
+	/**
+	 * Method getDiscount.
+	 * 
+	 * @return float
+	 */
+	public float getDiscount() {
+		return discount;
+	}
+
+	/**
+	 * Method setDiscount.
+	 * 
+	 * @param discount
+	 *            float
+	 */
+	public void setDiscount(float discount) {
+		this.discount = discount;
+	}
+
+	/**
+	 * Method getInvoiceAmount.
+	 * 
+	 * @return float
+	 */
+	public float getInvoiceAmount() {
+		return invoiceAmount;
+	}
+
+	/**
+	 * Method setInvoiceAmount.
+	 * 
+	 * @param invoiceAmount
+	 *            float
+	 */
+	public void setInvoiceAmount(float invoiceAmount) {
+		this.invoiceAmount = invoiceAmount;
+	}
+
+	/**
+	 * Method getPaymentDt.
+	 * 
+	 * @return Date
+	 */
+	public Date getPaymentDate() {
+		return paymentDate == null ? null : (Date) paymentDate.clone();
+	}
+
+	/**
+	 * Method setPaymentDt.
+	 * 
+	 * @param paymentDt
+	 *            Date
+	 */
+	public void setPaymentDate(Date paymentDate) {
+		this.paymentDate = paymentDate == null ? null : (Date) paymentDate
+				.clone();
+	}
+
+	/**
+	 * Method getStatus.
+	 * 
+	 * @return String
+	 */
+	public String getStatus() {
+		return status;
+	}
+
+	/**
+	 * Method setStatus.
+	 * 
+	 * @param status
+	 *            String
+	 */
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	/**
+	 * Method getCurrency.
+	 * 
+	 * @return String
+	 */
+	public String getCurrency() {
+		return currency;
+	}
+
+	/**
+	 * Method setCurrency.
+	 * 
+	 * @param currency
+	 *            String
+	 */
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+
+	/**
+	 * Method getTaxYear.
+	 * 
+	 * @return Integer
+	 */
+	public Integer getTaxYear() {
+		return taxYear;
+	}
+
+	/**
+	 * Method setTaxYear.
+	 * 
+	 * @param taxYear
+	 *            Integer
+	 */
+	public void setTaxYear(Integer taxYear) {
+		this.taxYear = taxYear;
+	}
+
+	/**
+	 * Method getRemarks.
+	 * 
+	 * @return String
+	 */
+	public String getRemarks() {
+		return remarks;
+	}
+
+	/**
+	 * Method setRemarks.
+	 * 
+	 * @param remarks
+	 *            String
+	 */
+	public void setRemarks(String remarks) {
+		this.remarks = remarks;
+	}
+
+	/**
+	 * Method getRoundAmount.
+	 * 
+	 * @return Integer
+	 */
+	public Integer getRoundAmount() {
+		return roundAmount;
+	}
+
+	/**
+	 * Method setRoundAmount.
+	 * 
+	 * @param roundAmount
+	 *            Integer
+	 */
+	public void setRoundAmount(Integer roundAmount) {
+		this.roundAmount = roundAmount;
+	}
+
+	/**
+	 * Method getDueDt.
+	 * 
+	 * @return Date
+	 */
+	public Date getDueDate() {
+		return dueDate == null ? null : (Date) dueDate.clone();
+	}
+
+	/**
+	 * Method setDueDt.
+	 * 
+	 * @param dueDt
+	 *            Date
+	 */
+	public void setDueDate(Date dueDate) {
+		this.dueDate = dueDate == null ? null : (Date) dueDate.clone();
+	}
+
+	/**
+	 * Method getInvToCountry.
+	 * 
+	 * @return String
+	 */
+	public String getInvToCountry() {
+		return invToCountry;
+	}
+
+	/**
+	 * Method setInvToCountry.
+	 * 
+	 * @param invToCountry
+	 *            String
+	 */
+	public void setInvToCountry(String invToCountry) {
+		this.invToCountry = invToCountry;
+	}
+
+	/**
+	 * Method getInvToState.
+	 * 
+	 * @return String
+	 */
+	public String getInvToState() {
+		return invToState;
+	}
+
+	/**
+	 * Method setInvToState.
+	 * 
+	 * @param invToState
+	 *            String
+	 */
+	public void setInvToState(String invToState) {
+		this.invToState = invToState;
+	}
+
+	/**
+	 * Method getMonth.
+	 * 
+	 * @return Integer
+	 */
+	public Integer getMonth() {
+		return month;
+	}
+
+	/**
+	 * Method setMonth.
+	 * 
+	 * @param month
+	 *            Integer
+	 */
+	public void setMonth(Integer month) {
+		this.month = month;
+	}
+
+	/**
+	 * Method getYear.
+	 * 
+	 * @return Integer
+	 */
+	public Integer getYear() {
+		return year;
+	}
+
+	/**
+	 * Method setYear.
+	 * 
+	 * @param year
+	 *            Integer
+	 */
+	public void setYear(Integer year) {
+		this.year = year;
+	}
+
+	public String getInvToCity() {
+		return invToCity;
+	}
+
+	public void setInvToCity(String invToCity) {
+		this.invToCity = invToCity;
+	}
+
+	public int getZipCode() {
+		return zipCode;
+	}
+
+	public void setZipCode(int zipCode) {
+		this.zipCode = zipCode;
+	}
+
+	public String getPaymentMode() {
+		return paymentMode;
+	}
+
+	public void setPaymentMode(String paymentMode) {
+		this.paymentMode = paymentMode;
+	}
+
+	public String getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(String accountId) {
+		this.accountId = accountId;
+	}
+	
+	
+	public String getCtAddress() {
+		return Constants.CT_ADDRESS;
+	}
+
+	public String getCtPin() {
+		return Constants.CT_PIN;
+	}
+
+	public String getCtPhone() {
+		return Constants.CT_PHONE;
+	}
+
+	public String getCtEmail() {
+		return Constants.CT_EMAIL;
+	}
+
+	public String getCtWebsite() {
+		return Constants.CT_WEBSITE;
+	}
+
+	public String getCtServiceTax() {
+		return Constants.CT_SERVICE_TAX;
+	}
+
+	public String getCtVat() {
+		return Constants.CT_VAT;
+	}
+
+}

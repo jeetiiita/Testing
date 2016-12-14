@@ -1,0 +1,32 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PrintNEqualPart {
+
+
+	public static void main(String[] args) {
+		
+	}
+	
+	String[] getNEqualPartsOfString(String input,int parts) {
+		
+		String[] output = new String[parts];
+		
+		int size = input.length();
+		int j = parts;
+		for(int i = 0;i<size;i=i+parts) {
+			j = i + parts;
+			String temp = input.substring(i,j);
+			output[]
+		}
+	
+		
+	}
+	
+}

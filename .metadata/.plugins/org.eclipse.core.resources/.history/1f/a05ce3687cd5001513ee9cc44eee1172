@@ -1,0 +1,111 @@
+package com.clicktable.support.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.transaction.Transactional;
+
+import org.joda.time.DateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.UpdateResponse;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.PaymentDao;
+import com.clicktable.support.model.Invoice;
+import com.clicktable.support.model.Payment;
+import com.clicktable.support.service.intf.PaymentService;
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.PaymentValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.CustomValidations;
+import com.clicktable.validate.ValidationError;
+
+@Component
+public class PaymentServiceImpl implements PaymentService {
+
+	@Autowired
+	PaymentValidator paymentValidator;
+
+	@Autowired
+	PaymentDao paymentDao;
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Transactional
+	@Override
+	public BaseResponse insertIntoPayment(Payment payment) {
+		BaseResponse response = null;
+
+<<<<<<< HEAD
+		List<ValidationError> errorList = paymentValidator
+				.validatePaymentOnAdd(payment);
+=======
+
+			List<ValidationError> errorList = paymentValidator
+					.validatePaymentOnAdd(payment);
+>>>>>>> branch 'R3' of https://git.clicktable.com/sgupta/clicktable-app.git
+
+<<<<<<< HEAD
+		if (errorList.isEmpty()) {
+			paymentDao.insertIntoTable(payment);
+			response = new UpdateResponse<>(
+					ResponseCodes.PAYMENT_INSERTED_SUCCESSFULLY,
+					payment.getGuid());
+		} else
+			response = new ErrorResponse(
+					ResponseCodes.PAYMENT_INSERTION_FAILURE, errorList);
+
+=======
+			if (errorList.isEmpty()) {
+				paymentDao.insertIntoTable(payment);
+				response = new UpdateResponse<>(
+						ResponseCodes.PAYMENT_INSERTED_SUCCESSFULLY,
+						payment.getGuid());
+			} else
+				response = new ErrorResponse(
+						ResponseCodes.PAYMENT_INSERTION_FAILURE, errorList);
+		
+		
+>>>>>>> branch 'R3' of https://git.clicktable.com/sgupta/clicktable-app.git
+		return response;
+	}
+
+	@Transactional
+	@Override
+	public BaseResponse updateInvoice(Payment payment) {
+
+		BaseResponse response = null;
+		List<ValidationError> errorList = new ArrayList<ValidationError>();
+		Invoice invoice = new Invoice();
+
+			DateTime currentDate = new DateTime().withTimeAtStartOfDay();
+			invoice.setGuid(payment.getInvoiceGuid());
+			if (payment.getStatusMessage().equals("Y")) {
+				Invoice dbInvoice = invoiceDao.find(invoice.getGuid());
+				dbInvoice.setStatus("INACTIVE");
+				dbInvoice.setPaymentDt(currentDate.toDate());
+
+				invoiceDao.update(dbInvoice);
+
+				response = new UpdateResponse<>(
+						ResponseCodes.INVOICE_UPDATED_SUCCESSFULLY,
+						invoice.getGuid());
+			} else {
+				String errorCode = ErrorCodes.PAYMENT_FAILURE;
+
+				errorList = CustomValidations.populateErrorList(errorList,
+						"statusMessage", UtilityMethods.getErrorMsg(errorCode),
+						errorCode);
+				response = new ErrorResponse(
+						ResponseCodes.INVOICE_UPDATION_FAILURE, errorList);
+			}
+
+		return response;
+
+	}
+}

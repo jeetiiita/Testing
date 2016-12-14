@@ -1,0 +1,36 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET    /                        @com.clicktable.support.controllers.Application.index()
+GET    /conversation            @com.clicktable.support.controllers.ConversationController.getGuestConversation
+GET    /conversation/history    @com.clicktable.support.controllers.ConversationController.getGuestConversationCount
+POST   /conversation            @com.clicktable.support.controllers.ConversationController.insertGuestConversation
+POST   /conversation/multiple   @com.clicktable.support.controllers.ConversationController.insertMultipleGuestConversation
+PUT    /conversation            @com.clicktable.support.controllers.ConversationController.updateConversation
+GET    /report/promotion        @com.clicktable.support.controllers.ConversationController.getResaturantEventPromotion
+#GET    /conversation/delivery   @com.clicktable.support.controllers.ConversationController.delivery
+#GET   /conversation/generate 		@com.clicktable.support.controllers.ConversationController.generatePdf
+#GET	/conversation/callback
+
+# Map static resources from the /public folder to the /assets URL path
+GET    /assets/*file            controllers.Assets.versioned(path="/public", file: Asset)
+
+GET    /support/export/download         @com.clicktable.support.controllers.InvoiceController.getPdf
+GET    /support/invoice         @com.clicktable.support.controllers.InvoiceController.getInvoice()
+GET    /support/invoiceTxn      @com.clicktable.support.controllers.InvoiceController.getInvoiceTxn()
+GET    /support/invoiceTax      @com.clicktable.support.controllers.InvoiceController.getInvoiceTax()
+GET    /delivery                @com.clicktable.support.controllers.ConversationController.delivery
+
+#tax and TaxCategory
+GET    /tax                                @com.clicktable.support.controllers.TaxController.getTax()
+GET    /taxCategory            			   @com.clicktable.support.controllers.TaxCategoryController.getTaxCategory()
+POST   /masterdata/tax                     @com.clicktable.support.controllers.TaxController.addMasterData()
+POST   /masterdata/taxCategory             @com.clicktable.support.controllers.TaxCategoryController.addMasterData()
+PUT     /updateMasterdata/tax                     @com.clicktable.support.controllers.TaxController.patchTax()
+PUT     /updateMasterdata/taxCategory             @com.clicktable.support.controllers.TaxCategoryController.patchTaxCategory()
+
+#payment
+GET    /support/payment         @com.clicktable.support.controllers.PaymentController.encryptPaymentDetail()
+POST   /payment/callback        @com.clicktable.support.controllers.PaymentController.addPaymentDetail()

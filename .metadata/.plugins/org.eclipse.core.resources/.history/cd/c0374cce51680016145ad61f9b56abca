@@ -1,0 +1,110 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import javax.persistence.Column;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+
+import org.springframework.data.neo4j.annotation.GraphProperty;
+
+import com.clicktable.support.util.ErrorCodes;
+import com.clicktable.util.Constants;
+import com.clicktable.util.EntityErrorCodes;
+
+import play.data.validation.Constraints.MaxLength;
+import play.data.validation.Constraints.Required;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class Notification extends BaseEntity {
+
+	public Notification() {
+		super();
+	}
+
+	private static final long serialVersionUID = 8664509040682645880L;
+
+	@Id
+	@GeneratedValue
+	Long id;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_REST_GUID)
+	private String restaurantGuid;
+
+	@Required(message = EntityErrorCodes.RESERVATION_GUID_REQUIRED)
+	private String reservationGuid;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_MESSAGE_REQUIRED)
+	@MaxLength(message = EntityErrorCodes.GUESTCONVERSATION_MESSAGE_MAXLENGTH, value = 300)
+	private String message;
+
+	@Required(message = EntityErrorCodes.GUESTCONVERSATION_GUEST_GUID)
+	private String guestGuid;
+
+	private String guestMobileNum;
+
+	private String smsId;
+	
+	private Boolean read;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getRestaurantGuid() {
+		return restaurantGuid;
+	}
+
+	public void setRestaurantGuid(String restaurantGuid) {
+		this.restaurantGuid = restaurantGuid;
+	}
+
+	public String getReservationGuid() {
+		return reservationGuid;
+	}
+
+	public void setReservationGuid(String reservationGuid) {
+		this.reservationGuid = reservationGuid;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+	public String getGuestGuid() {
+		return guestGuid;
+	}
+
+	public void setGuestGuid(String guestGuid) {
+		this.guestGuid = guestGuid;
+	}
+
+	public String getGuestMobileNum() {
+		return guestMobileNum;
+	}
+
+	public void setGuestMobileNum(String guestMobileNum) {
+		this.guestMobileNum = guestMobileNum;
+	}
+
+	public String getSmsId() {
+		return smsId;
+	}
+
+	public void setSmsId(String smsId) {
+		this.smsId = smsId;
+	}
+
+}

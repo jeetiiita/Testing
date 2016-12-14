@@ -1,0 +1,77 @@
+@(entryForm: Form[beans.HourEntryForm], date: org.joda.time.LocalDate, entries: List[HourEntry], totals: datastructures.TotalsDay)
+
+@import helper._
+
+@implicitFieldConstructor = @{ FieldConstructor(template.customInput.render) } 
+
+@import utils.CalculationUtil
+@import utils.DateUtil
+
+
+@main("Enter hours for " + DateUtil.formatDate(date), sidemenu = menus.userMenu()) {
+	
+	@if(entryForm.hasGlobalErrors()) {
+    	<div class="alert-message error">
+            <strong>Oops!</strong> @entryForm.globalError().message
+        </div>
+    }    
+        
+    @form(routes.HourEntries.createForDay(date), 'id -> "entryForm", 'class -> "inline-entry-form") {
+		<div class="entry">
+			<div class="hidden-date">
+				<div class="input">
+					<input id="date" type="hidden" name="date" value="@DateUtil.formatDate(date)">
+				</div>
+			</div>
+			
+	    	@select(entryForm("assignment.id"), options(ProjectAssignments.optionsForCurrentUser()), '_label -> "", '_class -> "assignment", '_default -> "Choose a Project")
+				
+			@inputText(entryForm("hours"), '_label -> "h", '_class -> "hours")
+			
+			@inputText(entryForm("minutes"), '_label -> "m", '_class -> "minutes")
+			
+			<div class="tags">
+				<div class="input">
+					<input type="text" class="autocomplete" name="tagsString" value="@entryForm.data.get("tagsString")" data-url="@routes.Tags.find">
+					<span class="help-block">Seperate tags with a semicolon</span>
+				</div>
+			</div>
+			
+			<input class="btn btn-primary" type="submit" value="Submit">
+			<a class="btn" href="@routes.Users.home()">Cancel</a>
+		</div>
+	}
+	
+	@if(entries.isEmpty) {
+		<div class="alert-message warning">
+            No hours entered for this day!
+        </div>
+	} else {
+		<p>Entered hours:</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Project</th>
+					<th>Time</th>
+					<th>Tags</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for(entry <- entries) {
+					
+					<tr>
+						<td>@entry.assignment.project.name</td>
+						<td><a href="@routes.HourEntries.edit(entry.id)">@CalculationUtil.formatTotalHoursMinutes(entry.hours, entry.minutes)</a></td>
+						<td>@entry.enteredTagsString()</td>
+					</tr>
+				}
+				<tr>
+					<td></td>
+					<td>@totals.hoursMinutes</td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
+	}
+
+}

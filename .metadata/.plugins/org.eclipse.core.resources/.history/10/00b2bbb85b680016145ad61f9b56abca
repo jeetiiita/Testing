@@ -1,0 +1,14 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+import com.clicktable.support.service.intf.PushNotificationService;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class PushNotificationServiceImpl implements PushNotificationService{
+
+}

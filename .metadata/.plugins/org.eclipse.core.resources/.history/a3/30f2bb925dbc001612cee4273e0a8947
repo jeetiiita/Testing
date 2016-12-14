@@ -1,0 +1,25 @@
+#Consumer messages
+sms.added_to_bar=Dear {0}, Welcome to {1}, {2}. We hope you enjoy your dining experience with us.
+sms.reservation_confirmation_pending=Hi {0}, your reservation at {1}, {2} for {3} people on {4} at {5} {6} is PENDING for confirmation. We will update the status within {7} mins. For queries, call us on +91-95826-12345. RESV ID: {8} {9}
+sms.reservation_confirmation=Hi {0}, your reservation at {1}, {2} for {3} people on {4} at {5}; {6} is CONFIRMED. Table will be held for max 15 mins. For queries, call restaurant directly on +91-{7}. RESV ID: {8} {9}
+sms.reservation_reminder=Hi {0}, this is a gentle reminder for your reservation at {1}, {2} for {3} people on {4} at {5} {6} Table will be held for max 15 mins. For queries, call restaurant directly on +91-{7}. RESV ID: {8} {9}
+sms.reservation_cancelled=Hi {0}, your reservation at {1}, {2} for {3} people on {4} at {5} {6} is CANCELLED. To search for more dining options, call us on +91-95826-12345. RESV ID: {8} {9}
+sms.reservation_auto_cancelled=Hi {0}, owing to NO REPLY, your reservation at {1}, {2} for {3} people on {4} at {5} {6}; {7} is AUTO-CANCELLED. For queries, call restaurant directly on {8}. RESV ID: {9} {10}
+sms.reservation_unsuccessful=Hi {0}, your reservation at {1}, {2} for {3} people on {4} at {5} {6} was NOT ACCEPTED by the restaurant. To search for more dining options, call us on +91-95826-12345. RESV ID: {7} {8}
+sms.reservation_noshow=Hi {0}, owing to NON ARRIVAL, your reservation at {1}, {2} for {3} people on {4} at {5} {6} is CANCELLED. For queries, call restaurant directly on +91-{7}. RESV ID: {8} {9}
+sms.reservation_walkin_finished=Hi {0}, thank you for dining at {1}, {2}. Please spare a moment to review your dining experience {3}
+sms.waitlist_create=Hi {0}, you have been added to the waitlist at {1}, {2} for {3} people on {4} at {5}. You are #{6} in queue. For queries, call restaurant directly on +91-{7}. For real time queue position, check {8}
+sms.table_ready=Hi {0}, your table at {1}, {2} is now ready. Table will be held only for few minutes. For queries, call restaurant directly on +91-{3}. RESV ID: {4}
+sms.waitlist_exit=Hi {0}, you have opted out of the waitlist at {1}, {2} for {3} people on {4}. Sorry to let you go!
+sms.grab_table=Hi {0}, your table at {1}, {2} is available. Grab this table within 15 mins by clicking the link below, else it will be offered to next in waitlist. For queries, call restaurant directly on +91-{3}. WL ID: {4} {5}
+sms.reservation_queued=Hi {0}, {1}, {2} has put your reservation on WAITLIST. It will be confirmed if other guests cancel their reservation. Else, on your arrival; you’ll be seated as per table availability. Call restaurant directly on +91-{3}. WL ID: {4} {5}
+
+#Restaurant messages
+ 
+sms.login_otp={0} has attempted access to Clicktable Empower app. {1} is the OTP for login attempt. OTP is usable only once and valid for 15 mins.
+sms.restaurant_reservation_received=New reservation request received for {0} guests, at {1} on {2}; {3} RESV ID: {4}; Status: CONFIRMATION PENDING. To accept/reject, {5}
+sms.restaurant_reservation_accepted=Reservation accepted for {0} guests, at {1} on {2}; {3} RESV ID: {4}; Status: ACCEPTED; Name: {5}, Mobile: {6}. To view/manage, {7}
+sms.restaurant_reservation_rejected=Reservation rejected for {0} guests, at {1} on {2}; {3} RESV ID: {4}; Status: REJECTED. To view, {5}
+sms.restaurant_reservation_cancelled_by_guest=Reservation Cancelled for {0} guests, at {1} on {2}; {3} RESV ID: {4}; Status: Cancelled. To view, {5}
+
+sms.guest_feedback=You have received a feedback from {0} at {1}, {2}; table {3}; server {4}; overall rating: {5} {6}. 

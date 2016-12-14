@@ -1,0 +1,27 @@
+1464008578661	Rename method 'validateItemAggregateTax'
+1464008965413	Rename type 'ItemAggregatetaxDao'
+1464009387410	Rename method 'getTaxesForItem'
+1464009419673	Rename method 'getApplicableTaxForItem'
+1464013254006	Rename method 'getAllActiveItemAggregateTaxRelationShip'
+1464014749843	Rename method 'getItemAndAggregateTax'
+1464178119716	Extract constant 'MAX_LAYER_NUMBER'
+1464178137725	Extract constant 'MIN_LAYER_NUMBER'
+1464253553840	Rename field 'applyOnLayer'
+1464254452379	Rename field 'totalTax'
+1464259672651	Delete element
+1464259753966	Delete element
+1464259901072	Delete element
+1464259949786	Delete element
+1464260203329	Delete element
+1464260296373	Delete element
+1464260301880	Delete element
+1464263229577	Delete element
+1464263289590	Delete element
+1464263438135	Delete element
+1464263527386	Delete element
+1464263572360	Delete element
+1464263901256	Delete element
+1464263912469	Delete element
+1464266214514	Delete element
+1464267872203	Delete element
+1464268511106	Delete element

@@ -1,0 +1,15 @@
+/**
+ * 
+ */
+package com.clicktable.support.dao.intf;
+
+import com.clicktable.dao.intf.GenericDao;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface AggregateTaxDao extends GenericDao<AggregateTax>{
+	
+
+}

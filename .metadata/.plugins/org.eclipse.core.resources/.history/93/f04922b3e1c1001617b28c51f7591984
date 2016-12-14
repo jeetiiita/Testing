@@ -1,0 +1,794 @@
+package com.clicktable.util;
+
+import static com.clicktable.util.Constants.ALPHABET;
+import static com.clicktable.util.Constants.BASE;
+
+import java.awt.Font;
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.DateFormat;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+
+import org.apache.commons.beanutils.BeanUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.springframework.data.neo4j.annotation.GraphProperty;
+
+import com.clicktable.exception.ClicktableException;
+import com.clicktable.response.DNDResponse;
+import com.clicktable.validate.ValidationError;
+import com.cloudinary.Cloudinary;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.io.CharStreams;
+import com.itextpdf.awt.DefaultFontMapper;
+import com.itextpdf.text.pdf.BaseFont;
+import com.microtripit.mandrillapp.lutung.MandrillApi;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+
+import play.Logger;
+import play.Play;
+import play.i18n.Messages;
+import play.libs.F;
+import play.libs.Json;
+import play.libs.ws.WS;
+import play.libs.ws.WSResponse;
+
+public class UtilityMethods {
+	private static Logger.ALogger log = Logger.of(UtilityMethods.class);
+	public static MandrillApi getMandrillApi() {
+		String mandrilKeyPath =  Constants.MANDRILL_API_KEY;
+		return new MandrillApi(getConfString(mandrilKeyPath));
+	}
+	private static Config enumConfig;
+
+	/**
+	 * utility method to generate ct_id
+	 *
+	 * @return
+	 */
+	public static String generateCtId() {
+		return UUID.randomUUID().toString();
+	}
+
+	/**
+	 * utility method to get start index
+	 *
+	 * @param pageNoStr
+	 * @param pageSizeStr
+	 * @return
+	 */
+	public static int getStartIndex(String pageNoStr, int pageSize) {
+		// code for geting start index for pagination
+
+		int startIndex = 0;
+		// int pageSize = Integer.parseInt(pageSizeStr);
+		try {
+			int pageNo = Integer.parseInt(pageNoStr);
+			if (pageNo > 0) {
+				startIndex = pageNo * pageSize;
+			}
+
+		} catch (NumberFormatException nfe) {
+			log.debug("Exception is ------------ " + nfe.getLocalizedMessage());
+			log.info("Number Format Exception");
+		}
+		return startIndex;
+	}
+
+	/**
+	 * utility method to generate password
+	 *
+	 * @return
+	 */
+	public static String generatePassword() {
+		StringBuilder password = new StringBuilder("Ct12");
+
+		for (int i = 0; i < 10; i++) {
+			// select a random character from string CHAR_LIST defined in
+			// Constants class
+			int number = getRandomNumber(Constants.CHAR_LIST);
+			char ch = Constants.CHAR_LIST.charAt(number);
+			password.append(ch);
+		}
+		return password.toString();
+
+	}
+
+	/**
+	 * private method used in generate password method
+	 *
+	 * @param CHAR_LIST
+	 * @return
+	 */
+	private static int getRandomNumber(String CHAR_LIST) {
+		int randomInt = 0;
+		Random randomGenerator = new Random();
+		randomInt = randomGenerator.nextInt(CHAR_LIST.length());
+		if (randomInt - 1 == -1) {
+			return randomInt;
+		} else {
+			return randomInt - 1;
+		}
+	}
+
+	/**
+	 * utility method to create response
+	 *
+	 * @param res
+	 * @param message
+	 * @param status
+	 * @return
+	 */
+	/*
+	 * public static BaseResponse createResponse(BaseResponse res, String
+	 * message, boolean status, Object... obj) {
+	 *
+	 * if (null != message) { res.setResponseCode(message);
+	 * res.setResponseMessage(Messages.get(message, obj));
+	 * res.setResponseStatus(status); } return res; }
+	 */
+
+	/**
+	 * utility method to convert string to date
+	 *
+	 * @param dateStr
+	 * @return
+	 */
+	public static Date parseDate(String dateStr, String format) {
+		Date date = null;
+		SimpleDateFormat dateFormat = new SimpleDateFormat(format);
+		if (isValidDate(dateStr, dateFormat)) {
+			try {
+				date = dateFormat.parse(dateStr);
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				log.debug("Exception is ------------ " + e.getLocalizedMessage());
+				date = null;
+			}
+		}
+
+		return date;
+	}
+
+	/**
+	 * utility method to convert string to date
+	 *
+	 * @param dateStr
+	 * @return
+	 */
+	public static String parseCustomeDate(String dateStr, String format, String convertFormat) {
+		SimpleDateFormat sdf = new SimpleDateFormat(format);
+		Date date = null;
+		try {
+			date = sdf.parse(dateStr);
+		} catch (ParseException e) {
+			log.warn(e.getMessage());
+
+		}
+		// log.info("date is "+date.toString());
+		SimpleDateFormat timeFormat = new SimpleDateFormat(convertFormat);
+		log.info("time format date is " + timeFormat.format(date));
+		return timeFormat.format(date);
+	}
+
+	/**
+	 * public utility method to vaidate date
+	 *
+	 * @param dateStr
+	 * @param dateFormat
+	 * @return
+	 */
+	public static boolean isValidDate(String dateStr, SimpleDateFormat dateFormat) {
+		boolean isValidDate = false;
+
+		log.debug("date in is valid date is " + dateStr);
+		dateFormat.setLenient(false);
+		try {
+			dateFormat.parse(dateStr);
+			isValidDate = true;
+		} catch (ParseException pe) {
+			Logger.warn("Invalid Date :" + pe.getMessage());
+			isValidDate = false;
+		}
+
+		return isValidDate;
+	}
+
+
+	public static List<String> getEnumValues(String module, String key) {
+
+		Config config = ConfigFactory.load(Constants.ENUMS_FILE).getConfig(module);
+
+		if (config.hasPath(key))
+			return new ArrayList<String> (Arrays.asList(config.getString(key).split(",")));
+
+		return new ArrayList<String>();
+	}
+
+
+	public static List<String> getConsumerEnumValues(String module, String key) {
+
+		Config config = ConfigFactory.load(Constants.CONSUMER_ENUMS_FILE).getConfig(module);
+		if (config.hasPath(key))
+			return Arrays.asList(config.getString(key).split(","));
+		return new ArrayList<String>();
+	}
+
+	public static String getProperty(String fileName, String module, String key) {
+		return ConfigFactory.load(fileName).getConfig(module).getString(key);
+	}
+
+	public static String getErrorMsg(String key) {
+		log.debug("key is " + key);
+		log.debug("error is " + ConfigFactory.load(Constants.ERRORS_FILE).getString(key));
+		return ConfigFactory.load(Constants.ERRORS_FILE).getString(key);
+	}
+
+	public static String getConfString(String key) {
+		return ConfigFactory.load().getString(key);
+	}
+
+	public static Config getConfigForModule(String key) {
+		return ConfigFactory.load().getConfig(key);
+		// return set;
+
+	}
+
+	public static String getServerConfigString(String key) {
+		//InetAddress thisIp;
+		String name = /*Constants.DEFAULT + "." +*/ key;
+		/*try {
+			thisIp = InetAddress.getLocalHost();
+			name = getConfString(thisIp.getHostAddress()) + "." + key;
+		} catch (Exception e) {
+			//to-do
+		}*/
+		return UtilityMethods.getConfString(name);
+		// return set;
+	}
+
+	public static Config getNeo4jConfig() {
+		return ConfigFactory.load().getConfig(Constants.NEO4J);
+
+	}
+
+	public static String getPropertyName(String key, Class type) {
+
+		String propertyName = key;
+		GraphProperty property = null;
+		try {
+			property = UtilityMethods.getClassField(key, type).getAnnotation(GraphProperty.class);
+		} catch (SecurityException e) {
+			log.warn("Exception is ------------ " + e.getLocalizedMessage());
+			log.debug("Graphproperty not set for " + key);
+		} catch (NullPointerException e1) {
+			log.warn("Exception is ------------ " + e1.getLocalizedMessage());
+			log.debug("Graphproperty not allowed " + key);
+		}
+		if (property != null)
+			propertyName = property.propertyName();
+
+		return propertyName;
+
+	}
+
+	/**
+	 * static method to generate a token on basis of ctId
+	 *
+	 * @param ctId
+	 * @return
+	 */
+	public static String generateToken(String userInfo) {
+		// yet to be implemented.Right now it's using generatePassword method
+		String token = userInfo;
+		return token;
+	}
+
+
+	public static JsonNode readJsonFromFile(String filename, String masterobj) {
+
+		InputStream file = Play.application().resourceAsStream(filename);
+		// CharStreams.toString(new InputStreamReader(file));
+		// IOUtils.toString(file);
+		String jsonStr = null;
+		try {
+			jsonStr = CharStreams.toString(new InputStreamReader(file));
+		} catch (IOException e) {
+			log.warn(e.getMessage());
+		}
+
+
+		JsonNode json = Json.parse(jsonStr).get(masterobj);
+
+		return json;
+	}
+
+	public static Long timestamp() {
+		return System.currentTimeMillis();
+	}
+
+	/**
+	 * static method to check a string containing numeric numbers only
+	 *
+	 * @param str
+	 * @return
+	 */
+	public static boolean isValidNumericNumber(String str) {
+		int x;
+		for (int j = 0; j < str.length(); j++) {
+			x = (int) str.charAt(j);
+			if (x < 48 || x > 57)
+				return false;
+		}
+		return true;
+	}
+
+	public static Map<String, Object> convertQueryStringToMap(Map<String, String[]> queryString) {
+		// convert the map of type <String,String[]> to that of type
+		// <String,Object>
+		Map<String, Object> stringParamMap = new HashMap<String, Object>();
+		log.debug(stringParamMap.toString());
+		for (Map.Entry<String, String[]> entry : queryString.entrySet()) {
+			stringParamMap.put(entry.getKey(), entry.getValue()[0]);
+		}
+
+		return stringParamMap;
+	}
+
+
+	public static Map<String, String> convertQueryStringToStringMap(Map<String, String[]> queryString) {
+		// convert the map of type <String,String[]> to that of type
+		// <String,Object>
+		Map<String, String> stringParamMap = new HashMap<String, String>();
+		log.debug(stringParamMap.toString());
+		for (Map.Entry<String, String[]> entry : queryString.entrySet()) {
+			stringParamMap.put(entry.getKey(), entry.getValue()[0]);
+		}
+
+		return stringParamMap;
+	}
+
+	public static String[] replaceSpecialCharacter(String s) {
+		return s.replaceAll("[\\[\\]\"]", "").split(",");
+	}
+
+	public static Field getClassField(String fieldName, Class type) {
+		Field field = null;
+		try {
+			field = type.getDeclaredField(fieldName);
+		} catch (NoSuchFieldException | SecurityException e) {
+			log.debug("Exception is ------------ " + e.getLocalizedMessage());
+			type = type.getSuperclass();
+			if(type != null){
+				field = getClassField(fieldName, type);
+			}
+		}
+		return field;
+	}
+
+	public static Set<Entry<String, ConfigValue>> getEnumsForModule(String module) {
+		return getEnumConfig().getConfig(module).entrySet();
+	}
+
+	private static Config getEnumConfig() {
+		if(null == enumConfig) {
+			enumConfig = ConfigFactory.load(Constants.ENUMS_FILE);
+		}
+		return enumConfig;
+	}
+
+	public static Map<String, Object> entityConversionToMap(Object type) {
+		Map<String, Object> objectAsMap = new HashMap<String, Object>();
+		try {
+			objectAsMap = BeanUtils.describe(type);
+		} catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+			log.warn(e.getMessage());
+
+		}
+		return objectAsMap;
+		// return introspect(type);
+	}
+
+	public static Map<String, Object> introspect(Object obj) {
+		Map<String, Object> result = new HashMap<String, Object>();
+		BeanInfo info;
+		try {
+			info = Introspector.getBeanInfo(obj.getClass());
+			for (PropertyDescriptor pd : info.getPropertyDescriptors()) {
+				Method reader = pd.getReadMethod();
+				if (reader != null) {
+					if (reader.invoke(obj) != null)
+						result.put(pd.getName(), reader.invoke(obj));
+				}
+			}
+		} catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
+			log.error("Error reading property :"+e.getMessage());
+		}
+		result.remove("class");
+		return result;
+	}
+
+	public static Map<String, Object> introspectWithNullValues(Object obj) {
+		Map<String, Object> result = new HashMap<String, Object>();
+		BeanInfo info;
+		try {
+			info = Introspector.getBeanInfo(obj.getClass());
+			for (PropertyDescriptor pd : info.getPropertyDescriptors()) {
+				Method reader = pd.getReadMethod();
+				if (reader != null) {
+					result.put(pd.getName(), reader.invoke(obj));
+				}
+			}
+		} catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
+			log.warn(e.getMessage());
+		}
+		result.remove("class");
+		return result;
+	}
+
+
+	public static int getDay(String day) {
+		return getEnumValues(Constants.EVENT_MODULE, Constants.DAY_OF_THE_WEEK).indexOf(day) + 1;
+	}
+
+
+	public static DateTime addTimeToDate(Date date, Date time) {
+		DateTime sd = new DateTime(date);
+		DateTime st = new DateTime(time);
+		DateTime eventStart = sd.plusHours(st.getHourOfDay());
+		eventStart = eventStart.plusMinutes(st.getMinuteOfHour());
+		eventStart = eventStart.plusSeconds(st.getSecondOfMinute());
+		return eventStart;
+	}
+
+	public static DateTime minusTimeToDate(Date date, Date time) {
+		DateTime sd = new DateTime(date);
+		DateTime st = new DateTime(time);
+		DateTime eventStart = sd.minusHours(st.getHourOfDay());
+		eventStart = eventStart.minusMinutes(st.getMinuteOfHour());
+		eventStart = eventStart.minusSeconds(st.getSecondOfMinute());
+		return eventStart;
+	}
+
+	public static Date truncateDate(Date date) {
+		DateTime dt = new DateTime(date);
+		return new Date(dt.toDateTime(DateTimeZone.UTC).getMillisOfDay());
+
+	}
+
+	public static Date truncateTime(Date date) {
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(date);
+		cal.set(Calendar.HOUR_OF_DAY, 0);
+		cal.set(Calendar.MINUTE, 0);
+		cal.set(Calendar.SECOND, 0);
+		cal.set(Calendar.MILLISECOND, 0);
+		return cal.getTime();
+	}
+
+	// method to verify code for onboarding
+	/**
+	 * TO DO: to change when Authy will get implement
+	 *
+	 * @param code
+	 * @return
+	 */
+	public static Boolean verifyCode(String code) {
+		Boolean isVerified = false;
+		if (code.equals("1234")) {
+			isVerified = true;
+		}
+		return isVerified;
+	}
+
+	// method to resend code for onboarding
+	/**
+	 * TO DO: to change when Authy will get implement
+	 *
+	 * @param code
+	 * @return
+	 */
+	public static Boolean resendCode() {
+		Boolean isResend = true;
+
+		return isResend;
+	}
+
+	public static String cypherCompatibleString(List<String> list) {
+
+		StringBuilder str = new StringBuilder();
+		if (list.size() > 0) {
+			for (String string : list) {
+				str.append('\'').append(string).append('\'').append(',');
+			}
+
+			return str.toString().substring(0, str.length() - 1);
+		} else
+			return str.toString();
+	}
+
+	public static String autoResponseSms(String customerName, String status) {
+		return Messages.get("auto_response_sms", customerName, status);
+	}
+
+	// method to get data of enum.properties file
+	public static Map<String, String> getAllEnums() {
+
+		Config config = ConfigFactory.parseResources(Constants.ENUMS_FILE);
+		Map<String, String> enumMap = new HashMap<>();
+		Set<Entry<String, ConfigValue>> entrySet = config.entrySet();
+		for (Entry<String, ConfigValue> entry : entrySet) {
+			enumMap.put(entry.getKey(), entry.getValue().render().replaceAll("\"", ""));
+		}
+		return enumMap;
+	}
+
+	public static Map<String, String> getAllEnums(String enumFile) {
+
+		Config config = ConfigFactory.parseResources(enumFile);
+		Map<String, String> enumMap = new HashMap<>();
+		Set<Entry<String, ConfigValue>> entrySet = config.entrySet();
+		for (Entry<String, ConfigValue> entry : entrySet) {
+			enumMap.put(entry.getKey(), entry.getValue().render().replaceAll("\"", ""));
+		}
+		return enumMap;
+	}
+
+
+
+	/**
+	 * utility method to generate parent account id
+	 *
+	 * @return
+	 */
+	/*
+	 * public static String generateParentAccountId(Restaurant rest) { String
+	 * parentAccountId = Constants.PARENT_ACCOUNT_ID_PREFIX_STRING;
+	 * SimpleDateFormat sdf = new
+	 * SimpleDateFormat(Constants.DATE_FORMAT_STRING); String currentDateStr =
+	 * sdf.format(new Date()); log.debug("current date str is " +
+	 * currentDateStr); return parentAccountId + currentDateStr;
+	 *
+	 * }
+	 */
+
+	public static Date getDateFromString(String currentDateStr, SimpleDateFormat dateFormat) {
+
+		Date date = new Date();
+
+		try {
+			date = dateFormat.parse(currentDateStr);
+		} catch (ParseException e1) {
+			log.warn(e1.getMessage());
+		}
+
+		return date;
+
+	}
+
+	public static int generateOTP() {
+		int max = 999999;
+		int min = 100000;
+		return (int) Math.round(Math.random() * (max - min + 1) + min);
+	}
+
+	public static String convertToBase32(long value) {
+		StringBuilder sb = new StringBuilder();
+		if (value == 0) {
+			sb.append(ALPHABET.charAt(0));
+		} else {
+			while (value > 0) {
+				int rem = (int) (value % BASE);
+				sb.append(ALPHABET.charAt(rem));
+				value = value / BASE;
+			}
+		}
+		return StringUtils.leftPad(sb.toString(), 6, ALPHABET.charAt(0));
+	}
+
+	public static String sendSMSFormat(Object message[], String key) {
+		String sms_key = ConfigFactory.load(Constants.SMS_FILE).getString(key);
+		//log.info("---" + MessageFormat.format(sms_key, message));
+		return MessageFormat.format(sms_key, message);
+	}
+
+	public static String formatStreamMessage(String key, String[] params) {
+		String streamMessage = ConfigFactory.load(Constants.STREAM_NOTIFICATIONS_FILE).getString(key);
+		return MessageFormat.format(streamMessage, (Object[]) params);
+	}
+
+	public static DNDResponse callDndToVerifyMobilePhone (String guestProfile) throws ClicktableException {
+		DNDResponse dndresponse=null;
+		String urlString = Constants.CHECKDND_HREF_APP_STRING;
+		try{
+			urlString =urlString+"&userid="+UtilityMethods.getConfString(Constants.SCRUBBING_USER_ID);
+			urlString =urlString+"&password="+UtilityMethods.getConfString(Constants.SCRUBBING_PASSWORD);
+
+			urlString =urlString+"&method=NCPR_CHECK&format=JSON&auth_scheme=PLAIN&phones=";
+			urlString =urlString+guestProfile;
+
+			log.info(" DND Checking Scrubbing API "+urlString);
+			String USER_AGENT = "Mozilla/5.0";
+
+			URL obj = new URL(urlString);
+			HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+			con.setRequestMethod("GET");
+			con.setConnectTimeout(Constants.TIMEOUT);
+			con.setRequestProperty("User-Agent", USER_AGENT);
+
+			int responseCode = con.getResponseCode();
+			log.info(" Sending 'GET' request to URL : " + urlString);
+			log.info("Response Code : " + responseCode);
+
+			BufferedReader in = new BufferedReader(
+					new InputStreamReader(con.getInputStream()));
+			String inputLine;
+			StringBuffer response = new StringBuffer();
+
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine);
+			}
+			in.close();
+			dndresponse = Json.fromJson(Json.parse(response.toString()), DNDResponse.class);
+			if(null!=dndresponse && dndresponse.getResponse().getStatus().
+					equalsIgnoreCase(Constants.ERROR.toLowerCase())){
+				throw new ClicktableException("DND Checking Scrubbing API"+dndresponse.toString());
+			}
+			log.info(" Response "+ response.toString());
+			log.info(" DND Response \n" + dndresponse);
+
+		}catch(Exception e){
+			throw new ClicktableException("DND Checking Scrubbing API"+e.getMessage());
+		}
+
+		return dndresponse;
+	}
+
+	public static com.itextpdf.text.Font getFont(String fontName, int size, boolean isBold) {
+		Font awtFont = null;
+		if (isBold)
+			awtFont = new Font(fontName, Font.BOLD, size);
+		else
+			awtFont = new Font(fontName, Font.PLAIN, size);
+		BaseFont bf_Sans = new DefaultFontMapper().awtToPdf(awtFont);
+		com.itextpdf.text.Font sans = new com.itextpdf.text.Font(bf_Sans, size);
+		return sans;
+	}
+
+	public static String getDate(String format,int prevDays){
+		DateFormat forwardDateFormat = new SimpleDateFormat(format);
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.DATE, prevDays);
+		String date = forwardDateFormat.format(cal.getTime());
+		return date;
+	}
+
+	public static String getPath(){
+		String currentDir = System.getProperty("user.home");
+		/*File tempFile = new File(currentDir);
+		String parent = tempFile.getParent();*/
+		return currentDir;
+	}
+
+
+	public static void createFolder(String folderName){
+		File dir = new File(folderName);
+		dir.mkdir();
+	}
+
+
+	public static File createTempFile(String label, String fileFormat, List<ValidationError> errorList){
+		File file = null;
+		try {
+			file = File.createTempFile("temp", "."+fileFormat);
+		} catch (IOException e) {
+			log.warn("e="+e.getMessage());
+			errorList.add(new ValidationError(label, EntityErrorCodes.FILE_NOT_CREATED));
+		}
+		return file;
+	}
+	public static File createTempFile(String fileName,String fileFormat){
+		File file = null;
+		try {
+			file = File.createTempFile(fileName, "."+fileFormat);
+		} catch (IOException e) {
+			log.warn("e="+e.getMessage());
+		}
+		return file;
+	}
+
+	public static Map getCloudinaryConfiguration(){
+		return Cloudinary.asMap(
+				"cloud_name", getConfString(Constants.CLOUDINARY_CLOUD_NAME),
+				"api_key", getConfString(Constants.CLOUDINARY_API_KEY),
+				"api_secret", getConfString(Constants.CLOUDINARY_API_SECRET));
+	}
+
+	public static Map getWebPurifyConfiguration(){
+		return Cloudinary.asMap(
+				"url", getConfString(Constants.WEBPURIFY_URL),
+				"api_key", getConfString(Constants.WEBPURIFY_API_KEY),
+				"method", getConfString(Constants.WEBPURIFY_METHOD));
+
+	}
+
+	public static F.Promise<String> getShortUrlWithDeepLink(String fullUrl,String alias, String androidUrl) {
+		Map<String, String> dataToPost = new HashMap<>();
+		StringBuilder dataString = new StringBuilder("{\"$fallback_url\":")
+				.append("\"")
+				.append(fullUrl)
+				.append("\",")
+				.append("\"$android_deeplink_path\":")
+				.append("\"")
+				.append(androidUrl)
+				.append("\"}");
+
+		dataToPost.put(Constants.BRANCH_KEY, UtilityMethods.getConfString(Constants.BRANCH_IO_KEY));
+		dataToPost.put("data", dataString.toString());
+		dataToPost.put("alias", alias);
+		JsonNode json = Json.toJson(dataToPost);
+		F.Promise<WSResponse> result = WS.url(UtilityMethods.getConfString(Constants.BRANCH_IO_URI))
+				.setHeader(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON)
+				.post(json);
+
+		return result.map(resp->{
+			return resp.getBody().toString();
+		});
+	}
+
+	public static F.Promise<String> getShortUrl(String fullUrl,String alias,String branchKey) {
+		Map<String, String> dataToPost = new HashMap<>();
+		StringBuilder dataString = new StringBuilder("{\"$fallback_url\":")
+				.append("\"")
+				.append(fullUrl)
+				.append("\"}");
+
+		if (alias.equals("RESTAURANT")) {
+			dataToPost.put(Constants.BRANCH_KEY, branchKey);
+		} else {
+			dataToPost.put(Constants.BRANCH_KEY, UtilityMethods.getConfString(Constants.BRANCH_IO_RESERVE_KEY));
+		}
+		dataToPost.put("data", dataString.toString());
+		dataToPost.put("alias", alias);
+		JsonNode json = Json.toJson(dataToPost);
+		F.Promise<WSResponse> result = WS.url(UtilityMethods.getConfString(Constants.BRANCH_IO_URI))
+				.setHeader(Constants.CONTENT_TYPE, Constants.APPLICATION_JSON)
+				.post(json);
+
+		return result.map(resp->{
+			return resp.getBody().toString();
+		});
+	}
+
+	public static String formatToOneDecimal(double val){
+		return String.format("%.1f", val);
+	}
+}

@@ -1,0 +1,26 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import java.util.List;
+import java.util.Set;
+
+import com.clicktable.support.model.Item;
+import com.clicktable.support.model.Plan;
+import com.clicktable.support.model.PlanItem;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface PlanItemService {
+	
+	/**
+	 * 
+	 */
+	PlanItem create();
+	
+	List<Item> getItemsForPlan(Plan plan);
+
+}

@@ -1,0 +1,49 @@
+@(title: String, script: Html = Html(""), sidemenu: Html = Html(""))(content: Html)
+
+@import be.objectify.deadbolt.views.html._
+@import be.objectify.deadbolt.utils.TemplateUtils._
+
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>NoTime - @title</title>
+        <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/main.css")">
+        <link rel="shortcut icon" type="image/png" href="@routes.Assets.at("images/favicon.png")">
+		<script type="text/javascript" data-main="@routes.Assets.at("javascripts/init")" src="@routes.Assets.at("javascripts/require.js")"></script>
+		<script type="text/javascript" src="@routes.Application.javascriptRoutes"></script>
+		@script
+    </head>
+    <body>
+    	<div class="site">
+        	<header>
+        		<hgroup>
+        			<h1><a href="@routes.Application.index()">NoTime</a></h1>
+        			<h5>@title</h5>	
+        		</hgroup>
+        		<nav>
+        			<ul>
+                        @restrict(la(as("admin"), as("customerManager"), as("projectManager"), as("user"))) {
+                        <li><a href="@routes.Users.home()">Home</a></li>
+                        <li><a href="@routes.Reports.entriesPerCustomerPerProjectPerWeek()">Reports</a></li>
+                        }
+                        @restrict(la(as("admin"), as("customerManager"), as("projectManager"))) {
+                        <li><a href="@routes.Application.admin()">Admin</a></li>
+                        }
+                        @restrict(la(as("admin"), as("customerManager"), as("projectManager"), as("user"))) {
+                        <li><a href="@routes.Application.accountOptions()">Account Options</a></li>
+                        }
+                        <li><a href="@routes.Application.logout()">Log Out</a></li>
+        			</ul>
+        		</nav>
+        	</header>
+        	<section>
+            	@content
+        	</section>
+        	<aside class="sidebar">
+        		@sidemenu
+    		</aside>
+        	<footer>NoTime is brought to you by <a href="" target="_blank">Leonard Punt</a> & <a href="http://lunatech-research.com" target="_blank">Lunatech</a></footer>
+        </div>        
+    </body>
+</html>

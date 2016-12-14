@@ -1,0 +1,26 @@
+@(calendar: datastructures.overview.calendar.CalendarMonth)
+
+@import helper._
+@import utils.DateUtil
+
+@main("Entered hours", sidemenu = menus.userMenu()) {
+	<table class="calendarOverview">
+		@for(week <- calendar.weeks) {
+			<tr class="week">
+				@for(day <- week.days) {
+					<td class="day">
+						<div class="dayNumber">@DateUtil.formatDate(day.date, "E d-M")</div>
+						@for(entry <- day.getHourEntries) {
+							<div class="entry">
+								<a href="@routes.HourEntries.edit(entry.id)">
+									@entry.assignment.project.code - <b>@entry.hours</b>h<b>@entry.minutes</b>m
+								</a>
+							</div>
+						}
+					</td>
+				}
+			</tr>
+		}		
+	</table>
+
+}

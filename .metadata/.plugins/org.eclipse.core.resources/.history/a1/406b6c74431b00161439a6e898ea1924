@@ -1,0 +1,233 @@
+package com.clicktable.support.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import play.Logger;
+import play.libs.Json;
+import play.libs.ws.WS;
+
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.GetResponse;
+import com.clicktable.support.dao.intf.ConversationDao;
+import com.clicktable.support.dao.intf.InvoiceDao;
+import com.clicktable.support.dao.intf.InvoiceTaxDao;
+import com.clicktable.support.dao.intf.InvoiceTxnDao;
+import com.clicktable.support.dao.intf.TaxCategoryDao;
+import com.clicktable.support.dao.intf.TaxDao;
+import com.clicktable.support.model.InvoiceTxn;
+import com.clicktable.support.model.Tax;
+import com.clicktable.support.model.TaxCategory;
+import com.clicktable.support.service.intf.InvoicePdfService;
+import com.clicktable.support.service.intf.InvoiceService;
+import com.clicktable.support.service.intf.InvoiceTxnService;
+import com.clicktable.support.util.Constants;
+import com.clicktable.support.util.ResponseCodes;
+import com.clicktable.support.validate.InvoiceTxnValidator;
+import com.clicktable.util.UtilityMethods;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.JsonNode;
+
+@Component
+public class InvoiceTxnServiceImpl implements InvoiceTxnService {
+
+	@Autowired
+	InvoiceTxnDao invoiceTxnDao;
+
+	@Autowired
+	InvoiceDao invoiceDao;
+
+	@Autowired
+	ConversationDao conversationDao;
+
+	@Autowired
+	TaxCategoryDao taxCategoryDao;
+
+	@Autowired
+	TaxDao taxDao;
+
+	@Autowired
+	InvoiceTxnValidator invoiceTxnValidator;
+
+	@Autowired
+	InvoiceTaxDao invoiceTaxDao;
+
+	@Autowired
+	InvoiceService invoiceService;
+
+	@Autowired
+	InvoicePdfService invoicePdfService;
+
+	@Override
+	@Transactional
+	public void insertDailyInvoiceTxn(UserInfoModel userInfoModel, String token) {
+
+		List<Object[]> conversationList = getDeliveredConversationCountForTodayGroupByRestGuid();
+
+		StringBuilder restGuidList = new StringBuilder();
+
+		DateTime currentDate = new DateTime(DateTimeZone.forTimeZone(TimeZone
+				.getTimeZone(Constants.IST))).withTimeAtStartOfDay();
+
+		DateTime previousDate = currentDate.minusDays(1);
+		Logger.debug("insertDailyInvoiceTxn");
+		conversationList.forEach((list) -> {
+			restGuidList.append(list[0]);
+			restGuidList.append(",");
+		});
+
+		WS.url(UtilityMethods.getConfString(Constants.CLICKTABLE_URL)
+				+ Constants.RESTAURANT_URI)
+				.setHeader(Constants.ACCESS_TOKEN, token)
+				.setQueryParameter(Constants.GUID, restGuidList.toString())
+				.setQueryParameter(Constants.ORDERBY, Constants.GUID)
+				.get()
+				.map(response -> {
+					JsonNode responsJson = response.asJson();
+
+					JsonNode restaurantJson = responsJson.get(Constants.LIST);
+					Logger.debug("insertDailyInvoiceTxn response");
+					
+					Map<String, Object> invoiceTxnParams = new HashMap<String, Object>();
+
+					for (int i = 0; i < conversationList.size(); i++) {
+						Object[] conversationInfo = conversationList.get(i);
+						Restaurant restInfo = Json.fromJson(
+								restaurantJson.get(i), Restaurant.class);
+
+						invoiceTxnParams.put(Constants.RESTAURANTGUID,
+								restInfo.getGuid());
+						invoiceTxnParams.put(Constants.DELIVERY_DATE,
+								previousDate.toDate());
+						List<InvoiceTxn> existingInvoiceTxnList = invoiceTxnDao
+								.findByFields(InvoiceTxn.class,
+										invoiceTxnParams);
+
+						if (existingInvoiceTxnList.isEmpty()) {
+							setInvoiceandInvoiceTxn(userInfoModel,
+									previousDate, conversationInfo, restInfo);
+
+						}
+					}				
+					
+					if (currentDate.getDayOfMonth() == 1) {
+						
+						updateInvoiceTxnGuid(userInfoModel);
+						Logger.debug("insertDailyInvoiceTxn For Loop");
+						System.out.println("insertDailyInvoiceTxn For Loop");
+						
+						List<Object[]> invoiceTxnList = invoiceDao
+								.generateInvoiceOnStartOfTheMonth();
+
+						StringBuilder restList = new StringBuilder();
+
+						invoiceTxnList.forEach((list) -> {
+							restList.append(list[0]);
+							restList.append(",");
+						});
+
+				//		invoiceService.generateInvoice(userInfoModel, token,
+								invoiceTxnList, restList);
+						invoicePdfService.generatePdf();
+					}
+
+					return responsJson;
+				});
+	}
+
+	// restGuid, Sum(conversationCount), count(conversationCount)
+
+	private List<Object[]> getDeliveredConversationCountForTodayGroupByRestGuid() {
+		List<Object[]> list = conversationDao.getDeliveredConversationCount();
+		return list;
+	}
+
+	@Override
+	@Transactional
+	public void updateInvoiceTxnGuid(UserInfoModel userInfoModel) {
+
+		List<Object[]> invoiceGuidList = invoiceDao
+				.findAllInvoiceForCurrentMonth();
+		
+		for (int i = 0; i < invoiceGuidList.size(); i++) {
+			Object[] restAndInvoiceGuidList = invoiceGuidList.get(i);
+			String restGuid = (String) restAndInvoiceGuidList[0];
+			String guid = (String) restAndInvoiceGuidList[1];
+
+			Integer result = invoiceTxnDao.updateInvoiceTxn(restGuid, guid);
+
+			if (result < 0) {
+				Logger.error("Failure in invoiceGuid update ! guid =" + guid);
+			}
+		}
+	}
+
+	@Override
+	public BaseResponse getInvoiceTxn(Map<String, Object> params) {
+		Map<String, Object> validParams = invoiceTxnValidator
+				.validateFinderParams(params, InvoiceTxn.class);
+		List<InvoiceTxn> list = invoiceTxnDao.findByFields(InvoiceTxn.class,
+				validParams);
+
+		BaseResponse response = new GetResponse<InvoiceTxn>(
+				ResponseCodes.INVOICE_TXN_FETCHED_SUCCESSFULLY, list);
+		return response;
+	}
+
+	private void setInvoiceandInvoiceTxn(UserInfoModel userInfoModel,
+			DateTime previousDate, Object[] conversationInfo,
+			Restaurant restInfo) {
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		params.put(Constants.STATUS, Constants.ACTIVE);
+		params.put(Constants.VALIDFROM_BEFORE_ORON, previousDate.toDate());
+		params.put(Constants.VALIDTILL_AFTER_ORON, previousDate.toDate());
+
+		TaxCategory existingtaxCategory = taxCategoryDao.findByFields(
+				TaxCategory.class, params).get(0);
+
+		InvoiceTxn invoiceTxn = new InvoiceTxn(conversationInfo,
+				existingtaxCategory);
+
+		invoiceTxn.setInfoOnCreate(userInfoModel);
+
+		Map<String, Object> taxParams = new HashMap<String, Object>();
+
+		taxParams.put(Constants.STATE, restInfo.getPhysicalState());
+		taxParams.put(Constants.STATUS, Constants.ACTIVE);
+		taxParams.put(Constants.COUNTRY, Constants.INDIA);
+		taxParams.put(Constants.VALIDFROM_BEFORE_ORON, previousDate.toDate());
+		taxParams.put(Constants.VALIDTILL_AFTER_ORON, previousDate.toDate());
+
+		List<Tax> taxListForRestaurant = taxDao.findByFields(Tax.class,
+				taxParams);
+
+		List<ValidationError> errorList = invoiceTxnValidator
+				.validateInvoiceTxnOnAdd(invoiceTxn);
+
+		if (errorList.isEmpty()) {
+
+			InvoiceTxn insertedInvoiceTxn = invoiceTxnDao.create(invoiceTxn);
+
+			if (insertedInvoiceTxn != null) {
+				invoiceService.updateInvoiceUnbilledAmount(userInfoModel,
+						insertedInvoiceTxn, taxListForRestaurant);
+			}
+
+		} else
+			Logger.error("Failure in InvoiceTxn insertion! guid = "
+					+ invoiceTxn.getGuid());
+
+	}
+
+}

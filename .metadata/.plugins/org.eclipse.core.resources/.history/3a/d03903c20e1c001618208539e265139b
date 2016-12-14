@@ -1,0 +1,45 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.impl;
+
+import java.util.List;
+
+import com.clicktable.support.model.InvoiceLine;
+import com.clicktable.support.model.Item;
+import com.clicktable.support.service.intf.InvoiceLineService;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class InvoiceLineServiceImpl implements InvoiceLineService {
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#create(com.clicktable.support.model.InvoiceLine)
+	 */
+	@Override
+	public InvoiceLine create(InvoiceLine invoiceLine) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#createMultiple(java.util.List)
+	 */
+	@Override
+	public List<InvoiceLine> createMultiple(List<InvoiceLine> listInvoiceLine) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/* (non-Javadoc)
+	 * @see com.clicktable.support.service.intf.InvoiceLineService#generateInvoiceLine(com.clicktable.support.model.Item, int)
+	 */
+	@Override
+	public InvoiceLine generateInvoiceLine(Item item, int itemPrice) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

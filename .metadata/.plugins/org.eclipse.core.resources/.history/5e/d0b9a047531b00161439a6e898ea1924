@@ -1,0 +1,19 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.support.model.PlanBillableItem;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface PlanBillableItemService {
+	
+	/**
+	 * 
+	 */
+	PlanBillableItem create();
+
+}

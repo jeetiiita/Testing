@@ -1,0 +1,39 @@
+/**
+ * 
+ */
+package string;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class IterartorAndForLoop {
+
+	
+	public static void main(String[] args) {
+	List<String> itrList = new CopyOnWriteArrayList<>();
+	
+	itrList.add("abc");
+	itrList.add("bcd");
+	itrList.add("cde");
+	
+/*	itrList.forEach(i->{
+		itrList.add("ABDC");
+	});*/
+	
+	Iterator<String> itr = itrList.iterator();
+	
+	while(itr.hasNext()) {
+//		itrList.remove(itr.next());
+		itr.remove();
+	}
+	
+	
+	System.out.println(itrList.size());
+	}
+}

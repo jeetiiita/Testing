@@ -1,0 +1,43 @@
+1478521392448	Rename type 'GuestReferral'
+1478521404874	Rename type 'RestaurantFeedBack'
+1478521420909	Rename type 'RestaurantGuestReferralConfig'
+1478521471491	Rename field 'guestReferralList'
+1478521491366	Rename field 'feedBackList'
+1478521504754	Rename field 'restReferralList'
+1478525760222	Rename type 'RestaurantReferralConfigDao'
+1478525938108	Delete element
+1478525954636	Rename type 'FeedBack'
+1478586770509	Rename type 'GuestFeedBack'
+1478599120230	Rename local variable 'restGuid'
+1478600876827	Copy compilation unit
+1478602293003	Delete element
+1478603867942	Copy compilation unit
+1478604229583	Delete element
+1478604553647	Delete element
+1478604569664	Delete element
+1478609776481	Rename type 'FeedBackDao'
+1478615732143	Delete element
+1478677708362	Rename type 'FeedbackValidator'
+1478678835751	Rename local variable 'dbValues'
+1478692692688	Rename method 'feedBackExistOrNot'
+1478692728619	Rename method 'isFeedbackExists'
+1478692788742	Extract method 'updateUnknownGuest'
+1478695437847	Rename local variable 'reservationGuid'
+1478695462828	Rename local variable 'resvGuid'
+1478700261298	Rename local variable 'resvGuid'
+1478762208430	Change method 'getFeedbackList'
+1478762474050	Change method 'getFeedbackList'
+1478763108633	Change method 'getGuestFeedBackList'
+1478769521819	Rename method 'getRestaurantFeedbackConfig'
+1478769978043	Change method 'getGuestFeedBack'
+1478780217318	Rename method 'getGuestFeedback'
+1478785733836	Rename method 'getoverAllRatinghFilter'
+1478848953036	Copy compilation unit
+1478850228777	Delete element
+1478850233310	Delete element
+1478851202525	Rename local variable 'guestFeedback'
+1478851606095	Rename local variable 'guestFeedback'
+1478860645252	Rename local variable 'guid'
+1478860654847	Rename local variable 'guid'
+1478860669536	Rename local variable 'feedback'
+1478861003523	Rename field 'INVALID_EXT_PIN'

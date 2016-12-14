@@ -1,0 +1,143 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@Entity
+@Table(name="invoice_billing_info")
+public class InvoiceBillingInfo{
+	
+	@Id
+	@GeneratedValue
+	private Integer id;
+	
+	@Column(name = "invoice_id")
+	private Integer invoiceId;
+	
+	@Column(name = "address1")
+	private String address1;
+	
+	@Column(name = "address2")
+	private String address2;
+	
+	@Column(name = "legal_name")
+	private String leagalName;
+	
+	@Column(name = "email")
+	private String email;
+	
+	@Column(name = "phone")
+	private String phone;
+	
+	@Column(name = "zip_code")
+	private String zipCode;
+	
+	@Column(name = "account_id")
+	private String accountId;
+	
+	@Column(name = "state")
+	private String state;
+	
+	@Column(name = "country")
+	private String country;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public Integer getInvoiceId() {
+		return invoiceId;
+	}
+
+	public void setInvoiceId(Integer invoiceId) {
+		this.invoiceId = invoiceId;
+	}
+
+	public String getAddress1() {
+		return address1;
+	}
+
+	public void setAddress1(String address1) {
+		this.address1 = address1;
+	}
+
+	public String getAddress2() {
+		return address2;
+	}
+
+	public void setAddress2(String address2) {
+		this.address2 = address2;
+	}
+
+	public String getLeagalName() {
+		return leagalName;
+	}
+
+	public void setLeagalName(String leagalName) {
+		this.leagalName = leagalName;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getZipCode() {
+		return zipCode;
+	}
+
+	public void setZipCode(String zipCode) {
+		this.zipCode = zipCode;
+	}
+
+	public String getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(String accountId) {
+		this.accountId = accountId;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getCountry() {
+		return country;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+	
+}

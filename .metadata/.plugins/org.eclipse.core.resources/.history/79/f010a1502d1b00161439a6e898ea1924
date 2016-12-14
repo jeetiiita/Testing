@@ -1,0 +1,43 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import java.util.Date;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class InvoiceLine {
+	
+	
+	private String invGuid;
+	
+	private String restGuid;
+	
+	private Integer lineNumber;
+	
+	private Date orderDate;
+	
+	private String itemGuid;
+	
+	private String itemName;
+	
+	private String itemDesc;
+	
+	private Integer itemQty;
+	
+	private double itemPlanPrice;
+	
+	private Integer finMonth;
+	
+	private Integer finYear;
+	
+	private double lineBasicAmount;
+	
+	
+	
+	
+
+}

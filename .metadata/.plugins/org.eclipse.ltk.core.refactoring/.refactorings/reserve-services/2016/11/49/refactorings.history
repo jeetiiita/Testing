@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;stringParamMap&apos; in &apos;com.clicktable.consumer.controllers.RestaurantController.getNearByRestaurant()&apos; to &apos;params&apos;&#x0D;&#x0A;- Original project: &apos;reserve-services&apos;&#x0D;&#x0A;- Original element: &apos;com.clicktable.consumer.controllers.RestaurantController.getNearByRestaurant().stringParamMap&apos;&#x0D;&#x0A;- Renamed element: &apos;stringParamMap&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;stringParamMap&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/app&lt;com.clicktable.consumer.controllers{RestaurantController.java[RestaurantController~getNearByRestaurant@stringParamMap!2003!2103!2023!2036!QMap\&lt;QString;QObject;&gt;;!0!false" name="params" references="true" stamp="1480497571983" version="1.0"/>
+</session>

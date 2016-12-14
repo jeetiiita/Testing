@@ -1,0 +1,5 @@
+1475831433900	Rename field 'CREATE_EXTN_TABLE'
+1475831594681	Rename field 'IS_CREATE_EXTN_TABLE'
+1475839975667	Rename method 'addReviewRating'
+1475842168674	Rename field 'reviewRateDao'
+1475842400581	Rename field 'validateReviewRating'

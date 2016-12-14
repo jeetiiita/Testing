@@ -1,0 +1,34 @@
+package com.clicktable.controllers;
+
+import play.mvc.Controller;
+import play.mvc.Result;
+
+import com.ning.billing.recurly.RecurlyClient;
+
+public class Addcustomer extends Controller {
+	
+	
+	final String APIKEY = "cc05476af9064906afe93e929ba6d4e1";
+	final String DOMAIN = "clicktable";
+	
+	public Result AddCustomerRecurly()
+	{
+	
+		RecurlyClient recurlyClient = null;
+		
+/*		final String Apikey = System.getProperty(APIKEY);
+		final String Domain = System.getProperty(DOMAIN);
+	
+		if(Apikey == null)
+			System.out.println("Null value found ");*/
+		
+		recurlyClient = new RecurlyClient(APIKEY, DOMAIN);
+		recurlyClient.open();
+		
+				
+		return ok("Recurly is opened successfully");
+		
+	}
+	
+	
+}

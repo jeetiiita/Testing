@@ -1,0 +1,15 @@
+/**
+ * 
+ */
+package com.clicktable.support.controllers;
+
+import org.springframework.stereotype.Controller;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Controller
+public class PushNotificationController extends play.mvc.Controller {
+
+}

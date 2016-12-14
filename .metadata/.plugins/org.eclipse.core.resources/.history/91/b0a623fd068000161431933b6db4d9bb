@@ -1,0 +1,229 @@
+package com.clicktable.consumer.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.consumer.dao.intf.RestaurantDetailDao;
+import com.clicktable.consumer.service.intf.RestaurantDetailService;
+import com.clicktable.consumer.util.ReserveConstants;
+import com.clicktable.consumer.util.ResponseCodes;
+import com.clicktable.consumer.validate.RestaurantDetailValidator;
+import com.clicktable.model.Event;
+import com.clicktable.model.GuestReview;
+import com.clicktable.model.QuickSearchReservationNew;
+import com.clicktable.model.RecentlySearchedRest;
+import com.clicktable.model.RestaurantBasicInfo;
+import com.clicktable.model.SlotInformation;
+import com.clicktable.response.BaseResponse;
+import com.clicktable.response.ErrorResponse;
+import com.clicktable.response.SupportResponse;
+import com.clicktable.util.Constants;
+import com.clicktable.validate.ValidationError;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import play.cache.Cache;
+
+@Service
+public class RestaurantDetailServiceImpl implements RestaurantDetailService {
+
+	@Autowired
+	RestaurantDetailValidator restValidator;
+
+	@Autowired
+	RestaurantDetailDao restaurantDetailDao;
+
+	
+
+	@Override
+	public BaseResponse getBasicInfo(Map<String, Object> stringParamMap) {
+		BaseResponse response;
+		List<ValidationError> listOfError = new ArrayList<>();
+		Map<String, Object> validParamMap = restValidator.validateFetchParams(stringParamMap, listOfError);
+
+		if (listOfError.isEmpty()) {
+
+			RestaurantBasicInfo restInfo = restaurantDetailDao.getRestaurantInfo(validParamMap);
+
+			if (restInfo != null) {
+				if (stringParamMap.containsKey(ReserveConstants.GUEST_GUID)
+						&& !("").equalsIgnoreCase(stringParamMap.get(ReserveConstants.GUEST_GUID).toString())
+						&& restInfo != null && restInfo.getGuid() != null) {
+
+					RestaurantBasicInfo basicInfo = new RestaurantBasicInfo();
+					try {
+						basicInfo = (RestaurantBasicInfo) restInfo.clone();
+					} catch (CloneNotSupportedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					addToUserSearchHistory((String) stringParamMap.get(ReserveConstants.GUEST_GUID), basicInfo, 0);
+				}
+				response = new BaseResponse(ResponseCodes.RESTAURANT_BASIC_INFO_FETCHED, true, restInfo);
+			} else {
+				response = new ErrorResponse(ResponseCodes.RESTAURANT_BASIC_INFO_FETCH_FAILED, listOfError);
+			}
+
+		} else {
+			response = new ErrorResponse(ResponseCodes.RESTAURANT_BASIC_INFO_FETCH_FAILED, listOfError);
+		}
+
+		return response;
+	}
+
+	@Override
+	public BaseResponse getSlotInfo(Map<String, Object> validParamMap, String token, List<QuickSearchReservationNew> quickSearchList) {
+
+		BaseResponse response;
+		List<SlotInformation> restSlotInfoList = new ArrayList<>();
+		List<ValidationError> listOfError = new ArrayList<>();
+		Map<String, Object> result = new HashMap<>();
+		if (listOfError.isEmpty()) {
+
+			if (!quickSearchList.isEmpty()) {
+
+				List<Event> calEvents = new ArrayList<>();
+				long diningSlot = 0;
+				Map<String, Object> resultMap = getRunningEvents(validParamMap, quickSearchList);
+				if (resultMap != null) {
+					diningSlot = (Integer) resultMap.get("interval");
+					calEvents = (List<Event>) resultMap.get("calEvents");
+				}
+
+				for (QuickSearchReservationNew quickSearch : quickSearchList) {
+					SlotInformation slotInfo = new SlotInformation(quickSearch);
+					Long slotStart = slotInfo.getTime();
+					Long slotEnd = slotStart + diningSlot * 60 * 1000;
+					slotInfo.setSlotEnd(slotEnd);
+					restSlotInfoList.add(slotInfo);
+				}
+				result.put("slotInformation", restSlotInfoList);
+				result.put("eventOfferList", calEvents);
+			}
+			response = new SupportResponse<>(ResponseCodes.RESTAURANT_SLOT_INFO_FETCHED, result);
+		} else {
+			response = new ErrorResponse(ResponseCodes.RESTAURANT_SLOT_INFO_FETCH_FAILED, listOfError);
+		}
+
+		return response;
+	}
+	private Map<String, Object> getRunningEvents(Map<String, Object> validParamMap,
+			List<QuickSearchReservationNew> quickSearchList) {
+		List<String> typeList = new ArrayList<>();
+		typeList.add(Constants.EVENT);
+		typeList.add(Constants.OFFER);
+		validParamMap.put(Constants.TYPE, typeList);
+
+		Long firstSlot = quickSearchList.get(0).getTime();
+		Long lastSlot = quickSearchList.get(quickSearchList.size() - 1).getTime();
+
+		validParamMap.put(Constants.END_TIME_AFTER, firstSlot);
+		validParamMap.put(Constants.START_TIME_BEFORE, lastSlot);
+
+		return restaurantDetailDao.getCalEventsWithDiningSlot(validParamMap);
+
+	}
+
+	@Override
+	public BaseResponse getReviews(Map<String, Object> stringParamMap) {
+		BaseResponse response;
+		List<ValidationError> listOfError = new ArrayList<>();
+		Map<String, Object> validParamMap = restValidator.validateFetchParams(stringParamMap, listOfError);
+
+		if (listOfError.isEmpty()) {
+
+			List<GuestReview> restInfo = restaurantDetailDao.getRestaurantReviews(validParamMap);
+			response = new BaseResponse(ResponseCodes.RESTAURANT_REVIEWS_FETCHED, true, restInfo);
+		} else {
+			response = new ErrorResponse(ResponseCodes.RESTAURANT_REVIEWS_FETCH_FAILED, listOfError);
+		}
+
+		return response;
+	}
+	
+	
+	
+	@Override
+	public void addToUserSearchHistory(String guestGuid, Object restInfo, Integer type){
+		/*0 : recently Viewed
+		1 : recently dined
+		2 : recent searches*/
+
+		Map<Integer, Queue<Map>> guestHistoryMap = (Map<Integer, Queue<Map>>) Cache.get("hist:"+guestGuid);
+		guestHistoryMap = guestHistoryMap == null ? new HashMap<>() : guestHistoryMap;
+
+		Queue<Map> recentlyVisitedRestaurants = guestHistoryMap == null ? new LinkedList<>() : 
+			(Queue<Map>) guestHistoryMap.get(type);
+
+		recentlyVisitedRestaurants = recentlyVisitedRestaurants == null ? new LinkedList<>() : recentlyVisitedRestaurants;
+
+		if(type == 0)
+			changeRestInfoToRemovePhotoUrls(restInfo, type);
+		
+		Map recentlySearchedRestaurant = convertEntityAtoBtoMap(restInfo);
+
+
+
+		for(Map o : recentlyVisitedRestaurants){
+			if((String) o.get("name") != null && ((String) o.get("name")).equalsIgnoreCase((String) recentlySearchedRestaurant.get("name"))){
+				recentlyVisitedRestaurants.remove(o);
+				break;
+			}
+		}
+
+		if(recentlyVisitedRestaurants.size() == 3)
+		{
+			recentlyVisitedRestaurants.remove();
+		}
+
+		recentlyVisitedRestaurants.add(recentlySearchedRestaurant);
+		guestHistoryMap.put(type, recentlyVisitedRestaurants);
+		Cache.set("hist:"+guestGuid, guestHistoryMap);
+
+
+	}
+	
+/*	public <T> T convertEntityAtoB(Object a, Class<T> type){
+		ObjectMapper objMapper = new ObjectMapper();
+		Map<String,Object> props = objMapper.convertValue(a, Map.class);
+		return (T) objMapper.convertValue(props, type);
+	}*/
+	
+	private void changeRestInfoToRemovePhotoUrls(Object restInfo, Integer type) {
+		
+		if(type == 0){
+			
+			RestaurantBasicInfo restBasicInfo = (RestaurantBasicInfo) restInfo;
+			List<String> photoUrls = restBasicInfo.getPhotoUrls();
+			List<String> responsePhotoUrl = new ArrayList<>();
+			
+			if(photoUrls != null && photoUrls.size() >= 1){
+				responsePhotoUrl.add(photoUrls.get(0));
+			}
+			
+			restBasicInfo.setPhotoUrls(responsePhotoUrl);
+			/*restInfo = restBasicInfo;*/
+			
+		}
+		
+	}
+
+
+	public Map convertEntityAtoBtoMap(Object a){
+		ObjectMapper objMapper = new ObjectMapper();
+		Map<String,Object> props = objMapper.convertValue(a, Map.class);
+		RecentlySearchedRest r = objMapper.convertValue(props, RecentlySearchedRest.class);
+		
+		
+		return objMapper.convertValue(r, Map.class);
+	}
+	
+
+}

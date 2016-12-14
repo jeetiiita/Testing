@@ -1,0 +1,40 @@
+/**
+ * 
+ */
+package com.clicktable.support.model;
+
+import javax.persistence.Id;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class InvoiceBillingInfo {
+	
+	@Id
+	private Integer id;
+	
+	private Integer invoiceId;
+	
+	private String address1;
+	
+	private String address2;
+	
+	private String leagalName;
+	
+	private String email;
+	
+	private String phone;
+	
+	private String zipCode;
+	
+	private String accountId;
+	
+	private String state;
+	
+	private String country;
+	
+	
+	
+
+}

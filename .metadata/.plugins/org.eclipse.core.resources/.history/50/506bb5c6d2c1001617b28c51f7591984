@@ -1,0 +1,668 @@
+package com.clicktable.consumer.dao.impl;
+
+import static com.clicktable.consumer.util.ReserveConstants.DAY_NAME;
+import static com.clicktable.consumer.util.ReserveConstants.FRIDAY;
+import static com.clicktable.consumer.util.ReserveConstants.MONDAY;
+import static com.clicktable.consumer.util.ReserveConstants.SATURDAY;
+import static com.clicktable.consumer.util.ReserveConstants.SUNDAY;
+import static com.clicktable.consumer.util.ReserveConstants.THURSDAY;
+import static com.clicktable.consumer.util.ReserveConstants.TUESDAY;
+import static com.clicktable.consumer.util.ReserveConstants.WEDNESDAY;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.joda.time.DateTime;
+import org.neo4j.graphdb.Relationship;
+import org.springframework.data.neo4j.conversion.Result;
+import org.springframework.stereotype.Service;
+
+import play.Logger;
+
+import com.clicktable.consumer.dao.intf.RestaurantDao;
+import com.clicktable.consumer.util.ReserveConstants;
+import com.clicktable.model.Attribute;
+import com.clicktable.model.CalenderEvent;
+import com.clicktable.model.Cuisine;
+import com.clicktable.model.CustomGuidCalEvent;
+import com.clicktable.model.Discount;
+import com.clicktable.model.Event;
+import com.clicktable.model.GuestReview;
+import com.clicktable.model.Menu;
+import com.clicktable.model.OperationalHours;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.RestaurantBasicInfo;
+import com.clicktable.model.RestaurantExtension;
+import com.clicktable.model.Review;
+import com.clicktable.model.Shift;
+import com.clicktable.util.Constants;
+import com.clicktable.util.RelationshipTypes;
+import com.clicktable.util.UtilityMethods;
+
+/**
+ * @author j.yadav
+ *
+ */
+@Service
+public class RestaurantDaoImpl extends GraphDBDao<Restaurant> implements RestaurantDao {
+
+	private static final Logger.ALogger log = Logger.of(RestaurantDaoImpl.class);
+	 /**
+     * Constructor set the class type to Model class
+     * 
+     */
+	public RestaurantDaoImpl() {
+		super();
+		this.setType(Restaurant.class);
+	}
+
+	@Override
+	public RestaurantBasicInfo getRestaurantInfo(Map<String, Object> params) {
+
+		String query = buildRestInfoGetQuery(params);
+		long startTime= Calendar.getInstance().getTimeInMillis();
+		log.info("----------------------");
+		Result<Map<String, Object>> res = template.query(String.valueOf(query), params);
+		log.info("-------END First Call ---------------"+ (Calendar.getInstance().getTimeInMillis()-startTime));
+		RestaurantBasicInfo basicInfo = new RestaurantBasicInfo();
+
+		Iterator<Map<String, Object>> i = res.iterator();
+		Restaurant rest = new Restaurant();
+		RestaurantExtension restExt = new RestaurantExtension();
+
+		if (i.hasNext()) {
+			Map<String, Object> map = i.next();
+			rest = template.convert(map.get("rest"), Restaurant.class);
+			restExt = template.convert(map.get("restExt"), RestaurantExtension.class);
+			if (restExt != null) {
+				basicInfo.setReviewBucket(restExt);
+			}
+			setBasicInfoList(map, basicInfo);
+
+			OperationalHours operationalHours = convertToOperationalHours((List) map.get("diningShifts"));
+			operationalHours.setRestGuid(params.get(Constants.REST_GUID).toString());
+			basicInfo.setOperationalHours(operationalHours);
+			setRestaurantInfo(rest, basicInfo);
+		}
+		else {
+			basicInfo = null;
+		}
+
+		return basicInfo;
+	}
+
+	private void setBasicInfoList(Map<String, Object> map, RestaurantBasicInfo basicInfo) {
+
+		List<Cuisine> cuisines = (List<Cuisine>) map.get("cuisines");
+		List<Menu> menus = (List<Menu>) map.get("menus");
+		List<Attribute> highLights = (List<Attribute>) map.get("highLights");
+		if (map.containsKey("categoryName") && map.get("categoryName") != null) {
+			String restType = map.get("categoryName").toString();
+			basicInfo.setRestaurantType(restType);
+		}
+		List<GuestReview> guestReviews = new ArrayList<>();
+		List<List<Object>> guestReviewList = (List<List<Object>>) map.get("reviews");
+
+		basicInfo.setFollowerCount((int) map.get("followerCount"));
+
+		if (map.containsKey("followed") ) {
+			if((int) map.get("followed") > 0)
+				basicInfo.setFollowed(true);
+			else
+				basicInfo.setFollowed(false);
+		}
+		if (guestReviewList != null) {
+			for (List<Object> entry : guestReviewList) {
+
+				GuestReview guestReview = new GuestReview();
+				if (entry.get(0)!= null) {
+					guestReview.setGuestName(entry.get(0) == null ? null :String.valueOf(entry.get(0)));
+					guestReview.setPhotoUrl(entry.get(1) == null ? null :String.valueOf(entry.get(1)));
+					guestReview.setUpdatedDate(
+							entry.get(2) == null ? null : new Date(Long.parseLong(entry.get(2).toString())));
+					guestReview.setReview(String.valueOf(entry.get(3)));
+					guestReview.setRating(entry.get(4) == null ? 0 : Integer.parseInt(entry.get(4).toString()));
+					guestReview.setReviewResponse(String.valueOf(entry.get(5)));
+					guestReview.setResponseDate(
+							entry.get(6) == null ? null : new Date(Long.parseLong(entry.get(6).toString())));
+					guestReview.setRead(
+							Boolean.parseBoolean(entry.get(7).toString()));
+					guestReview.setReply(
+							Boolean.parseBoolean(entry.get(8).toString()));
+					guestReview.setReviewRatingGuid(entry.get(9).toString());
+					
+					guestReview.setReviewMessageReported(Boolean.valueOf((null==entry.get(10))?"false":entry.get(10).toString()));
+					guestReview.setResponseReported(Boolean.valueOf((null==entry.get(11))?"false":entry.get(11).toString()));
+					guestReview.setCreated_dt(
+							entry.get(12) == null ? null : new Date(Long.parseLong(entry.get(12).toString())));
+
+					guestReviews.add(guestReview);
+				}
+			}
+
+		}
+
+		if (!guestReviews.isEmpty()) {
+			basicInfo.setGuestReviews(guestReviews);
+		}
+		basicInfo.setMenu(menus);
+		basicInfo.setHighLights(highLights);
+		basicInfo.setCuisines(cuisines);
+
+	}
+
+	private void setRestaurantInfo(Restaurant rest, RestaurantBasicInfo basicInfo) {
+		if (rest != null) {
+			basicInfo.setGuid(rest.getMaskedGuid());
+			basicInfo.setAddressLine1(rest.getAddressLine1());
+			//basicInfo.setAddressLine2(rest.getAddressLine2());
+			basicInfo.setCity(rest.getCity());
+			basicInfo.setLocality(rest.getLocality());
+			basicInfo.setRegion(rest.getRegion());
+			basicInfo.setBuilding(rest.getBuilding());
+			basicInfo.setState(rest.getState());
+
+			basicInfo.setCostFor2(rest.getCostFor2());
+			basicInfo.setLatitude(rest.getLatitude());
+			basicInfo.setLongitude(rest.getLongitude());
+
+			basicInfo.setPhoneNo1(rest.getPhoneNo1());
+			basicInfo.setPhoneNo2(rest.getPhoneNo2());
+
+
+			basicInfo.setSource(rest.getType());
+			basicInfo.setTagLine(rest.getTagLine());
+			basicInfo.setWebsite(rest.getWebsite());
+
+			basicInfo.setPhotoUrls(rest.getImages());
+			basicInfo.setZipcode(rest.getZipcode());
+			basicInfo.setDisplayName(rest.getDisplayName());
+			basicInfo.setName(rest.getName());
+			basicInfo.setLocalityDisplayName(rest.getLocalityDisplayName());
+
+			String countryCode = rest.getCountryCode();
+
+			if(countryCode !=null) {
+				List<String> countryName = UtilityMethods.getEnumValues("country", countryCode);
+
+				if (!countryName.isEmpty()) {
+					basicInfo.setCountry(countryName.get(0));
+				}
+			}
+		}
+
+	}
+
+	@Override
+	public OperationalHours convertToOperationalHours(List diningShifts) {
+		OperationalHours opHours = initOperationalHours();
+		if (null != diningShifts) {
+			for (Object diningShift : diningShifts) {
+				Shift shift = getShiftObject((Map<String, Object>) diningShift);
+				String day = shift.getDay();
+				switch (day) {
+					case SUNDAY:
+						opHours.getSunday().add(shift);
+						break;
+					case MONDAY:
+						opHours.getMonday().add(shift);
+						break;
+					case TUESDAY:
+						opHours.getTuesday().add(shift);
+						break;
+					case WEDNESDAY:
+						opHours.getWednesday().add(shift);
+						break;
+					case THURSDAY:
+						opHours.getThursday().add(shift);
+						break;
+					case FRIDAY:
+						opHours.getFriday().add(shift);
+						break;
+					case SATURDAY:
+						opHours.getSaturday().add(shift);
+						break;
+					default:
+				}
+			}
+		}
+		return opHours;
+	}
+
+	private Shift getShiftObject(Map<String, Object> diningShift) {
+		Shift shift = new Shift();
+		shift.setDay(diningShift.get(DAY_NAME).toString());
+		shift.setStartTimeInMillis(Long.parseLong(diningShift.get("startTimeInMillis").toString()));
+		shift.setEndTimeInMillis(Long.parseLong(diningShift.get("endTimeInMillis").toString()));
+		shift.setAll_day(Boolean.valueOf(diningShift.get("all_day").toString()));
+		shift.setShiftName(diningShift.get("shiftName").toString());
+		shift.setDiningSlot(0);
+		int mins = (int) (shift.getStartTimeInMillis() / 1000 / 60);
+		shift.setStartTime(getTimeInHHMM(mins));
+
+		mins = (int) (shift.getEndTimeInMillis() / 1000 / 60);
+		shift.setEndTime(getTimeInHHMM(mins));
+
+		return shift;
+	}
+
+	private String getTimeInHHMM(int mins) {
+		StringBuilder time = new StringBuilder();
+		time.append(mins / 60).append(':').append(mins % 60);
+		return time.toString();
+	}
+
+	private OperationalHours initOperationalHours() {
+		OperationalHours operationalHours = new OperationalHours();
+		operationalHours.setSunday(new ArrayList<>());
+		operationalHours.setMonday(new ArrayList<>());
+		operationalHours.setTuesday(new ArrayList<>());
+		operationalHours.setWednesday(new ArrayList<>());
+		operationalHours.setThursday(new ArrayList<>());
+		operationalHours.setFriday(new ArrayList<>());
+		operationalHours.setSaturday(new ArrayList<>());
+		return operationalHours;
+	}
+
+	private String buildRestInfoGetQuery(Map<String, Object> params) {
+		// Restaurant node
+		StringBuilder matchQuery = new StringBuilder("MATCH (restaurant: `Restaurant` {guid:{" + Constants.REST_GUID
+				+ "}})-[:" + RelationshipTypes.HAS_CUISINE + "]->(cuisine: Cuisine)  WITH collect(distinct cuisine) as cuisines,restaurant as rest ");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:" + RelationshipTypes.REST_HAS_EXTN
+				+ "]->(restExt: `RestaurantExtension`) WITH  cuisines,rest,restExt");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:" + RelationshipTypes.REST_HAS_MENU + "]->(menu: Menu)"
+				+ " WITH  cuisines,rest,restExt,collect(distinct menu) as menus ");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:REST_HAS_OPHR]->(shift:`Shift`) "
+				+ " WITH  cuisines,rest,restExt, menus,collect(distinct shift) as diningShifts");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:HAS_GUEST {followed : true}]->(guest:GuestProfile) "
+				+ "WITH  cuisines,rest,restExt,menus,diningShifts,count(distinct guest) as followerCount ");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:HAS_ATTR]->(h: `Attribute`{type:'CATEGORY'}) "
+				+ "WITH  cuisines,rest,restExt, menus,diningShifts,"
+				+ "followerCount,h.name as categoryName");
+
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:HAS_ATTR]->(hs: `Attribute`{type:'HIGHLIGHTS'}) "
+				+ " WITH  cuisines,rest,restExt, menus, diningShifts,"
+				+ " followerCount,categoryName,collect(distinct hs) as highLights");
+
+		if (params.containsKey(Constants.GUEST_GUID) && params.get(Constants.GUEST_GUID) != null) {
+			matchQuery.append(" OPTIONAL MATCH (rest)-[:HAS_GUEST {followed : true}]->(guest1:GuestProfile {guid: {"
+					+ Constants.GUEST_GUID + "}}) "
+					+ " WITH  cuisines,rest,restExt, menus, diningShifts,"
+					+ " followerCount,categoryName,highLights,count(distinct guest1) as followed");
+
+		}
+		matchQuery.append(" OPTIONAL MATCH (rest)-[:" + RelationshipTypes.HAS_GUEST + "]->(reviewer: GuestProfile)"
+				+ "-[:" + RelationshipTypes.GUEST_HAS_REVIEW + "{rest_guid:{" + Constants.REST_GUID
+				+ "},reviewed:true}]->(review:ReviewRating) WHERE HAS(review.review) AND LENGTH(review.review)>0  "
+				+ "WITH  cuisines,rest,restExt,menus,diningShifts,"
+				+ " followerCount,categoryName,highLights,review,reviewer");
+
+		if (params.containsKey(Constants.GUEST_GUID) && params.get(Constants.GUEST_GUID) != null) {
+			matchQuery.append(",followed");
+
+		}
+
+
+		matchQuery.append(" ORDER BY review.updated_dt DESC LIMIT 5  ");
+
+
+		matchQuery
+				.append(" RETURN rest, restExt, cuisines, menus, diningShifts, followerCount, highLights,categoryName");
+
+		if (params.containsKey(Constants.GUEST_GUID) && params.get(Constants.GUEST_GUID) != null) {
+			matchQuery.append(",followed");
+
+		}
+
+		matchQuery.append(",collect(distinct [reviewer.first_name, reviewer.photo_url, review.updated_dt, review.review, "
+				+ "review.rating, review.review_response, review.response_dt,review.read,review.reply,review.guid,review.is_review_reported,review.is_response_reported,review.created_dt]) as reviews ");
+
+
+		log.debug("Query for restaurant details {}", matchQuery);
+
+		log.info("----------------------");
+		log.info(matchQuery.toString());
+		log.info("----------------------");
+		return matchQuery.toString();
+
+	}
+
+	@Override
+	public Map<String, Object> getCalEventsWithDiningSlot(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder("MATCH (r:" + Constants.RESTAURANT_LABEL + "{guid:{" + Constants.REST_ID
+				+ "}})-[rhc:" + RelationshipTypes.REST_HAS_CAL + "]-(t:`CalenderEvent`)");
+		query.append("<-[]-(e:" + Constants.EVENT_LABEL + ")");
+		query.append(
+				" WHERE toInt(t.start_time)<= toInt({" + Constants.START_TIME_BEFORE + "}) + r.dining_slot_interval");
+		query.append(" AND toInt(t.end_time)>= toInt({" + Constants.END_TIME_AFTER + "})");
+		query.append(" RETURN r.dining_slot_interval as interval, t,e");
+
+		Result<Map<String, Object>> res = template.query(query.toString(), params);
+		int interval = 0;
+		Iterator<Map<String, Object>> i = res.iterator();
+		List<Event> eventlist = new ArrayList<>();
+
+		while (i.hasNext()) {
+			Map<String, Object> map = i.next();
+			Event event = template.convert(map.get("e"), Event.class);
+			CustomGuidCalEvent customCalEvent = new CustomGuidCalEvent(event);
+			CalenderEvent calEvent = template.convert(map.get("t"), CalenderEvent.class);
+			customCalEvent.setCreatedBy(calEvent.getCreatedBy());
+			customCalEvent.setCreatedDate(calEvent.getCreatedDate());
+			Date startTime = calEvent.getStartTime();
+			Date endTime = calEvent.getEndTime();
+
+			customCalEvent.setEndDate(endTime);
+			customCalEvent.setEndTime(endTime);
+			customCalEvent.setStartDate(startTime);
+			customCalEvent.setStartTime(startTime);
+			customCalEvent.setCategory(calEvent.getCategory());
+			customCalEvent.setEventDescription(calEvent.getEventDescription());
+			customCalEvent.setName(calEvent.getName());
+			customCalEvent.setGuid(calEvent.getGuid());
+			customCalEvent.setPhotoURL(calEvent.getPhotoURL());
+			customCalEvent.setStatus(calEvent.getStatus());
+			customCalEvent.setUpdatedBy(calEvent.getUpdatedBy());
+			customCalEvent.setUpdatedDate(calEvent.getUpdatedDate());
+
+			if (("END_AFTER").equalsIgnoreCase(event.getRecurEndType())) {
+				Long recurEndTime = getLastCalendarEventTime(event.getGuid());
+				DateTime recurEndDate = new DateTime(recurEndTime);
+				customCalEvent.setRecurrenceEndDate(recurEndDate.toDate());
+			}
+
+			if (calEvent.getType().equals(Constants.OFFER)) {
+				Discount discount = new Discount(calEvent);
+				customCalEvent.setDiscount(discount);
+			}
+
+			eventlist.add(customCalEvent);
+		}
+
+		if (res.iterator().hasNext()) {
+			interval = (int) res.iterator().next().get("interval");
+		}
+
+		Map<String, Object> mapResult = new HashMap<>();
+		mapResult.put("calEvents", eventlist);
+		mapResult.put("interval", interval);
+
+		return mapResult;
+	}
+
+	@Override
+	public Long getLastCalendarEventTime(String eventGuid) {
+		Map<String, Object> params = new HashMap<>();
+		params.put("eventGuid", eventGuid);
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH(e:" + Constants.EVENT_LABEL + "{guid:{eventGuid}})-[hh:HAS_CAL_EVENT]-(c:CalenderEvent)");
+		query.append(" return max(c.end_time) as endTime");
+		Long endTime = null;
+		Result<Map<String, Object>> result = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> i = result.iterator();
+		if (i.hasNext()) {
+			Map<String, Object> map = i.next();
+			endTime = template.convert(map.get("endTime"), Long.class);
+		}
+		return endTime;
+	}
+
+	@Override
+	public List<GuestReview> getRestaurantReviews(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder(
+				" MATCH (restaurant)-[:" + RelationshipTypes.REST_HAS_REVIEW + "]->(review:ReviewRating)" + "<-[:"
+						+ RelationshipTypes.GUEST_HAS_REVIEW + "]-(reviewer: GuestProfile)"
+						+ "OPTIONAL MATCH  (review)-[: REVIEW_HAS_RESPONSE]->(response: RestaurantReviewResponse) ");
+
+		query.append(
+				"RETURN reviewer.first_name as guestName, reviewer.photo_url as photoUrl, reviewer.is_vip as is_vip"
+						+ ", review.created_dt as created_dt, review.review as review, review.rating as rating, "
+						+ "response.response as reviewResponse, response.created_dt as responseDate");
+		handleOrderBy(query, params, Review.class);
+		Integer pageSize = getPageSize(params);
+		Integer startIndex = getIndex(params, pageSize);
+		query.append(" SKIP " + startIndex + " LIMIT " + pageSize);
+
+		Result<Map<String, Object>> result = template.query(query.toString(), params);
+
+		List<GuestReview> reviewList = new ArrayList<>();
+		result.forEach(entry -> {
+			GuestReview review = template.convert(entry, GuestReview.class);
+			reviewList.add(review);
+		});
+		// template.convert(result.iterator(), )
+		return reviewList;
+
+	}
+
+	@Override
+	public Map<String, String> getRestGuidWithMaskedGuid(List<String> restGuidList) {
+
+		Map<String, Object> params = new HashMap<>();
+		params.put("restGuidList", restGuidList);
+		Map<String, String> resultMap = new HashMap<>();
+		StringBuilder query = new StringBuilder(
+				" MATCH (rest : Restaurant) WHERE rest.masked_guid IN {restGuidList} RETURN rest.guid as guid, rest.masked_guid as maskedGuid");
+
+		Iterator<Map<String, Object>> iterator = template.query(query.toString(), params).iterator();
+		Map<String, Object> map = null;
+
+		while(iterator.hasNext()){
+			map = iterator.next();
+			resultMap.put((String)map.get("guid"), (String) map.get("maskedGuid"));
+		}
+
+		return resultMap;
+	}
+
+
+
+	@Override
+	public void followRestaurant(Map<String, Object> params) {
+
+		StringBuilder query = new StringBuilder("MATCH (n:Restaurant {guid:{" + Constants.REST_GUID
+				+ "}}),(n1:GuestProfile{guid:{" + Constants.GUEST_GUID + "}}) \n "
+				+ " OPTIONAL MATCH (n)-[rel:HAS_GUEST]->(n1) RETURN rel");
+
+
+		Iterator<Map<String,Object>> itr = template.query(query.toString(), params).iterator();
+
+		Map<String,Object> map = new HashMap<>();
+		Relationship restHasGuest = null;
+		while(itr.hasNext()){
+			map = itr.next();
+			restHasGuest = (Relationship) map.get("rel");
+		}
+
+		query = new StringBuilder();
+		query.append("MATCH (r:Restaurant {guid:{" + Constants.REST_GUID + "}}), (t:GuestProfile) WHERE t.guid={"
+				+ Constants.GUEST_GUID + "} \n");
+		query.append("MERGE (r)-[rel:HAS_GUEST]->(t) " + "SET ");
+		
+
+		if (params.containsKey(ReserveConstants.FOLLOW) && (Boolean) params.get(ReserveConstants.FOLLOW)) {
+			
+			if(restHasGuest == null){	
+				
+				query.append(" rel.first_name = t.first_name,");
+				query.append(" rel.gender = t.gender,");
+				query.append(" rel.search_params = lower(replace(t.first_name, ' ', '') + t.mobile),");
+				query.append(" rel.updated_dt = timeStamp(),");
+				query.append(" rel.created_dt = timeStamp(),");
+				query.append(" rel.is_vip = false,");
+				query.append(" rel.status = 'ACTIVE',");
+				query.append(" rel.review_count = 0,");
+				query.append(" rel.cumulative_rating = 0,");
+
+			}
+
+			query.append(" rel.dnd_mobile = false,");
+			query.append(" rel.dnd_email = false,");
+			query.append(" rel.followed = true ");
+
+
+		} else {
+
+			query.append(" rel.followed = false ");
+		}
+
+		template.query(query.toString(), params);
+
+
+	}
+
+
+	@Override
+	public Restaurant findRestaurantByGuid(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (res:" + Constants.RESTAURANT_LABEL + ")");
+		query.append(" WHERE res.guid={" + Constants.GUID + "} AND res.status={" + Constants.STATUS + "}");
+		query.append(" return res");
+		Iterator<Map<String, Object>> results = template.query(query.toString(), params).iterator();
+		Restaurant rest = null;
+		if (results.hasNext()) {
+			Map<String, Object> map = results.next();
+			rest = template.convert(map.get("res"), Restaurant.class);
+
+		}
+		return rest;
+
+	}
+	
+	@Override
+	public Restaurant findRestaurantByMaskedGuid(String guid) {
+		
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<>();
+		params.put(Constants.GUID, guid);
+		query.append("MATCH (res:" + Constants.RESTAURANT_LABEL + " { masked_guid : {" + Constants.GUID + "}})");
+		query.append(" return res");
+		Iterator<Map<String, Object>> results = template.query(
+				query.toString(), params).iterator();
+		Restaurant rest = null;
+		if (results.hasNext()) {
+			Map<String, Object> map = results.next();
+			rest = template.convert(map.get("res"), Restaurant.class);
+
+		}
+
+		return rest;
+
+	}
+
+	@Override
+	public List<String> getDisplayNamesForLocalityAndBuilding(String location) {
+		// TODO Auto-generated method stub
+		
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = null;
+		if(location == null){
+			query.append("MATCH r WHERE r:Locality OR r:Building AND r.status = 'ACTIVE' WITH COLLECT(r.display_name) as list1 ");
+			query.append("MATCH (r:Region) WHERE r.status = 'ACTIVE' RETURN list1 + collect(r.name) as list ");
+		}else{
+			query.append("OPTIONAL MATCH (r:Locality) WHERE r.status = 'ACTIVE' AND r.name = {location} ");
+			query.append("WITH collect(r.display_name) as list1 ");
+			query.append("OPTIONAL MATCH (r:Building) WHERE r.status = 'ACTIVE' AND r.name = {location} ");
+			query.append("WITH list1 + collect(r.display_name) as list2 ");
+			query.append("OPTIONAL MATCH (r:Region) WHERE r.status = 'ACTIVE' AND r.name = {location} ");
+			query.append("RETURN list2+collect(r.name) as list");
+			params = new HashMap<>();
+			params.put("location", location);
+		}
+			
+		
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+		List<String> displayNameList = new ArrayList<>();
+		while(itr.hasNext()){
+			Map<String, Object> map = itr.next();
+			displayNameList = (List<String>) map.get("list");
+		}
+		return displayNameList;
+	}
+
+	@Override
+	public Map<String, List<String>> getRestImagesForMultipleRests(List<String> restGuidList) {
+
+		Map<String, Object> params = new HashMap<>();
+		params.put("restGuidList", restGuidList);
+		Map<String, List<String>> resultMap = new HashMap<>();
+		StringBuilder query = new StringBuilder(
+				" MATCH (rest : Restaurant) WHERE rest.guid IN {restGuidList} AND HAS(rest.images) RETURN rest.guid as guid, rest.images as images");
+
+		Iterator<Map<String, Object>> iterator = template.query(query.toString(), params).iterator();
+		Map<String, Object> map = null;
+
+		while(iterator.hasNext()){
+			map = iterator.next();
+			resultMap.put((String)map.get("guid"),  (List<String>) map.get("images"));
+		}
+
+		return resultMap;
+	}
+	
+	@Override
+	public List<Map<String, Object>> getNearByRestaurantList(Map<String,Object> params) {
+
+		StringBuilder query = new StringBuilder();
+		query.append(" MATCH (rest:Restaurant{status:'ACTIVE'}) WHERE rest.masked_guid={"+ReserveConstants.REST_GUID+"} ");
+		if(params.containsKey("building") && params.get("building") !=null){
+		query.append("OPTIONAL MATCH (nearByRest:Restaurant) where nearByRest.building={building} and nearByRest.guid <> rest.guid ");
+		} else 	if(params.containsKey("locality") && params.get("locality") !=null){
+			query.append("OPTIONAL MATCH (nearByRest:Restaurant) where nearByRest.locality={locality} and nearByRest.guid <> rest.guid ");
+		}
+			
+		query.append("RETURN nearByRest.guid as guid, nearByRest.name as restName,nearByRest.disp_name as restDisplayName,nearByRest.masked_guid as maskedGuid LIMIT 10");
+
+		Iterator<Map<String, Object>> iterator = template.query(query.toString(), params).iterator();
+		List<Map<String, Object>> resultList = new ArrayList<>();
+
+		while(iterator.hasNext()){
+			Map<String, Object> map = iterator.next();
+			Map<String, Object> resultMap = new HashMap<>();
+			if(map.get("guid") !=null) {
+				resultMap.put("guid", map.get("guid"));
+			}
+			if(map.get("restName") !=null) {
+				resultMap.put("restName", map.get("restName"));
+			}
+			if(map.get("restDisplayName") !=null) {
+				resultMap.put("restDisplayName", map.get("restDisplayName"));
+			}
+			if(map.get("maskedGuid") !=null) {
+				resultMap.put("maskedGuid", map.get("maskedGuid"));
+			}
+			if(resultMap.size() != 0) {
+				resultList.add(resultMap);
+			}
+		}
+		return resultList;
+	}
+
+
+	
+	/*@Override
+	public List<String> geNamesForRegion() {
+		// TODO Auto-generated method stub
+		
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Region) WHERE r.status = 'ACTIVE' return COLLECT(r.display_name) as list");
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), null).iterator();
+		List<String> displayNameList = new ArrayList<>();
+		while(itr.hasNext()){
+			Map<String, Object> map = itr.next();
+			displayNameList = (List<String>) map.get("list");
+		}
+		return displayNameList;
+	}
+	*/
+}

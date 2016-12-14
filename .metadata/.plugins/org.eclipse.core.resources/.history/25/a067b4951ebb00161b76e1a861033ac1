@@ -1,0 +1,24 @@
+/**
+ * 
+ */
+package String;
+
+/**
+ * @author j.yadav
+ *
+ */
+public class Atoi {
+
+	public static void main(String[] args) {
+		
+	}
+	static int atoi(String input) {
+		char[] inputArray = input.toCharArray();
+		int length = inputArray.length;
+		int result = 0;
+		for(int i=0;i<length;i++) {
+			result = result*10 + inputArray[i] -'0';
+		}
+		return result;
+	}
+}

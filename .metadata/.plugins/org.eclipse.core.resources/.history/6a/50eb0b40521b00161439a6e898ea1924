@@ -1,0 +1,87 @@
+package com.clicktable.support.scheduler;
+
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import play.Logger;
+import play.libs.F.Promise;
+import play.libs.Json;
+import play.libs.ws.WS;
+
+import com.clicktable.model.UserInfoModel;
+import com.clicktable.support.util.Constants;
+import com.clicktable.util.UtilityMethods;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+public class InvoiceTxnScheduler implements Runnable {
+
+
+	private static Lock lock = new ReentrantLock();
+
+/*	// Invoice Scheduler
+	public InvoiceTxnScheduler(InvoiceTxnService invoiceTxnService,
+			InvoiceService invoiceService) {
+		this.invoiceTxnService = invoiceTxnService;
+		this.invoiceService = invoiceService;
+	}*/
+
+	@Override
+	public void run() {
+		if (InvoiceTxnScheduler.lock.tryLock()) {
+			try {
+
+				Logger.info("Invoice Scheduler Running !");
+
+				ObjectMapper mapper = new ObjectMapper();
+				ObjectNode jNode = mapper.createObjectNode();
+
+				jNode.put(Constants.USERNAME,
+						UtilityMethods.getConfString(Constants.CLICKTABLE_USER))
+						.put(Constants.PASSWORD,
+								UtilityMethods
+										.getConfString(Constants.CLICKTABLE_PASSWORD));
+
+				System.out.println(UtilityMethods
+						.getConfString(Constants.CLICKTABLE_URL)
+						+ Constants.LOGIN_URI);
+
+				Promise<JsonNode> accResponse = WS
+						.url(UtilityMethods
+								.getConfString(Constants.CLICKTABLE_URL)
+								+ Constants.LOGIN_URI)
+						.post(jNode)
+						.map(accessResponse -> {
+
+							Logger.info("Invoice ! Inside Promise Call...");
+
+							JsonNode responseJson = accessResponse.asJson();
+
+							String token = responseJson.get(Constants.TOKEN)
+									.asText();
+
+							JsonNode json = responseJson
+									.get(Constants.USERINFOMODEL);
+
+							UserInfoModel userInfoModel = Json.fromJson(json,
+									UserInfoModel.class);
+
+							if (token != null) {
+
+								Logger.debug("call to insertDailyInvoiceTxn");
+							//	invoiceTxnService.insertDailyInvoiceTxn(
+										userInfoModel, token);
+
+							}
+							return responseJson;
+						});
+
+			} catch (Throwable e) {
+				Logger.error("Error while generating Invoice", e);
+			} finally {
+				InvoiceTxnScheduler.lock.unlock();
+			}
+		}
+	}
+}

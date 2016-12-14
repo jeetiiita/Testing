@@ -1,0 +1,44 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+import com.clicktable.support.model.Item;
+
+/**
+ * @author j.yadav
+ *
+ */
+=======
+
+import org.springframework.stereotype.Service;
+
+import com.clicktable.support.model.Item;
+
+/**
+ * @author j.yadav
+ *
+ */
+
+@Service
+public interface ItemService {
+	
+	//From Admin console only
+	
+	/**
+	 * 
+	 */
+	Item create(Item item);
+	
+	/**
+	 * 
+	 */
+	void deactivate();
+	
+	/**
+	 * 
+	 */
+	void activate();
+	
+
+}

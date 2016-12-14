@@ -1,0 +1,14 @@
+/**
+ * 
+ */
+package com.clicktable.support.service.intf;
+
+/**
+ * @author j.yadav
+ *
+ */
+public interface InvoiceTaxService {
+	
+	InvoiceTax create();
+
+}

@@ -1,0 +1,1973 @@
+package com.clicktable.dao.impl;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TimeZone;
+
+import org.neo4j.graphdb.NotFoundException;
+import org.neo4j.graphdb.Relationship;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.neo4j.annotation.GraphProperty;
+import org.springframework.data.neo4j.conversion.Result;
+import org.springframework.stereotype.Service;
+
+import com.clicktable.dao.intf.CustomerDao;
+import com.clicktable.exception.ClicktableException;
+import com.clicktable.model.EventPromotion;
+import com.clicktable.model.GuestProfile;
+import com.clicktable.model.Restaurant;
+import com.clicktable.model.TagModelOld;
+import com.clicktable.relationshipModel.HasGuest;
+import com.clicktable.response.DNDResponse;
+import com.clicktable.util.EmpowerConstants;
+import com.clicktable.util.RelationshipTypes;
+import com.clicktable.util.UtilityMethods;
+
+import play.Logger;
+
+@Service
+public class CustomerDaoImpl extends GraphDBDao<GuestProfile> implements CustomerDao {
+	private static Logger.ALogger log = Logger.of(CustomerDaoImpl.class);
+	public CustomerDaoImpl() {
+		super();
+		this.setType(GuestProfile.class);
+	}
+
+	@Override
+	public List<List<String>> getGuestMobileByTagsForEvent(EventPromotion promotion) {
+	    StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<String, Object>();
+		createQueryForFilterGuest(promotion, query, params);
+		
+		query.append(" WITH DISTINCT(g.mobile) as mob, g.guid as guest_guid, hg.dnd_mobile as dnd_mob,");
+		query.append(" g.is_dnd_user_enable as dnd_user,");
+		query.append(" g.is_dnd_trai_enable as dnd_trai,");
+		query.append(" CASE(g.enable_all_rest_notifs) WHEN null THEN false ELSE g.enable_all_rest_notifs END as restNotifs ,");
+		query.append(" CASE(hg.followed) WHEN null THEN false ELSE hg.followed END as followed ,");
+		query.append(" (HAS(g.google_user_id) OR HAS(g.facebook_user_id)) as ctConsumer ");
+		query.append(" WHERE (NOT(dnd_mob) AND ctConsumer AND (restNotifs OR followed)) OR (NOT(dnd_mob) AND NOT(ctConsumer) AND NOT(dnd_trai)) ");
+		query.append(" RETURN collect([mob, guest_guid]) as count");
+
+		
+		params.put(getPropertyName(EmpowerConstants.STATUS), EmpowerConstants.ACTIVE_STATUS);
+		params.put(getPropertyName(EmpowerConstants.REST_GUID), promotion.getRestaurantGuid());
+		params.put(getPropertyName(EmpowerConstants.RESERVATION_STATUS), EmpowerConstants.FINISHED);
+		
+		Result<Map<String, Object>> r = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		
+		List<List<String>> list = new ArrayList<List<String>>();
+		
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			List<List<String>> numbers = (List) map.get("count");
+			if (numbers != null)
+				list.addAll(numbers);
+		}
+		
+		return list;
+	}
+
+	@Override
+	public HasGuest saveRelationModel(HasGuest relationModel) {
+		return template.save(relationModel);
+	}
+
+	@Override
+	public GuestProfile findGuestForRest(GuestProfile guest) {
+		String query = "MATCH (res:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{"
+				+ EmpowerConstants.REST_GUID + "}})-[rhg:"
+				+ RelationshipTypes.HAS_GUEST + "]->(t:GuestProfile) WHERE t."
+				+ EmpowerConstants.GUID + "={" + EmpowerConstants.GUID
+				+ "} AND rhg.status='ACTIVE' RETURN t";
+
+		Map<String, Object> param = new HashMap<String, Object>();
+		param.put(EmpowerConstants.GUID, guest.getGuid());
+		param.put(EmpowerConstants.REST_GUID, guest.getRestGuid());
+
+		log.debug("query is " + query);
+		Result<GuestProfile> r = template.query(query, param).to(type);
+		return r.singleOrNull();
+	}
+	
+	@Override
+	public Map<Integer, Object> findGuestForRestWithRelationship(GuestProfile guest) {
+		
+		String query = "MATCH (res:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{"
+				+ EmpowerConstants.REST_GUID + "}})-[rhg:"
+				+ RelationshipTypes.HAS_GUEST + "]->(t:GuestProfile) WHERE t."
+				+ EmpowerConstants.GUID + "={" + EmpowerConstants.GUID
+				+ "} AND rhg.status='ACTIVE' RETURN t, rhg";
+
+		Map<String, Object> param = new HashMap<String, Object>();
+		param.put(EmpowerConstants.GUID, guest.getGuid());
+		param.put(EmpowerConstants.REST_GUID, guest.getRestGuid());
+		Relationship restHasGuest = null;
+		Map<Integer, Object> returnMap = new HashMap<>();
+		
+		Iterator<Map<String, Object>> result = template.query(query, param).iterator();
+		
+		while(result.hasNext()){
+			
+			Map<String, Object> map = result.next();
+			GuestProfile existingGuest = template.convert(map.get("t"), GuestProfile.class);
+			restHasGuest = (Relationship) map.get("rhg");
+			
+			returnMap.put(0, existingGuest);
+			returnMap.put(1, restHasGuest);
+			
+			
+		}
+		
+		return returnMap;
+	}
+	
+	
+
+	@Override
+	protected List<GuestProfile> executeQuery(String query,
+			Map<String, Object> params) {
+		List<GuestProfile> list = new ArrayList<GuestProfile>();
+		log.debug(query);
+		params.forEach((x, y) -> log.debug(x + ">" + y));
+		Iterator<Map<String, Object>> results = template.query(query, params)
+				.iterator();
+		GuestProfile profile = null, guest;
+		String restGuid;
+		while (results.hasNext()) {
+			Map<String, Object> map = results.next();
+			log.debug("map is " + map + " param is ----------------------" + params);
+
+			guest = template.convert(map.get("t"), GuestProfile.class);
+			if (params.containsKey(EmpowerConstants.ROLE_ID)
+					&& params.get(EmpowerConstants.ROLE_ID).equals(
+							EmpowerConstants.STAFF_ROLE_ID)) {
+				restGuid = map.get("r.guid").toString();
+				guest.setRestGuid(restGuid);
+			}
+			if (params.containsKey(EmpowerConstants.ROLE_ID)
+					&& (params.get(EmpowerConstants.ROLE_ID).equals(
+							EmpowerConstants.STAFF_ROLE_ID) || params.get(
+							EmpowerConstants.ROLE_ID).equals(EmpowerConstants.ADMIN_ROLE_ID) || params.get(
+									EmpowerConstants.ROLE_ID).equals(EmpowerConstants.MANAGER_ROLE_ID) )) {
+				Relationship relation = (Relationship) map.get("rel");
+				
+				//if(guest.getGoogleUserId() != null || guest.getFacebookUserId() != null){
+					try {
+						guest.setFirstName((null == relation
+								.getProperty(EmpowerConstants.FIRST_NAME)) ? "" : relation
+										.getProperty(EmpowerConstants.FIRST_NAME).toString());
+					} catch (NotFoundException e) {
+					}
+
+
+					try {
+						Object dob = relation.getProperty(EmpowerConstants.DOB);
+						if (null != dob)
+							guest.setDob(new Date(Long.valueOf(relation
+									.getProperty(EmpowerConstants.DOB).toString())));
+					} catch (NotFoundException e) {
+					}
+					try {
+						Object anniversary = relation
+								.getProperty(EmpowerConstants.ANNIVERSARY);
+						if (null != anniversary)
+							guest.setAnniversary(new Date(Long.valueOf(relation
+									.getProperty(EmpowerConstants.ANNIVERSARY).toString())));
+					} catch (NotFoundException e) {
+					}
+					try {
+						guest.setDndEmail(Boolean.parseBoolean(relation
+								.getProperty("dnd_email").toString()));
+					} catch (NotFoundException e) {
+					}
+					try {
+						guest.setDndMobile(Boolean.parseBoolean(relation
+								.getProperty("dnd_mobile").toString()));
+					} catch (NotFoundException e) {
+					}
+					try {
+						guest.setStatus(relation.getProperty(EmpowerConstants.STATUS)
+								.toString());
+					} catch (NotFoundException e) {
+					}
+					
+					try {
+						guest.setCorporate(relation.getProperty("corporate_guid")
+								.toString());
+					} catch (NotFoundException e) {
+						guest.setCorporate(null);
+					}
+
+					try {
+						guest.setIsVip(Boolean.parseBoolean(relation.getProperty(
+								"is_vip").toString()));
+					} catch (NotFoundException e) {
+					}
+					try {
+						guest.setGender(relation.getProperty("gender").toString());
+					} catch (NotFoundException e) {
+					}
+					try {
+						guest.setEmail(relation.getProperty("email_id")
+								.toString());
+					} catch (NotFoundException e) {
+						guest.setEmail(null);
+					}
+					try {
+						guest.setReason(relation.getProperty("reason").toString());
+					} catch (NotFoundException e) {
+						guest.setReason(null);
+					}
+					
+			//	}
+				
+				try {
+					guest.setFirstSeatedTime((null == relation
+							.getProperty("first_seated")) ? null : new Date(
+									Long.valueOf(relation.getProperty("first_seated")
+											.toString())));
+				} catch (NotFoundException e) {
+				}
+			
+
+			}
+			list.add(guest);
+
+		}
+
+		return list;
+
+	}
+
+	@Override
+	protected StringBuilder getMatchClause(Map<String, Object> params) {
+		
+		if (null != params.get(EmpowerConstants.ROLE_ID) && params.get(EmpowerConstants.ROLE_ID).equals(EmpowerConstants.CUSTOMER_ROLE_ID)) {
+			
+			return new StringBuilder("MATCH (t:GuestProfile)");
+			
+		} else {
+			
+			return new StringBuilder("MATCH (r:Restaurant )-[rel:HAS_GUEST {status : 'ACTIVE'}]->(t:GuestProfile {status : 'ACTIVE'})");
+		}
+	}
+
+	@Override
+	protected StringBuilder getReturnClause(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+
+		if (null != params.get(EmpowerConstants.ROLE_ID)
+				&& params.get(EmpowerConstants.ROLE_ID).equals(
+						EmpowerConstants.CUSTOMER_ROLE_ID)) {
+			query.append("RETURN DISTINCT t");
+		} else {
+			query.append("RETURN DISTINCT rel,r.guid,t");
+		}
+		query = handleOrderBy(query, params);
+		Integer pageSize = getPageSize(params);
+		Integer startIndex = getIndex(params, pageSize);
+		return query.append(" SKIP " + startIndex + " LIMIT " + pageSize);
+	}
+
+	@Override
+	public GuestProfile update(GuestProfile guest) {
+
+		Map<String, Object> params = new HashMap<String, Object>();
+		String searchParams = null;
+		if (null != guest.getFirstName()) {
+			searchParams = guest.getFirstName().replaceAll(" ", "");
+		}
+		
+		if (null != guest.getMobile()) {
+			searchParams = searchParams + guest.getMobile();
+		}
+		guest.setSearchParams(searchParams);
+		params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+		params.put(EmpowerConstants.PROP_MAP,
+				getGraphProperty(UtilityMethods.introspect(guest)));
+
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH(t:" + EmpowerConstants.GUESTPROFILE_LABEL + "{guid:{"
+				+ EmpowerConstants.GUEST_GUID + "}}) ");
+		query.append("SET t= { " + EmpowerConstants.PROP_MAP + " } ");
+		query.append("return t");
+
+		Iterator<Map<String, Object>> results = executeWriteQuery(
+				query.toString(), params).iterator();
+		GuestProfile profile = null;
+		while (results.hasNext()) {
+			Map<String, Object> map = results.next();
+			log.debug("map is " + map);
+			profile = template.convert(map.get("t"), GuestProfile.class);
+		}
+
+		return profile;
+
+	}
+
+	@Override
+	protected StringBuilder getWhereClause(Map<String, Object> params) {
+
+		// Long dob = 0L, anniversary = 0L;
+		String restId = "", status = "", first_name = "", first_name_starts_with = "";
+		String prefix = "t";
+		if (null != params.get(EmpowerConstants.ROLE_ID)
+				&& (params.get(EmpowerConstants.ROLE_ID).equals(
+						EmpowerConstants.STAFF_ROLE_ID) || params.get(
+						EmpowerConstants.ROLE_ID).equals(EmpowerConstants.ADMIN_ROLE_ID) || params.get(
+								EmpowerConstants.ROLE_ID).equals(EmpowerConstants.MANAGER_ROLE_ID) || params.get(
+										EmpowerConstants.ROLE_ID).equals(EmpowerConstants.AGENT_ROLE_ID))) {
+
+			if (params.containsKey(EmpowerConstants.EMAIL_LIKE)) {
+				params.remove(EmpowerConstants.EMAIL_LIKE);
+			}
+			if (null != params.get(EmpowerConstants.STATUS)
+					&& params.containsKey(EmpowerConstants.STATUS)) {
+				status = params.get(EmpowerConstants.STATUS).toString();
+				params.remove(EmpowerConstants.STATUS);
+			}
+			if (null != params.get(EmpowerConstants.FIRSTNAME)
+					&& params.containsKey(EmpowerConstants.FIRSTNAME)) {
+				first_name = params.get(EmpowerConstants.FIRSTNAME).toString();
+				params.remove(EmpowerConstants.FIRSTNAME);
+			}
+
+			if (null != params.get(EmpowerConstants.FIRST_NAME_STARTS_WITH)
+					&& params.containsKey(EmpowerConstants.FIRST_NAME_STARTS_WITH)) {
+				first_name_starts_with = params.get(
+						EmpowerConstants.FIRST_NAME_STARTS_WITH).toString();
+				params.remove(EmpowerConstants.FIRST_NAME_STARTS_WITH);
+			}
+
+		}
+
+		if (null != params.get(EmpowerConstants.REST_GUID)
+				&& params.containsKey(EmpowerConstants.REST_GUID)) {
+			restId = params.get(EmpowerConstants.REST_GUID).toString();
+			params.remove(EmpowerConstants.REST_GUID);
+		}
+
+		StringBuilder query = super.getWhereClause(params, prefix);
+
+		if (!restId.equals("")) {
+			log.debug("restid  is " + restId);
+			addPrefix(query);
+			query.append("r.guid= '" + restId + "' ");
+		}
+
+		if (!status.equals("")) {
+			addPrefix(query);
+			query.append('(');
+			if (status.contains("[") && status.contains("]")) {
+				status = status.substring(1, status.length() - 1);
+			}
+			String[] result = status.split(",");
+			for (String status_index : result) {
+				if (status_index.startsWith(" ")) {
+					status_index = status_index.substring(1);
+				}
+				query.append("rel.status='" + status_index + "' OR");
+			}
+			if (query.toString().contains(EmpowerConstants.OR))
+				query = new StringBuilder(
+						query.substring(0, query.length() - 2));
+			query.append(" ) ");
+
+		}
+
+		if (!first_name.equals("")) {
+			log.debug("first_name  is " + first_name);
+			addPrefix(query);
+			query.append("rel.first_name= '" + first_name + "' ");
+		}
+
+		if (!first_name_starts_with.equals("")) {
+			log.debug("first_name  is " + first_name_starts_with);
+			addPrefix(query);
+			// params.put("firstName", "~('(?i).*"
+			// +first_name_starts_with+".*')");
+			query.append("rel.first_name=~('" + first_name_starts_with + ".*')");
+
+		}
+
+		// if freeSearch parameter comes in param string then it searches for
+		// first name,last name,email and mobile no having given value
+		if (params.containsKey(EmpowerConstants.FREE_SEARCH)) {
+			// String regularExpString = EmpowerConstants.PRE_LIKE_STRING
+			// + params.get(EmpowerConstants.FREE_SEARCH)
+			// + EmpowerConstants.POST_LIKE_STRING;
+			// params.put(EmpowerConstants.FREE_SEARCH, regularExpString);
+			if (null != params.get(EmpowerConstants.ROLE_ID)
+					&& (params.get(EmpowerConstants.ROLE_ID).equals(
+							EmpowerConstants.STAFF_ROLE_ID) || params.get(
+							EmpowerConstants.ROLE_ID).equals(EmpowerConstants.ADMIN_ROLE_ID) || params.get(
+									EmpowerConstants.ROLE_ID).equals(EmpowerConstants.MANAGER_ROLE_ID) || params.get(
+											EmpowerConstants.ROLE_ID).equals(EmpowerConstants.AGENT_ROLE_ID))) {
+				String prefixRel = "rel";
+				query = applyFreeSearch(params.get(EmpowerConstants.FREE_SEARCH)
+						.toString(), query, prefixRel);
+			}
+
+		}
+		log.info("query->" + query);
+		return query;
+	}
+
+	/**
+	 * private method that creates query for like parameters first name,last
+	 * name,email and mobile no
+	 * 
+	 * @param likeValue
+	 * @param query
+	 * @return
+	 */
+	private StringBuilder applyFreeSearch(String likeValue,
+			StringBuilder query, String prefix) {
+		String[] searchParam = likeValue.split(" ");
+		// String params = "";
+
+		if (query.toString().contains(EmpowerConstants.WHERE)) {
+			query.append(" AND (");
+			for (int i = 0; i < searchParam.length; i++) {
+				if (searchParam[i].trim().length() > 0) {
+					query.append(prefix + ".search_params=~('(?i).*"
+							+ searchParam[i].replaceAll("[^a-zA-Z0-9]", "")
+							+ ".*') AND ");
+				}
+
+			}
+			query = new StringBuilder(query.substring(0, query.length() - 4));
+			query.append(')'); // //
+			// t.email_id=~{" + likeValue + "})");
+		} else {
+			query.append(" (");
+			for (int i = 0; i < searchParam.length; i++) {
+				if (searchParam[i].trim().length() > 0) {
+					query.append(prefix + ".search_params=~('(?i).*"
+							+ searchParam[i].replaceAll("[^a-zA-Z0-9]", "")
+							+ ".*') AND ");
+				}
+
+			}
+			query = new StringBuilder(query.substring(0, query.length() - 4));
+			query.append(')');
+			// //
+			// t.email_id=~{" + likeValue + "})");
+		}
+		return query;
+	}
+
+	/**
+	 * Method to create relationship of a restaurant with guest
+	 */
+	@Override
+	public String addRestaurantGuest(String restGuid, GuestProfile guest) {
+		
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+		// Long id = 0l;
+		String searchParamGuest = guest.getFirstName().replaceAll(" ", "");
+		String query = "MATCH (r:Restaurant {guid:{" + EmpowerConstants.REST_GUID + "}}),(t:GuestProfile) WHERE t.guid={"
+				+ EmpowerConstants.GUEST_GUID + "} \n";
+		query = query + "MERGE (r)-[rel:HAS_GUEST]->(t) " + "SET ";
+		if (null != guest.getFirstName()) {
+			query = query + " rel.first_name='" + guest.getFirstName() + "',";
+		}
+		query = query + " rel.created_dt=" + Calendar.getInstance().getTimeInMillis() + ",";
+		query = query + " rel.is_vip=" + guest.getIsVip() + ",";
+		
+		if (null != guest.getReason()) {
+			query = query + " rel.reason='" + guest.getReason() + "',";
+		} else {
+			query = query + " rel.reason=NULL ,";
+		}
+		if (null != guest.getEmail()) {
+			query = query + " rel.email_id='" + guest.getEmail() + "',";
+		} else {
+			query = query + " rel.email_id= null ,";
+		}
+		if (null != guest.getGender()) {
+			query = query + " rel.gender='" + guest.getGender() + "',";
+		}
+		query = query + " rel.dnd_mobile=" + guest.isDndMobile() + ",";
+		query = query + " rel.dnd_email=" + guest.isDndEmail() + ",";
+		if (null != guest.getStatus()) {
+			query = query + " rel.status='" + guest.getStatus() + "',";
+		}
+		if (null != guest.getDob()) {
+			query = query + " rel.dob=" + guest.getDob().getTime() + ",";
+			query = query + " rel.dob_month=" + guest.getDobMonth() + ",";
+			query = query + " rel.dob_day=" + guest.getDobDay() + ",";
+			
+		}
+		
+		if (null != guest.getAnniversary()) {
+			query = query + " rel.anniversary=" + guest.getAnniversary().getTime() + ",";
+			query = query + " rel.anniversary_month=" + guest.getAnniversaryMonth() + ",";
+			query = query + " rel.anniversary_day=" + guest.getAnniversaryDay() + ",";
+		}
+		if (null != guest.getCorporate()) {
+			query = query + " rel.corporate_guid='" + guest.getCorporate() + "',";
+		} else {
+			query = query + " rel.corporate_guid = NULL,";
+		}
+		if (null != guest.getCorporateName()) {
+			query = query + " rel.corporate_name='" + guest.getCorporateName() + "',";
+		} else {
+			query = query + " rel.corporate_name = NULL,";
+		}
+		query = query + " rel.updated_dt=" + Calendar.getInstance().getTimeInMillis() + ",";
+		query = query + "rel.review_count=0,";
+		query = query + "rel.cumulative_rating=0,";
+		query = query + " rel.search_params='" + searchParamGuest
+				+ guest.getMobile() + "'";
+		executeWriteQuery(query, params);
+		return guest.getGuid();
+	}
+	
+	
+	@Override
+	public String addRestaurantGuestByAgent(Restaurant rest, GuestProfile guest) {
+		
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, rest.getGuid());
+		params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+		String searchParamGuest = guest.getFirstName().replaceAll(" ", "");
+		
+		String query = "MATCH (r:Restaurant {guid:{" + EmpowerConstants.REST_GUID + "}}),(t:GuestProfile) WHERE t.guid={"
+				+ EmpowerConstants.GUEST_GUID + "} \n";
+		query = query + "MERGE (r)-[rel:HAS_GUEST]->(t) " + "SET ";
+		if (null != guest.getFirstName()) {
+			query = query + " rel.first_name='" + guest.getFirstName() + "',";
+		}
+		query = query + " rel.created_dt=" + Calendar.getInstance().getTimeInMillis() + ",";
+		query = query + " rel.is_vip=" + guest.getIsVip() + ",";
+		
+		if (null != guest.getReason()) {
+			query = query + " rel.reason='" + guest.getReason() + "',";
+		} else {
+			query = query + " rel.reason=NULL ,";
+		}
+		if (null != guest.getEmail()) {
+			query = query + " rel.email_id='" + guest.getEmail() + "',";
+		} else {
+			query = query + " rel.email_id=NULL ,";
+		}
+		if (null != guest.getGender()) {
+			query = query + " rel.gender='" + guest.getGender() + "',";
+		}
+		query = query + " rel.dnd_mobile=" + guest.isDndMobile() + ",";
+		query = query + " rel.dnd_email=" + guest.isDndEmail() + ",";
+		if (null != guest.getStatus()) {
+			query = query + " rel.status='" + guest.getStatus() + "',";
+		}
+		if (null != guest.getDob()) {
+			query = query + " rel.dob=" + guest.getDob().getTime() + ",";
+			query = query + " rel.dob_month=" + guest.getDobMonth() + ",";
+			query = query + " rel.dob_day=" + guest.getDobDay() + ",";
+			
+		}
+		
+		if (null != guest.getAnniversary()) {
+			query = query + " rel.anniversary=" + guest.getAnniversary().getTime() + ",";
+			query = query + " rel.anniversary_month=" + guest.getAnniversaryMonth() + ",";
+			query = query + " rel.anniversary_day=" + guest.getAnniversaryDay() + ",";
+		}
+		if (null != guest.getCorporate()) {
+			query = query + " rel.corporate_guid='" + guest.getCorporate() + "',";
+		} else {
+			query = query + " rel.corporate_guid = NULL,";
+		}
+		if (null != guest.getCorporateName()) {
+			query = query + " rel.corporate_name='" + guest.getCorporateName() + "',";
+		} else {
+			query = query + " rel.corporate_name = NULL,";
+		}
+		query = query + " rel.updated_dt=" + Calendar.getInstance().getTimeInMillis() + ",";
+		query = query + "rel.review_count=0,";
+		query = query + "rel.cumulative_rating=0,";
+		query = query + " rel.search_params='" + searchParamGuest
+				+ guest.getMobile() + "'";
+		executeWriteQuery(query, params);
+		return guest.getGuid();
+	}
+
+	/**
+	 * Method to create relationship of a restaurant with guest via Consumer APP
+	 */
+	@Override
+	public String updateRestaurantGuest(GuestProfile guest,
+ GuestProfile tempCustomer) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		String searchParamGuest = (null == guest.getFirstName()) ? "" : guest.getFirstName().replaceAll(" ", "");
+		params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+		if(null!=tempCustomer)
+		params.put(EmpowerConstants.NEW_GUEST_GUID, tempCustomer.getGuid());
+		/* Maintaining Relationship with GuestInfo wrt to old customer */
+		if (null!=tempCustomer && !tempCustomer.getGuid().equalsIgnoreCase(guest.getGuid())) {
+			String query1 = "MATCH (t1:GuestProfile)-[r:GUEST_HAS_INFO]-(gi:GuestInfo) WHERE t1.guid={"
+					+ EmpowerConstants.NEW_GUEST_GUID + "}  DELETE r,t1  \n";
+			executeWriteQuery(query1, params);
+		}
+		/* Updating Guest Node all having relationship with Restaurant (s) */
+		String query = "MATCH (r:Restaurant)-[rel:HAS_GUEST]->(t:GuestProfile {guid:{" + EmpowerConstants.GUEST_GUID
+				+ "}}) \n" + " SET ";
+		if (null != guest.getFirstName()) {
+			query = query + " rel.first_name='" + guest.getFirstName() + "',";
+		}
+		// if(null!=guest.getLastName()) { query=query+
+		// " rel.last_name='"+guest.getLastName()+"',"; }
+		if (null != guest.getEmail()) {
+			query = query + " rel.email_id='" + guest.getEmail() + "',";
+		}
+		if (guest.getIsVip()) {
+			query = query + " rel.is_vip=" + guest.getIsVip() + ",";
+		}
+		if (null != guest.getReason()) {
+			query = query + " rel.reason='" + guest.getReason() + "',";
+		}
+		if (null != guest.getGender()) {
+			query = query + " rel.gender='" + guest.getGender() + "',";
+		}
+		if (guest.isDndMobile()) {
+			query = query + " rel.dnd_mobile=" + guest.isDndMobile() + ",";
+		}
+		if (guest.isDndEmail()) {
+			query = query + " rel.dnd_email=" + guest.isDndEmail() + ",";
+		}
+		query = query + " rel.updated_dt=" + Calendar.getInstance().getTimeInMillis() + ",";
+		if (null != guest.getStatus()) {
+			query = query + " rel.status='" + guest.getStatus() + "',";
+		}
+		if (null != guest.getDob()) {
+			query = query + " rel.dob=" + guest.getDob().getTime() + ",";
+			query = query + " rel.dob_month=" + guest.getDobMonth() + ",";
+			query = query + " rel.dob_day=" + guest.getDobDay() + ",";
+			
+		}
+		
+		if (null != guest.getAnniversary()) {
+			query = query + " rel.anniversary=" + guest.getAnniversary().getTime() + ",";
+			query = query + " rel.anniversary_month=" + guest.getAnniversaryMonth() + ",";
+			query = query + " rel.anniversary_day=" + guest.getAnniversaryDay() + ",";
+		}
+		
+		if (null != guest.getCorporate()) {
+			query = query + " rel.corporate_guid='" + guest.getCorporate() + "',";
+		}
+		
+		query = query + " rel.search_params='" + searchParamGuest
+				+ guest.getMobile() + "'";
+		executeWriteQuery(query, params);
+		return guest.getGuid();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.clicktable.dao.intf.CustomerDao#getRestaurantGuest(java.lang.Class,
+	 * java.util.Map)
+	 */
+	@Override
+	public List<GuestProfile> getRestaurantGuest(Class<GuestProfile> class1,
+			Map<String, Object> params) {
+		// TODO Auto-generated method stub
+
+		// Long id = 0l;
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Restaurant)-[rel:HAS_GUEST]->(t:GuestProfile) WHERE r.guid={"
+				+ EmpowerConstants.REST_GUID + "} \n");
+		query.append(" AND t.guid={" + EmpowerConstants.GUID
+				+ "} RETURN  DISTINCT rel,t");
+
+		
+		Result<Map<String, Object>> result = executeWriteQuery(
+				query.toString(), params);// template.query(query,
+		// null);
+		log.debug("query executed,Result is " + result);
+		Iterator<Map<String, Object>> itr = result.iterator();
+		List<GuestProfile> guestProfile = new ArrayList<GuestProfile>();
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			Relationship relation = (Relationship) map.get("rel");
+			GuestProfile guest = template.convert(map.get("t"),
+					GuestProfile.class);
+			try {
+				guest.setFirstName((null == relation
+						.getProperty(EmpowerConstants.FIRST_NAME)) ? "" : relation
+						.getProperty(EmpowerConstants.FIRST_NAME).toString());
+			} catch (NotFoundException e) {
+				// guest.setLastName("");
+			}
+			
+			try {
+				guest.setDob(new Date(Long.valueOf(relation.getProperty(
+						EmpowerConstants.DOB).toString())));
+			} catch (NotFoundException e) {
+				// guest.setDob(null);
+			}
+			try {
+				guest.setAnniversary(new Date(Long.valueOf(relation
+						.getProperty(EmpowerConstants.ANNIVERSARY).toString())));
+			} catch (NotFoundException e) {
+				// guest.setAnniversary(null);
+			}
+			try {
+				guest.setDndEmail(Boolean.parseBoolean(relation.getProperty(
+						"dnd_email").toString()));
+			} catch (NotFoundException e) {
+				// guest.setDndEmail(false);setIsVip
+			}
+			
+			try {
+				guest.setIsVip(Boolean.parseBoolean(relation.getProperty(
+						"is_vip").toString()));
+			} catch (NotFoundException e) {
+				// guest.setDndEmail(false);setIsVip
+			}
+			try {
+				guest.setDndMobile(Boolean.parseBoolean(relation.getProperty(
+						"dnd_mobile").toString()));
+			} catch (NotFoundException e) {
+				// guest.setDndMobile(false);
+			}
+			
+			try {
+				guest.setStatus(relation.getProperty(EmpowerConstants.STATUS)
+						.toString());
+			} catch (NotFoundException e) {
+				// guest.setStatus(null);
+			}
+
+			try {
+				guest.setCorporate(relation.getProperty("corporate_guid")
+						.toString());
+			} catch (NotFoundException e) {
+				// guest.setCorporate_name(null);
+			}
+			try {
+				guest.setCreatedDate(new Date(Long.valueOf(relation.getProperty("created_dt").toString())));
+			} catch (NotFoundException e) {
+				// guest.setCorporate_name(null);
+			}
+			try {
+				guest.setUpdatedDate(new Date(Long.valueOf(relation.getProperty("updated_dt").toString())));
+			} catch (NotFoundException e) {
+				// guest.setCorporate_name(null);
+			}
+			guestProfile.add(guest);
+		}
+		return guestProfile;
+
+	}
+
+	/**
+	 * Method to delete relationship of a guest with tag
+	 */
+	@Override
+	public Boolean deleteGuestHasTag(String restGuid, String guestGuid,
+			String tagsToDelete) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		params.put(EmpowerConstants.GUEST_GUID, guestGuid);
+
+		String query = "MATCH (g:GuestProfile{guid:{" + EmpowerConstants.GUEST_GUID
+				+ "}})-[r:GUEST_HAS_TAG]->(t:Tag) WHERE r.rest_guid={"
+				+ EmpowerConstants.REST_GUID + "} ";
+
+		String[] tagTypeArr = tagsToDelete.split(",");
+		if (tagTypeArr.length > 0) {
+			params.put(EmpowerConstants.TAG_GUIDS, tagTypeArr);
+			query = query + "AND t.type IN { " + EmpowerConstants.TAG_GUIDS + " }";
+		}
+		query = query + " DELETE r";
+
+		Result<Map<String, Object>> result = executeWriteQuery(query, params);// template.query(query,
+																				// null);
+		log.debug("query executed,Result is " + result);
+
+		return true;
+	}
+
+	/**
+	 * Method to add relationship of a guest with tag
+	 */
+	@Override
+	public Boolean addGuestHasTag(String restGuid, String guestGuid,
+			List<TagModelOld> tagListWithGuid) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		params.put(EmpowerConstants.GUEST_GUID, guestGuid);
+
+		String query = "MATCH (g:GuestProfile{guid:{" + EmpowerConstants.GUEST_GUID
+				+ "}}),(t:Tag)";
+		if (tagListWithGuid != null && !tagListWithGuid.isEmpty()) {
+			List<String> guids = getGuids(tagListWithGuid);
+			query = query + " WHERE t.guid IN {" + guids + " }";
+		}
+
+		query = query + "\n MERGE (g)-[r:GUEST_HAS_TAG]->(t) SET r.rest_guid={"
+				+ EmpowerConstants.REST_GUID + "}";
+
+		Result<Map<String, Object>> result = executeWriteQuery(query, params);
+		log.debug("query executed,Result is " + result);
+		return true;
+	}
+
+	@Override
+	public Map<String, Integer> getGuestCountByTagsForEvent(EventPromotion promotion) {
+		
+		Map<String, Integer> output = new HashMap<String, Integer>();
+		Map<String, Object> params = new HashMap<String, Object>();
+		
+		StringBuilder query = new StringBuilder();
+		createQueryForFilterGuest(promotion, query, params);
+		
+		query.append(" WITH DISTINCT(g), hg, (HAS(g.google_user_id) OR HAS(g.facebook_user_id)) as customer \n");
+		query.append(" RETURN ");
+		query.append(" CASE ");
+		query.append(" WHEN (customer AND (g.enable_all_rest_notifs OR hg.followed)) THEN collect(1) ");
+		query.append( "WHEN (customer) THEN collect(2) ");
+		query.append( "WHEN (hg.dnd_mobile OR g.is_dnd_trai_enable) THEN collect(2) ");
+		query.append( "ELSE collect(1) ");
+		query.append(" END as count");
+		
+		params.put(getPropertyName(EmpowerConstants.REST_GUID), promotion.getRestaurantGuid());
+		params.put(getPropertyName(EmpowerConstants.RESERVATION_STATUS), EmpowerConstants.FINISHED);
+		params.put(getPropertyName(EmpowerConstants.STATUS), EmpowerConstants.ACTIVE_STATUS);
+		log.debug(query.toString());
+		log.debug(params + "--------------params------------");
+		Result<Map<String, Object>> result = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = result.iterator();
+		Integer count = 0;
+		
+		Integer dndCount = 0;
+		
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			List<Integer> nos = (List<Integer>) map.get("count");
+			
+			if (nos.size() > 0){
+				if (nos.get(0) == 2){
+					dndCount = dndCount + nos.size();
+				}
+			}	
+			output.put("dnd", dndCount);
+			count += nos.size();
+		}
+		
+		output.put("count", count);
+		return output;
+	}
+
+	
+
+	public Integer totalGuestCount(String restId) {
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<String, Object>();
+		query.append("MATCH (r:Restaurant{guid:{" + getPropertyName(EmpowerConstants.REST_GUID) + "}})-[hg:HAS_GUEST{status:{"
+				+ getPropertyName(EmpowerConstants.STATUS) + "}}]->(g:GuestProfile{dummy:false,status:{" + getPropertyName(EmpowerConstants.STATUS)
+				+ "}})");
+		query.append("return Count(DISTINCT g) as c");
+		params.put(getPropertyName(EmpowerConstants.REST_GUID), restId);
+		params.put(getPropertyName(EmpowerConstants.STATUS), EmpowerConstants.ACTIVE_STATUS);
+		Map<String, Object> result = template.query(query.toString(), params).singleOrNull();
+		if (result != null)
+			return (Integer) result.get("c");
+		else
+			return null;
+	}
+
+
+	public List<String> getGuestExceptDummyGuest(Class<GuestProfile> class1,
+			Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Restaurant{guid:{restaurantGuid}})-[hg:"
+				+ RelationshipTypes.HAS_GUEST
+				+ "]->(g:GuestProfile) WHERE g.mobile<>'0000000000' ");
+
+		query.append("return DISTINCT g.guid");
+
+		Result<Map<String, Object>> r = template
+				.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		List<String> guests = new ArrayList<>();
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			String guid = (String) map.get("g.guid");
+			guests.add(guid);
+		}
+
+		return guests;
+	}
+
+	@Override
+	public List<GuestProfile> getGuestsForOtherRest(Class<GuestProfile> class1,
+			List<String> guestForRest, String restGuid) {
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		params.put(EmpowerConstants.GUEST_GUID, guestForRest);
+		query.append("MATCH (r:Restaurant)-[hg:" + RelationshipTypes.HAS_GUEST
+				+ "]->(g:GuestProfile) WHERE r.guid<>{" + EmpowerConstants.REST_GUID
+				+ "} AND g.guid IN {" + EmpowerConstants.GUEST_GUID + "}");
+		query.append(" AND hg IS NULL return DISTINCT g");
+
+		Result<Map<String, Object>> r = template
+				.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		List<GuestProfile> guests = new ArrayList<>();
+		while (itr.hasNext()) {
+			Set<Entry<String, Object>> entrySet = itr.next().entrySet();
+			for (Map.Entry<String, Object> entry : entrySet) {
+				GuestProfile guest = template.convert(entry.getValue(),
+						GuestProfile.class);
+				guests.add(guest);
+			}
+		}
+
+		return guests;
+	}
+
+	@Override
+	public Boolean isGuestForRest(String guestGuid, String restaurantGuid) {
+		String query = "MATCH (res:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{"
+				+ EmpowerConstants.REST_GUID + "}})-[rhg:"
+				+ RelationshipTypes.HAS_GUEST + "]->(t:GuestProfile) WHERE t."
+				+ EmpowerConstants.GUID + "={" + EmpowerConstants.GUID
+				+ "} AND t.status='ACTIVE' RETURN t";
+
+		Map<String, Object> param = new HashMap<String, Object>();
+		param.put(EmpowerConstants.GUID, guestGuid);
+		param.put(EmpowerConstants.REST_GUID, restaurantGuid);
+
+		log.debug("query is " + query);
+		Result<GuestProfile> r = template.query(query, param).to(type);
+
+		return (r.singleOrNull() != null);
+	}
+
+	@Override
+	public Map<String, Object> validateRestGuestExist(Map<String, Object> params) {
+		Map<String, Object> paramsReturn = new HashMap<String, Object>();
+		String query = "Match (guest:GuestProfile {mobile:{"
+				+ EmpowerConstants.MOBILE
+				+ "} , status:{"
+				+ EmpowerConstants.ACTIVE_STATUS
+				+ "}}) \n"
+				+ "OPTIONAL MATCH (guest)<-[r1:HAS_GUEST]-(rest:Restaurant {guid:{"
+				+ EmpowerConstants.REST_GUID
+				+ "}}) \n"
+				+ " RETURN rest as restGuid ,guest as guestGuid ,r1.status as status";
+		log.info("---------Query -------" + query.toString());
+		Map<String, Object> map;// = new HashMap<String, Object>();
+
+		Result<Map<String, Object>> results = template.query(query.toString(),
+				params);
+		Iterator<Map<String, Object>> i = results.iterator();
+		while (i.hasNext()) {
+			map = i.next();
+			paramsReturn.put(
+					EmpowerConstants.REST_NODE,
+					(map.get("restGuid") != null) ? template.convert(
+							map.get("restGuid"), Restaurant.class) : null);
+			paramsReturn.put(
+					EmpowerConstants.GUEST_NODE,
+					(map.get("guestGuid") != null) ? template.convert(
+							map.get("guestGuid"), GuestProfile.class) : null);
+			paramsReturn.put(EmpowerConstants.STATUS,
+					(map.get("status") != null) ? map.get("status").toString()
+							: null);
+
+		}
+
+		return paramsReturn;
+
+	}
+
+	@Override
+	public Map<String, Object> getConsumerOnUpdate(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		Map<String, Object> paramsReturn = new HashMap<String, Object>();
+		String query = " Match (guest:GuestProfile {mobile:{" + EmpowerConstants.MOBILE +"}}) WITH guest \n"
+				     + " OPTIONAL MATCH (guest)-[r1:`HAS_GUEST`]-(r:Restaurant) WITH guest,r1"
+				     + " SET guest.status='INACTIVE' ,r1.status='DELETED', guest.isMobileVerified={"+ EmpowerConstants.TEMP_BOOL+"} "
+				     + " RETURN guest ORDER BY toInt(guest.created_dt) DESC";
+
+		System.out.println("---------Query -------" + query.toString());
+		Map<String, Object> map;// = new HashMap<String, Object>();
+
+		Result<Map<String, Object>> results = template.query(query.toString(),
+				params);
+		Iterator<Map<String, Object>> i = results.iterator();
+		while (i.hasNext()) {
+			map = i.next();
+			if (map.get("guest") != null) {
+				GuestProfile guest = template.convert(map.get("guest"),
+						GuestProfile.class);
+				paramsReturn.put(EmpowerConstants.GUEST_NODE, (guest != null) ? guest
+						: null);
+			}
+		}
+
+		return paramsReturn;
+
+	}
+
+	@Override
+	public boolean validateWithMobileNoOnly(
+			Map<String, Object> params) {
+		// TODO Auto-generated method stub
+
+		StringBuffer query=new StringBuffer(" MATCH (guest:GuestProfile {mobile:{" + EmpowerConstants.MOBILE	+ "}}) Return NOT(guest is NULL) as exist");
+		Result<Map<String, Object>> res = template.query(query.toString(), null);
+		return (boolean)(res.single().get("exist"));
+	}
+
+	public GuestProfile findGuest(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		GuestProfile guest = null;
+		String query = "Match (guest:GuestProfile { \n";
+		if (null != params && null != params.get(EmpowerConstants.GUID)) {
+			query = query + " guid:{" + EmpowerConstants.GUID + "},";
+		}
+		if (null != params && null != params.get(EmpowerConstants.STATUS)) {
+			query = query + " status:{" + EmpowerConstants.STATUS + "},";
+		}
+		if (null != params && null != params.get(EmpowerConstants.MOBILE)) {
+			query = query + " mobile:{" + EmpowerConstants.MOBILE + "},";
+		}
+		if (null != params && null != params.get(EmpowerConstants.FACEBOOK_ID)) {
+			query = query + " fid:{" + EmpowerConstants.FACEBOOK_ID + "},";
+		}
+
+		if (null != params && null != params.get(EmpowerConstants.EMAIL_ID)) {
+			query = query + "email_id:{" + EmpowerConstants.EMAIL_ID + "},";
+		}
+		
+		query = query.substring(0, query.length() - 1);
+		query = query + "  }) RETURN guest as guestGuid";
+
+		log.info("---------Query -------" + query.toString());
+		Map<String, Object> map;// = new HashMap<String, Object>();
+
+		Result<Map<String, Object>> results = template.query(query.toString(),
+				params);
+		Iterator<Map<String, Object>> i = results.iterator();
+		while (i.hasNext()) {
+			map = i.next();
+			if (map.get("guestGuid") != null) {
+				guest = template.convert(map.get("guestGuid"),
+						GuestProfile.class);
+				return guest;
+
+			}
+
+		}
+
+		return guest;
+	}
+
+	@Override
+	public GuestProfile deleteGuest(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		GuestProfile guest = null;
+		StringBuilder query = new StringBuilder("Match (rest:"
+				+ EmpowerConstants.RESTAURANT_LABEL + "{ \n");
+		query.append(" guid:{" + EmpowerConstants.REST_GUID + "}}");
+		query.append(")-[r:HAS_GUEST]-(guest:" + EmpowerConstants.GUESTPROFILE_LABEL
+				+ "{ \n");
+		query.append(" guid:{" + EmpowerConstants.GUID + "}})");
+		query.append(" SET r.status={" + EmpowerConstants.STATUS/*
+														 * +"} and r.updated_dt={"
+														 * +
+														 * EmpowerConstants.UPDATED_DATE
+														 */+ "}");
+		log.info("---------Query -------" + query.toString());
+		//log.info(params);
+		// Map<String, Object> map;// = new HashMap<String, Object>();
+		template.query(query.toString(), params);
+		// Iterator<Map<String, Object>> i = results.iterator();
+		return guest;
+	}
+
+	@Override
+	public void reassign(List<String> guestProfileList) throws ClicktableException {
+		// TODO Auto-generated method stub
+		StringBuilder guestProfileMobileString = new StringBuilder();
+		StringBuffer dndEnable = new StringBuffer();
+		StringBuffer dndDisable = new StringBuffer();
+		StringBuilder query = new StringBuilder();
+		Map<String, Boolean> map = new HashMap<String, Boolean>();
+		for (String guestProfileMobile : guestProfileList) {
+			String mobile = guestProfileMobile.substring(0, guestProfileMobile.indexOf(":"));
+			Boolean traiVal = Boolean
+					.valueOf(guestProfileMobile.substring(guestProfileMobile.indexOf(":") + 1, guestProfileMobile.length()));
+			map.put(mobile.toString(), traiVal);
+			guestProfileMobileString.append(mobile).append(",");
+		}
+		query = new StringBuilder(guestProfileMobileString.substring(0, guestProfileMobileString.length() - 1));
+		DNDResponse response;
+		response = UtilityMethods.callDndToVerifyMobilePhone(query.toString());
+
+		if (response.getResponse().getStatus().equalsIgnoreCase(EmpowerConstants.SUCCESS.toLowerCase())) {
+			List<com.clicktable.response.Result> dndList = java.util.Arrays.asList(response.getData().getResult());
+			for (com.clicktable.response.Result result : dndList) {
+				if (result.getStatus().equalsIgnoreCase(EmpowerConstants.DND) && null != result.getPhone()) {
+					if (map.get(result.getPhone()) == false) {
+						dndEnable.append("'").append(result.getPhone().substring(2)).append("',");
+					}
+
+				} else if (result.getStatus().equalsIgnoreCase(EmpowerConstants.UNDND) && null != result.getPhone()) {
+					if (map.get(result.getPhone()) == true) {
+						dndDisable.append("'").append(result.getPhone().substring(2)).append("',");
+					}
+				}
+			}
+			if (dndEnable.toString().length() > 0) {
+				dndEnable = new StringBuffer(dndEnable.substring(0, dndEnable.length() - 1));
+				String queryEnablingDND = "MATCH (g:GuestProfile) where g.mobile in [" + dndEnable + "] SET g.is_dnd_trai_enable=true ";
+				log.debug("  --------------------------------Printing queryEnablingDND  ---------------------------------\n"
+						+ queryEnablingDND);
+				template.query(queryEnablingDND, null);
+			}
+			if (dndDisable.toString().length() > 0) {
+				dndDisable = new StringBuffer(dndDisable.substring(0, dndDisable.length() - 1));
+				String queryDisableDND = "MATCH (g:GuestProfile) where g.mobile in [" + dndDisable + "] SET g.is_dnd_trai_enable=false ";
+				log.debug("  --------------------------------Printing queryDisableDND  ---------------------------------\n"
+						+ queryDisableDND);
+				template.query(queryDisableDND, null);
+			}
+		} else {
+			log.error("--------------- DND Scrubbing Failed due to below \n" + response);
+		}
+
+	}
+
+	public StringBuilder handleOrderBy(StringBuilder query, Map<String, Object> params) {
+
+		// if orderBy parameter comes in param string then it applies order by
+		// query on the basis of comma separated parameters
+		String prefix = "rel";
+		if (null != params.get(EmpowerConstants.ROLE_ID)
+				&& params.get(EmpowerConstants.ROLE_ID).equals(
+						EmpowerConstants.CUSTOMER_ROLE_ID)) {
+			prefix = "t";
+		}
+
+		if ((params.containsKey(EmpowerConstants.ORDER_BY))
+				&& (!params.get(EmpowerConstants.ORDER_BY).equals(""))) {
+			query.append(" ORDER BY ");
+			String[] orderParams = params.get(EmpowerConstants.ORDER_BY).toString()
+					.split(",");
+
+			String queryString = "";
+			Field field;
+			for (String fieldName : orderParams) {
+
+				if (null != (field = UtilityMethods.getClassField(fieldName,
+						type))) {
+					if (field.getType().isAssignableFrom(String.class)) {
+						queryString = queryString + "LOWER(" + prefix + "."
+								+ getPropertyName(fieldName) + "),";
+						break;
+					} else if (field.getType().isAssignableFrom(Date.class)) {
+						queryString = queryString + "toInt(" + prefix + "."
+								+ getPropertyName(fieldName) + "),";
+						break;
+					}
+
+				}
+
+				queryString = queryString + "" + prefix + "."
+						+ getPropertyName(fieldName) + ",";
+
+			}
+
+			query.append(queryString.substring(0, queryString.length() - 1));
+
+			// if orderPreference parameter comes in param string then it
+			// applies ascending or descending order accoring to value given
+			// otherwise it gives in ascending order
+			if (params.containsKey(EmpowerConstants.ORDER_PREFERENCE)) {
+				query.append(" " + params.get(EmpowerConstants.ORDER_PREFERENCE));
+			}
+		}
+		return query;
+	}
+
+	public StringBuilder handlePromotionOrderBy(StringBuilder query,
+			Map<String, Object> params) {
+
+		if ((params.containsKey(EmpowerConstants.ORDER_BY))
+				&& (!params.get(EmpowerConstants.ORDER_BY).equals(""))) {
+
+			String[] orderParams = params.get(EmpowerConstants.ORDER_BY).toString()
+					.split(",");
+
+			String queryString = "";
+			Field field;
+			for (String fieldName : orderParams) {
+
+				if (null != (field = UtilityMethods.getClassField(fieldName,
+						type))) {
+
+					query.append(" ORDER BY ");
+					if (field.getType().isAssignableFrom(String.class)) {
+						queryString = queryString + "LOWER("
+								+ getPropertyName(fieldName) + "),";
+						break;
+					} else if (field.getType().isAssignableFrom(Date.class)) {
+						queryString = queryString + "toInt("
+								+ getPropertyName(fieldName) + "),";
+						break;
+					}
+
+				}
+
+				Logger.info("Invalid Values passed in orderBy!");
+
+			}
+
+			if (!queryString.isEmpty())
+				query.append(queryString.substring(0, queryString.length() - 1));
+
+			// if orderPreference parameter comes in param string then it
+			// applies ascending or descending order accoring to value given
+			// otherwise it gives in ascending order
+			if (params.containsKey(EmpowerConstants.ORDER_PREFERENCE)) {
+				query.append(" " + params.get(EmpowerConstants.ORDER_PREFERENCE));
+			}
+		}
+		return query;
+	}
+
+	
+
+	/**
+	 * Method to set first seated time of guest
+	 */
+	@Override
+	public Long addFirstSeatedTime(String restGuid, String guestGuid,
+			Long seatedTime) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		params.put(EmpowerConstants.GUEST_GUID, guestGuid);
+		Long firstSeated = 0l;
+		String query = "MATCH (r:Restaurant {guid:{" + EmpowerConstants.REST_GUID
+				+ "}})-[rel:HAS_GUEST]->(t:GuestProfile) WHERE t.guid={"
+				+ EmpowerConstants.GUEST_GUID + "}  WITH rel,";
+		query = query
+				+ " CASE WHEN NOT HAS(rel.first_seated) THEN toInt("
+				+ seatedTime
+				+ ") ELSE toInt(rel.first_seated) END AS seatedTime \n SET rel.first_seated = toInt(seatedTime)";
+
+		query = query + " RETURN toInt(seatedTime) AS firstSeated";
+		Result<Map<String, Object>> results = template.query(query.toString(),
+				params);
+		Iterator<Map<String, Object>> i = results.iterator();
+		Map<String, Object> map = new HashMap<>();
+		while (i.hasNext()) {
+			map = i.next();
+			if (map.get("firstSeated") != null) {
+				firstSeated = Long.valueOf(map.get("firstSeated").toString());
+			}
+		}
+		return firstSeated;
+	}
+
+	private StringBuilder filterQueryMatchClause(EventPromotion promotion, StringBuilder query, Map<String, Object> params) {
+		query.append("MATCH (r:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{" + getPropertyName(EmpowerConstants.REST_GUID)
+				+ "}})-[hg:HAS_GUEST{status:{" + getPropertyName(EmpowerConstants.STATUS) + "}");
+
+		if (!promotion.getGuestType().equalsIgnoreCase(EmpowerConstants.BOTH)) {
+			query.append(",is_vip:{" + EmpowerConstants.GUEST_TYPE + "}");
+			params.put(EmpowerConstants.GUEST_TYPE, promotion.getGuestType().equalsIgnoreCase(EmpowerConstants.VIP));
+		}
+		if (!promotion.getGender().equalsIgnoreCase(EmpowerConstants.BOTH)) {
+			query.append(",gender:{" + EmpowerConstants.GENDER + "}");
+			params.put(EmpowerConstants.GENDER, promotion.getGender());
+		}
+		query.append("}]->(g:GuestProfile");
+		query.append("{dummy:false");
+		query.append(",status:{" + getPropertyName(EmpowerConstants.STATUS) + "}");
+		query.append(",isd_code:'91'");
+		query.append("})");
+		return query;
+	}
+
+	private void createQueryForFilterGuest(EventPromotion promotion, StringBuilder query, Map<String, Object> params) {
+		Boolean where = false;
+		filterQueryMatchClause(promotion, query, params);
+		if (!promotion.getTagGuids().isEmpty()) {
+			where = true;
+			query.append("-[ght:GUEST_HAS_TAG]->(t:Tag) ");
+			query.append("WHERE t.guid in {guids}");
+			params.put("guids", promotion.getTagGuids());
+		}
+		
+		if (!promotion.getCorporateGuids().isEmpty()) {
+			query.append(where ? " AND" : " WHERE");
+			query.append(" hg.corporate_guid in {" + EmpowerConstants.CORPORATE_GUIDS + "}");
+			params.put(EmpowerConstants.CORPORATE_GUIDS, promotion.getCorporateGuids());
+			where = true;
+		}
+		if (promotion.getDob() != null) {
+			query.append(where ? " AND" : " WHERE");
+			Calendar cal = Calendar.getInstance();
+			cal.setTimeZone(TimeZone.getTimeZone("IST"));
+			Integer startDay = cal.get(Calendar.DATE);
+			Integer startMonth = (cal.get(Calendar.MONTH) + 1);
+			cal.add(Calendar.DATE, +promotion.getDob());
+			Integer endDay = cal.get(Calendar.DATE);
+			Integer endMonth = (cal.get(Calendar.MONTH) + 1);
+			if (startMonth == 2 && endMonth == 3 && cal.getActualMaximum(Calendar.DAY_OF_YEAR) == 365) {
+				cal.add(Calendar.DATE, +1);
+				endDay = cal.get(Calendar.DATE);
+				endMonth = (cal.get(Calendar.MONTH) + 1);
+			}
+			query.append(" ((HAS(hg.dob_day) AND HAS(hg.dob_month) ");
+			if (startMonth.equals(endMonth))
+				query.append(" AND hg.dob_day>{dobStartDay} AND hg.dob_day<={dobEndDay} AND  hg.dob_month={dobStartMonth})");
+			else
+				query.append(" AND (hg.dob_day>{dobStartDay} and hg.dob_month={dobStartMonth}) OR (hg.dob_day<={dobEndDay} AND hg.dob_month={dobEndMonth}))");
+			params.put("dobStartDay", startDay);
+			params.put("dobStartMonth", startMonth);
+			params.put("dobEndDay", endDay);
+			params.put("dobEndMonth", endMonth);
+			where = true;
+		}
+		
+		if (promotion.getDoa() != null) {
+			if (promotion.getDob() != null) {
+				query.append(" OR");
+			} else {
+				query.append(where ? " AND" : " WHERE");
+			}
+			Calendar cal = Calendar.getInstance();
+			cal.setTimeZone(TimeZone.getTimeZone("IST"));
+			Integer startDay = cal.get(Calendar.DATE);
+			Integer startMonth = (cal.get(Calendar.MONTH) + 1);
+			cal.add(Calendar.DATE, +promotion.getDoa());
+			Integer endDay = cal.get(Calendar.DATE);
+			Integer endMonth = (cal.get(Calendar.MONTH) + 1);
+			if (startMonth == 2 && endMonth == 3 && cal.getActualMaximum(Calendar.DAY_OF_YEAR) == 365) {
+				cal.add(Calendar.DATE, +1);
+				endDay = cal.get(Calendar.DATE);
+				endMonth = (cal.get(Calendar.MONTH) + 1);
+			}
+			if(promotion.getDob() == null)
+				query.append("(");
+			query.append("( HAS(hg.anniversary_day) AND HAS(hg.anniversary_month) ");
+			if (startMonth.equals(endMonth))
+				query.append(" AND hg.anniversary_day>{doaStartDay} AND hg.anniversary_day<={doaEndDay} AND hg.anniversary_month={doaStartMonth}))");
+			else
+				query.append(" AND (hg.anniversary_day>{doaStartDay} AND hg.anniversary_month={doaStartMonth}) OR (hg.anniversary_day<={doaEndDay} AND hg.anniversary_month={doaEndMonth})))");
+			params.put("doaStartDay", startDay);
+			params.put("doaStartMonth", startMonth);
+			params.put("doaEndDay", endDay);
+			params.put("doaEndMonth", endMonth);
+			where = true;
+		}else if(promotion.getDob() != null){
+			query.append(")");
+		}
+		
+		//query.append(" WITH DISTINCT g as g,hg");
+		if (promotion.getVisitedInLast() > 0) {
+			query.append(" OPTIONAL MATCH (g)-[hr:GUEST_HAS_RESV]->(resv:Reservation{reservation_status:'FINISHED',rest_guid:{"+ EmpowerConstants.REST_GUID+"}})");
+			query.append(" WHERE");
+			query.append(" toInt(resv.act_start_time)>{" + EmpowerConstants.RESERVED_AFTER + "} ");
+			Calendar cal = Calendar.getInstance();
+			cal.setTimeZone(TimeZone.getTimeZone("IST"));
+			cal.add(Calendar.MONTH, -promotion.getVisitedInLast());
+			params.put(EmpowerConstants.RESERVED_AFTER, cal.getTimeInMillis());
+			params.put(EmpowerConstants.REST_GUID, promotion.getRestaurantGuid());
+			where = true;
+			//query.append(" WITH DISTINCT g as g, COUNT(resv) as count,hg");
+			query.append(" OPTIONAL MATCH (g)-[ib:"+RelationshipTypes.GUEST_IN_BAR+"]->(bar:BarEntry{status:'FINISHED',rest_guid:{"+ EmpowerConstants.REST_GUID+"}})");
+			query.append(" WHERE");
+			query.append(" toInt(bar.start_time)>{" + EmpowerConstants.RESERVED_AFTER + "} ");
+			query.append(" WITH DISTINCT g as g, hg, COUNT(resv) as c,COUNT(bar) as b ");
+			if (promotion.getVisited())
+				query.append(" WHERE (c > 0 OR b > 0)");
+			else
+				query.append(" WHERE (c + b)=0");
+		}
+	}
+
+	@Override
+	public List<Map<String, Object>> getfilteredEventGuest(EventPromotion promotion, Map<String, Object> queryParams) {
+		StringBuilder query = new StringBuilder();
+		Map<String, Object> params = new HashMap<String, Object>();
+
+		createQueryForFilterGuest(promotion, query, params);
+
+		query.append(" WITH DISTINCT(g.mobile) as mobile, g.guid as guid, hg.first_name as first_name,g.isd_code as isd_code,hg.reason as reason,hg.is_vip as is_vip, "
+				+ "hg.dnd_mobile as dnd_mob,");
+		query.append(" g.is_dnd_trai_enable as dnd_trai ,");
+		query.append(" CASE(g.enable_all_rest_notifs) WHEN null THEN false ELSE g.enable_all_rest_notifs END as restNotifs ,");
+		query.append(" CASE(hg.followed) WHEN null THEN false ELSE hg.followed END as followed ,");
+		query.append(" (HAS(g.google_user_id) OR HAS(g.facebook_user_id)) as ctConsumer ");
+		query.append(" WHERE (NOT(dnd_mob) AND ctConsumer AND (restNotifs OR followed)) OR (NOT(dnd_mob) AND NOT(ctConsumer) AND NOT(dnd_trai)) ");
+		query.append(" RETURN");
+		query.append(" mobile,guid, first_name,isd_code,reason,is_vip");
+
+		query = handlePromotionOrderBy(query, queryParams);
+		Integer pageSize = getPageSize(queryParams);
+		Integer startIndex = getIndex(queryParams, pageSize);
+		query.append(" SKIP " + startIndex + " LIMIT " + pageSize);
+
+		params.put(getPropertyName(EmpowerConstants.STATUS), EmpowerConstants.ACTIVE_STATUS);
+		params.put(getPropertyName(EmpowerConstants.REST_GUID), promotion.getRestaurantGuid());
+		params.put(getPropertyName(EmpowerConstants.RESERVATION_STATUS), EmpowerConstants.FINISHED);
+
+		Result<Map<String, Object>> r = template.query(query.toString(), params);
+
+		Iterator<Map<String, Object>> itr = r.iterator();
+
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			list.add(map);
+		}
+		return list;
+	}
+
+	@Override
+	public List<Map<String, Object>> filterGuestMobileNumbers(Map<String, Object> queryParams) {
+		
+		StringBuilder query = new StringBuilder();
+		
+		query.append("MATCH (g:GuestProfile{dummy:false, status:{" + EmpowerConstants.STATUS + "}}) , (r:Restaurant{guid:{" + EmpowerConstants.REST_GUID + "}}) ");
+		query.append("WHERE g.mobile IN {" + EmpowerConstants.MOBILE + "} ");
+		query.append("OPTIONAL MATCH (g)-[hg:HAS_GUEST]-(r) ");
+		query.append("RETURN g.guid as guestGuid, g.mobile as mobile, COUNT(r) > 0 as isGuest, hg.status as status, (HAS(g.google_user_id) OR HAS(g.facebook_user_id)) as ctCustomer");
+		
+		Result<Map<String, Object>> r = template.query(query.toString(), queryParams);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+		
+		while (itr.hasNext()) {
+			
+			Map<String, Object> map = itr.next();			
+			list.add(map);
+		}
+		return list;
+	}
+	
+
+	@Override
+	public Map<String, Object> findActiveCustomer(Map<String, Object> paramMap) {
+		Map<String, Object> resultMap = new HashMap<>();
+		String query = "MATCH (t:GuestInfo{token:{"	+ EmpowerConstants.TOKEN + "}})-[rhu:GUEST_HAS_INFO]-(g:GuestProfile{status:{"	+ EmpowerConstants.STATUS + "}}) "
+				+ "RETURN g.guid as guid ,g.email_id as email,"
+				+ "g.is_mobile_verified as isMobileVerified,g.mobile as mobile,"
+				+ "g.first_name as first_name,g.updated_dt as updated_dt";
+		
+		try {
+			resultMap.put(EmpowerConstants.GUEST_NODE, null);
+			Iterator<Map<String, Object>> 	itr = template.query(query, paramMap).iterator();
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+				GuestProfile guestProfile = new GuestProfile();
+				guestProfile.setFirstName(null == map.get("first_name") ? null : map.get("first_name").toString());
+				guestProfile.setGuid(map.get("guid").toString());
+				guestProfile.setEmail(null == map.get("email") ? null : map.get("email").toString());
+				guestProfile.setMobileVerified(Boolean.valueOf(map.get("isMobileVerified").toString()).booleanValue());
+
+				if (null != map.get("mobile")) {
+					guestProfile.setMobile(map.get("mobile").toString());
+				}
+				guestProfile.setUpdatedDate(new Date(Long.valueOf(map.get("updated_dt").toString())));
+
+				resultMap.put(EmpowerConstants.GUEST_NODE, guestProfile);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return resultMap;
+
+	}
+
+
+	@Override
+	public Integer createMultipleGuests(Map<String, Object> queryParams) {
+		
+		StringBuilder query = new StringBuilder();
+		query.append("UNWIND {mapList} as map ");
+		query.append("MATCH (r:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{" + EmpowerConstants.REST_GUID + "}}),(g:"
+				+ EmpowerConstants.GUESTPROFILE_LABEL + "{guid: map.guid" + "}) ");
+		
+		query.append("MERGE (r)-[hg:" + RelationshipTypes.HAS_GUEST + "]->(g) ");
+		query.append(
+				"SET hg.first_name=map.firstName,hg.is_vip=map.isVip, hg.reason=map.reason,hg.email_id=map.email,hg.gender=map.gender,hg.updated_dt=map.updatedDate, ");
+		query.append(" hg.dnd_mobile=false,hg.dnd_email=false, hg.created_dt=map.createdDate,hg.status='"
+				+ EmpowerConstants.ACTIVE_STATUS + "',hg.review_count=0,hg.cumulative_rating=0, ");
+		query.append(" hg.search_params=LOWER(REPLACE(map.firstName,' ',''))+map.mobile");
+		query.append("RETURN COUNT(g) as count");
+
+		Result<Map<String, Object>> r = template.query(query.toString(), queryParams);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		int count = 0;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			count = (int) map.get("count");
+		}
+		return count;
+	}
+	
+	@Override
+	public void createMultipleGuestsForExistingGuests(Map<String, Object> queryParams) {
+		
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{" + EmpowerConstants.REST_GUID + "}})");
+		query.append(" UNWIND {mapList} as map ");
+		query.append(" MATCH (g:" + EmpowerConstants.GUESTPROFILE_LABEL + " {guid: map.guid}) ");
+		
+		query.append("MERGE (r)-[hg:" + RelationshipTypes.HAS_GUEST + "]->(g) ");
+		query.append(
+				"SET hg.first_name = map.firstName, hg.is_vip = map.isVip, hg.reason = map.reason, hg.gender=map.gender, hg.updated_dt = timeStamp(), ");
+		query.append(" hg.dnd_mobile=CASE(hg.dnd_mobile) WHEN null THEN false ELSE hg.dnd_mobile END , hg.dnd_email=CASE(hg.dnd_email) WHEN null THEN false ELSE hg.dnd_email END, "
+				+ " hg.created_dt = timeStamp(), hg.status='" + EmpowerConstants.ACTIVE_STATUS + "', hg.review_count=CASE(hg.review_count) WHEN null THEN 0 ELSE hg.review_count END , "
+						+ " hg.cumulative_rating=CASE(hg.cumulative_rating) WHEN null THEN 0 ELSE hg.cumulative_rating END, "
+						+ "hg.followed = CASE(hg.followed) WHEN null THEN false ELSE hg.followed END ,hg.search_params=LOWER(REPLACE(map.firstName,' ',''))+map.mobile");
+		
+		template.query(query.toString(), queryParams);
+	}
+	
+	 @Override
+		public List<String> findCustomFieldGuest(Class<GuestProfile> class1, Map<String, Object> params) {
+
+			List<String> guestList = new ArrayList<String>();
+			StringBuilder query = new StringBuilder();
+			query.append("MATCH (g:GuestProfile{dummy:false,status:{" + EmpowerConstants.STATUS
+					+ "},isd_code:'91'}) RETURN DISTINCT g.isd_code,g.mobile,g.is_dnd_trai_enable ");
+			Integer pageSize = getPageSize(params);
+			Integer startIndex = getIndex(params, pageSize);
+			query.append(" SKIP " + startIndex + " LIMIT " + pageSize);
+			Result<Map<String, Object>> r = template.query(query.toString(), params);
+			Iterator<Map<String, Object>> itr = r.iterator();
+			while (itr.hasNext()) {
+				Map<String, Object> map = itr.next();
+				if (null != map.get("g.mobile")) {
+					StringBuilder value = new StringBuilder();
+					String isDndTraiEnable = (map.get("g.is_dnd_trai_enable") == null ? "false" : map.get("g.is_dnd_trai_enable").toString());
+					value.append(map.get("g.isd_code").toString()).append(map.get("g.mobile").toString().trim()).append(":")
+							.append(isDndTraiEnable);
+					guestList.add(String.valueOf(value));
+				}
+			}
+			return guestList;
+		}
+
+	@Override
+	public Map<String, Object> validateGuestExist(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+				Map<String, Object> paramsReturn = new HashMap<String, Object>();
+				String query = "Match (guest:GuestProfile {mobile:{" + EmpowerConstants.MOBILE + "}})-[" + RelationshipTypes.HAS_GUEST
+						+ "]-(r:Restaurant) \n" + " RETURN guest as guestGuid ORDER BY guest.created_dt ASC";
+				log.info("---------Query -------" + query.toString());
+				Map<String, Object> map;// = new HashMap<String, Object>();
+
+				Result<Map<String, Object>> results = template.query(query.toString(), params);
+				Iterator<Map<String, Object>> i = results.iterator();
+				while (i.hasNext()) {
+					map = i.next();
+					if (map.get("guestGuid") != null) {
+						GuestProfile guest = template.convert(map.get("guestGuid"), GuestProfile.class);
+						paramsReturn.put(EmpowerConstants.GUEST_NODE, (guest != null) ? guest : null);
+					}
+				}
+
+				return paramsReturn;
+	}
+
+	@Override
+	public List<GuestProfile> getGuestsForReport(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Restaurant{guid:{"); 
+		query.append(EmpowerConstants.REST_GUID);
+		query.append("}})-[rel:");
+		query.append(RelationshipTypes.HAS_GUEST);
+		query.append( "{status:'ACTIVE'}]->(g:GuestProfile{dummy:false,status:'ACTIVE'}) ");
+		query.append("RETURN g.isd_code as isd_code,g.mobile as mobile,rel.first_name as name,rel.email_id as relEmail,g.email_id as nodeEmail,rel.gender as gender ORDER BY LOWER(name)");
+		query.append(" SKIP ");
+		log.debug("skip -->{}",(Integer)params.get(EmpowerConstants.PAGE_NO)*(Integer)params.get(EmpowerConstants.PAGE_SIZE));
+		log.debug("LIMIT -->{}",(Integer)params.get(EmpowerConstants.PAGE_SIZE));
+		query.append((Integer)params.get(EmpowerConstants.PAGE_NO)*(Integer)params.get(EmpowerConstants.PAGE_SIZE));
+		query.append(" LIMIT ");
+		query.append(params.get(EmpowerConstants.PAGE_SIZE));
+		Result<Map<String, Object>> r = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = r.iterator();
+		List<GuestProfile> guestList = new ArrayList<GuestProfile>();
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			if (null != map) {
+				guestList.add(getGuest(map));
+			}
+		}
+		return guestList;
+	}
+	
+	private GuestProfile getGuest(Map<String, Object> map) {
+		GuestProfile gp = new GuestProfile();
+		gp.setFirstName((String)map.get("name"));
+		gp.setMobile((String)map.get("mobile"));
+		gp.setIsdCode((String)map.get("isd_code"));
+		gp.setGender((String)map.get("gender"));
+		if (map.get("relEmail") != null)
+			gp.setEmail(map.get("relEmail").toString());
+		else if (map.get("nodeEmail") != null)
+			gp.setEmail(map.get("nodeEmail").toString());
+		return gp;
+	}
+
+	@Override
+	public List<GuestProfile> getApplicableGuests() {
+		// TODO Auto-generated method stub
+		
+
+				StringBuilder query = new StringBuilder();
+				query.append("MATCH (g:GuestProfile) WHERE HAS(g.dob) OR HAS(g.anniversary) RETURN g"); 
+				
+				Iterator<Map<String, Object>> itr = template.query(query.toString(), null).iterator();
+				List<GuestProfile> guestList = new ArrayList<GuestProfile>();
+				while (itr.hasNext()) {
+					Map<String, Object> map = itr.next();
+					GuestProfile guest = template.convert(map.get("g"), GuestProfile.class);
+					guestList.add(guest);
+				}
+				return guestList;
+	}
+
+
+	@Override
+	public Result<Map<String, Object>> getAggregateRating(Map<String, Object> params) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Restaurant)-[hg:HAS_GUEST]->(g:GuestProfile)");
+		query.append(" WHERE r.guid={" + EmpowerConstants.REST_GUID + "}");
+		query.append(" AND g.guid={" + EmpowerConstants.GUEST_GUID + "}");
+		query.append(" RETURN hg.aggregate_rating as aggregateRating, hg.reservation_count as reservationCount");
+
+		Result<Map<String, Object>> result = executeWriteQuery(query.toString(),params);
+		return result;
+	}
+
+    @Override
+    public void updateAggregateRating(Map<String, Object> params){
+    	StringBuilder query = new StringBuilder();
+    	query.append("MATCH (r:Restaurant)-[hg:HAS_GUEST]->(g:GuestProfile)");
+    	query.append(" WHERE r.guid={"+EmpowerConstants.REST_GUID+"}");
+    	query.append(" AND g.guid={"+EmpowerConstants.GUEST_GUID+"}");
+    	query.append(" SET hg.aggregate_rating = {"+EmpowerConstants.AGGREGATE_RATING+"}, ");
+    	query.append(" hg.reservation_count = {"+EmpowerConstants.RESERVATION_COUNT+"}");
+    	Result<Map<String, Object>> r = template.query(query.toString(), params);
+    }
+
+	@Override
+	public GuestProfile getDummyGuestByCypher() {
+		// TODO Auto-generated method stub
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (g:GuestProfile{mobile:'" + EmpowerConstants.DUMMY_MOBILE + "'}) WHERE "
+				+ "g.first_name = '" + EmpowerConstants.DUMMY_FIRSTNAME + "' AND g.email_id = '" + EmpowerConstants.DUMMY_EMAIL + "'"
+						+ " RETURN g"); 
+		
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), null).iterator();
+		GuestProfile guest = null;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			guest = template.convert(map.get("g"), GuestProfile.class);
+			
+		}
+		return guest;
+	}
+
+	@Override
+	public GuestProfile getGuestByMobileNo(Map<String, Object> params) {
+		// TODO Auto-generated method stub
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (g:GuestProfile{mobile:{" + EmpowerConstants.MOBILE + "},status:'ACTIVE'})  RETURN g"); 
+		
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+		GuestProfile guest = null;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			guest = template.convert(map.get("g"), GuestProfile.class);
+			
+		}
+		return guest;
+	}
+
+
+	
+	@Override
+	public void addGuestRating(GuestProfile customer) {
+		// TODO Auto-generated method stub
+	
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.GUID, customer.getGuid());
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (g:GuestProfile{guid:{"+ EmpowerConstants.GUID +"}}) \n"
+				+ " WITH g \n"
+				+ " CREATE (g)-[:GUEST_HAS_RATING]->(rating:GuestRating {guest_guid : g.guid,completed_resv:0,noshow_resv:0,"
+				+ " cancelled_by_rest:0,confirmed_cancelled_by_guest:0,unconfirmed_cancelled_by_guest:0})");
+		
+		template.query(query.toString(),params);
+	
+	}
+	
+	@Override
+	public Map<String,Object> findGuestAndRest(String guestGuid, String restGuid){
+		
+		Map<String, Object> params = new HashMap<>();
+		Map<String,Object> resultMap = new HashMap<>();
+		
+		params.put(EmpowerConstants.GUID, guestGuid);
+		params.put(EmpowerConstants.REST_GUID, restGuid);
+		
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Restaurant {guid : {" + EmpowerConstants.REST_GUID + "}})-[rel:HAS_GUEST]->(g:GuestProfile{guid:{"+ EmpowerConstants.GUID +"}})-[:GUEST_HAS_RATING]->(rating:GuestRating) \n"
+			+ " return g, rel, rating.cancelled_by_rest as restCancel,"
+						+ " rating.noshow_resv as noshowResv, rating.confirmed_cancelled_by_guest as confirmCancel, rating.unconfirmed_cancelled_by_guest as unconfirmCancel,"
+						+ " rating.completed_resv as completedResv");
+
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+		GuestProfile guest = null;
+		Relationship guestRestRelationship = null;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next(); 
+			guest = template.convert(map.get("g"), GuestProfile.class);
+			guestRestRelationship = (Relationship) map.get("rel");
+			resultMap.put("g", guest);
+			resultMap.put("rel", guestRestRelationship);
+			
+			populatePlatformRating(map, resultMap);
+			
+		}
+		
+		return resultMap;
+
+	}
+
+	
+
+	@Override
+	public String addRestaurantGuestForAgent(Restaurant rest, GuestProfile guest, Relationship restHasGuest) {
+
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.REST_GUID, rest.getGuid());
+		params.put(EmpowerConstants.GUEST_GUID, guest.getGuid());
+		String searchParamGuest = guest.getFirstName().replaceAll(" ", "");
+		String query = null;
+		Boolean isCTCustomer = !(guest.getGoogleUserId() == null && guest.getFacebookUserId() == null);
+		
+		query = "MATCH (r:Restaurant {guid:{" + EmpowerConstants.REST_GUID + "}}),(t:GuestProfile) WHERE t.guid={"
+				+ EmpowerConstants.GUEST_GUID + "} \n";
+		query = query + "MERGE (r)-[rel:HAS_GUEST]->(t) " + "SET ";
+		query = query + " rel.first_name='" + guest.getFirstName() + "',";
+		query = query + " rel.gender='" + guest.getGender() + "',";
+		query = query + " rel.search_params ='" + searchParamGuest + guest.getMobile() + "',";
+		query = query + " rel.updated_dt = timeStamp() ";
+		
+		if(restHasGuest == null){
+				
+			query = query + ", rel.dnd_mobile = false ";
+			query = query + ", rel.dnd_email = false ";
+			query = query + ", rel.created_dt = timeStamp() ";
+			query = query + ", rel.is_vip = false";
+			query = query + ", rel.status = 'ACTIVE' ";
+			query = query + ", rel.review_count = 0 ";
+			query = query + ", rel.cumulative_rating = 0 ";
+			query = query + ", rel.followed = false ";
+			
+			if(isCTCustomer){
+				if(guest.getDob() != null){
+					
+					query = query + ", rel.dob =  " + guest.getDob().getTime();
+					query = query + ", rel.dob_day = " + guest.getDobDay();
+					query = query + ", rel.dob_month =  " + guest.getDobMonth();
+
+				}
+				
+				if(guest.getAnniversary() != null){
+					
+					query = query + ", rel.anniversary =  " + guest.getAnniversary().getTime();
+					query = query + ", rel.anniversary_day = " + guest.getAnniversaryDay();
+					query = query + ", rel.anniversary_month =  " + guest.getAnniversaryMonth();
+
+				}
+			}
+			
+			
+		}
+		
+		
+		executeWriteQuery(query, params);
+		return guest.getGuid();
+
+		
+	}
+
+
+	@Override
+	public void createMultipleGuestsForCTGuests(Map<String, Object> queryParams) {
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:" + EmpowerConstants.RESTAURANT_LABEL + "{guid:{" + EmpowerConstants.REST_GUID + "}})");
+		query.append(" UNWIND {mapList} as map ");
+		query.append("MATCH (g:" + EmpowerConstants.GUESTPROFILE_LABEL + " {guid: map.guid}) ");
+		query.append("MERGE (r)-[hg:" + RelationshipTypes.HAS_GUEST + "]->(g) ");
+		query.append("SET hg.first_name = g.first_name, hg.is_vip = map.isVip, hg.reason = map.reason, hg.gender = g.gender, hg.updated_dt = timeStamp(), ");
+		query.append(" hg.dnd_mobile=CASE(hg.dnd_mobile) WHEN null THEN false ELSE hg.dnd_mobile END , hg.dnd_email=CASE(hg.dnd_email) WHEN null THEN false ELSE hg.dnd_email END, "
+				+ " hg.created_dt = timeStamp(), hg.status='" + EmpowerConstants.ACTIVE_STATUS + "', hg.review_count=CASE(hg.review_count) WHEN null THEN 0 ELSE hg.review_count END , "
+						+ " hg.cumulative_rating=CASE(hg.cumulative_rating) WHEN null THEN 0 ELSE hg.cumulative_rating END,"
+						+ " hg.followed = CASE(hg.followed) WHEN null THEN false ELSE hg.followed END  ,hg.search_params=LOWER(REPLACE(map.firstName,' ',''))+map.mobile");
+
+		template.query(query.toString(), queryParams);
+	}
+	
+	
+	@Override
+	public List<GuestProfile> createMultipleGuests(List<GuestProfile> list) {
+		
+		List<Map<String, Object>> mapList = new ArrayList<Map<String, Object>>();
+		for (GuestProfile t : list) {
+			mapList.add(getGraphPropertyForGraphAnnotation(UtilityMethods.introspect(t)));
+		}
+		
+		String query = createCypherForMultiple();
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("propMap", mapList);
+		
+		return executeQuery(query, params);
+	}
+	
+	private Map<String, Object> getGraphPropertyForGraphAnnotation(Map<String, Object> fieldMap) {
+		
+		Map<String, Object> propMap = new HashMap<String, Object>();
+		for (Entry<String, Object> fieldName : fieldMap.entrySet()) {
+			String property = getPropertyNameforGuest(fieldName.getKey());
+			if(property != null)
+				propMap.put(property, fieldName.getValue());
+		}
+		propMap.remove("class");
+		return propMap;
+	}
+	
+	private String getPropertyNameforGuest(String key) {
+
+		GraphProperty property = null;
+		Transient isPropTransient = null;
+		try {
+			property = UtilityMethods.getClassField(key, type).getAnnotation(GraphProperty.class);
+			isPropTransient = UtilityMethods.getClassField(key, type).getAnnotation(Transient.class);
+			
+		} catch (SecurityException e) {
+			log.debug("Exception is --------" + e);
+			log.debug("Graphproperty not set for " + key);
+		} catch (NullPointerException e1) {
+			log.debug("Exception is --------" + e1);
+			log.debug("Graphproperty not allowed " + key);
+		}
+		
+		
+		if(isPropTransient != null){
+			return null;			
+		}else if(property != null){
+			return property.propertyName();
+		}else{
+			return key;
+		}
+		
+	}
+	
+	
+	
+	@Override
+	public void populatePlatformRating(Map<String, Object> map,
+			Map<String, Object> resultMap) {
+		// TODO Auto-generated method stub
+		int restCancelCount = map.get("restCancel") == null ? 0 : (int) map.get("restCancel");
+		int noshowResv = map.get("noshowResv") == null ? 0 : (int) map.get("noshowResv");
+		int confirmCancel = map.get("confirmCancel") == null ? 0 : (int) map.get("confirmCancel");
+		int unconfirmCancel = map.get("unconfirmCancel") == null ? 0 : (int) map.get("unconfirmCancel");
+		int completedResv = map.get("completedResv") == null ? 0 : (int) map.get("completedResv");
+		
+		int denominator = completedResv + noshowResv + confirmCancel;
+		
+		double conversionRatio = 0.0;//(double)completedResv/(double)denominator ;
+		double noShowCount = 0.0;//(double)noshowResv/(double)denominator ;
+		
+		if(denominator != 0){
+			conversionRatio = ((double)completedResv/(double)denominator)*100 ;
+			noShowCount = ((double)noshowResv/(double)denominator)*100 ;
+		}
+		
+		resultMap.put("conversionRatio", conversionRatio);
+		resultMap.put("noShowCount", noShowCount);
+		
+	}
+	
+	
+	@Override
+	public GuestProfile getGuestInfoByReservation(String resvGuid) {
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put(EmpowerConstants.GUID, resvGuid);
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (r:Reservation{guid:{" + EmpowerConstants.GUID+"}})");
+		query.append("<-[ghr:GUEST_HAS_RESV]-(g:GuestProfile) RETURN g");
+		Iterator<Map<String, Object>> itr = template.query(query.toString(), params).iterator();
+		GuestProfile guest = null;
+		while (itr.hasNext()) {
+			Map<String, Object> map = itr.next();
+			guest = template.convert(map.get("g"), GuestProfile.class);
+		}
+		return guest;
+	}
+
+	@Override
+	public void updateGuestRatingForDidNotDine(String guestGuid) {
+		// TODO Auto-generated method stub
+		
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.GUEST_GUID, guestGuid);
+		  
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (n : GuestRating {guest_guid : {" + EmpowerConstants.GUEST_GUID + "}}) "
+				+ " SET n.completed_resv = toInt(n.completed_resv) - 1, n.noshow_resv = toInt(n.noshow_resv) + 1");
+		
+		template.query(query.toString(), params);
+	
+		
+	}
+	
+	@Override
+	public Map<String,Object> getGuestInfoFromRelationShip(String guestGuid,String restGuid) {
+		Map<String, Object> params = new HashMap<>();
+		params.put(EmpowerConstants.GUEST_GUID, guestGuid);
+		params.put(EmpowerConstants.REST_GUID, restGuid);  
+		StringBuilder query = new StringBuilder();
+		query.append("MATCH (rest:Restaurant {guid : {" + EmpowerConstants.REST_GUID + "}})-[hg:HAS_GUEST]-(guest:GuestProfile) ")
+			 .append("RETURN hg.first_name as guestName");
+		Result<Map<String, Object>> result = template.query(query.toString(), params);
+		Iterator<Map<String, Object>> itr = result.iterator();
+		Map<String,Object> resultMap = new HashMap<>();
+		while(itr.hasNext()) {
+			
+		}
+	
+		
+	}
+}
